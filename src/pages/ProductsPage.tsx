@@ -5,11 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Search, AlertTriangle, Package } from 'lucide-react';
+import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Check, X } from 'lucide-react';
 import type { TVARate } from '@/types';
 
 export default function ProductsPage() {
-  const { products, addProduct, deleteProduct } = useData();
+  const { products, addProduct, deleteProduct, updateProduct } = useData();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editStock, setEditStock] = useState(0);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({
@@ -98,10 +100,26 @@ export default function ProductsPage() {
                   <td className="py-3">{p.sellingPrice.toFixed(3)} TND</td>
                   <td className="py-3">{p.tvaRate}%</td>
                   <td className="py-3">
-                    <span className={`flex items-center gap-1 ${p.stock <= p.minStock ? 'text-warning font-semibold' : ''}`}>
-                      {p.stock <= p.minStock && <AlertTriangle className="h-3.5 w-3.5" />}
-                      {p.stock} {p.unit}
-                    </span>
+                    {editingId === p.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input type="number" min={0} className="h-8 w-20 text-xs" value={editStock}
+                          onChange={e => setEditStock(+e.target.value)} />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-[hsl(var(--success))]"
+                          onClick={() => { updateProduct(p.id, { stock: editStock }); setEditingId(null); }}>
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingId(null)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className={`flex items-center gap-1 cursor-pointer ${p.stock <= p.minStock ? 'text-[hsl(var(--warning))] font-semibold' : ''}`}
+                        onClick={() => { setEditingId(p.id); setEditStock(p.stock); }}>
+                        {p.stock <= p.minStock && <AlertTriangle className="h-3.5 w-3.5" />}
+                        {p.stock} {p.unit}
+                        <Pencil className="h-3 w-3 ml-1 opacity-40" />
+                      </span>
+                    )}
                   </td>
                   <td className="py-3">
                     <Button variant="ghost" size="icon" onClick={() => deleteProduct(p.id)} className="text-muted-foreground hover:text-destructive">
