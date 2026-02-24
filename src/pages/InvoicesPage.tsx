@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Search, FileText } from 'lucide-react';
+import { Plus, Trash2, Search, FileText, Download } from 'lucide-react';
+import { generateInvoicePdf } from '@/lib/generatePdf';
 import type { DocumentType, InvoiceItem, PaymentStatus, TVARate } from '@/types';
 
 interface InvoicesPageProps {
@@ -93,6 +94,9 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
                       </SelectContent>
                     </Select>
                   )}
+                  <Button variant="ghost" size="icon" onClick={() => generateInvoicePdf(inv)} className="text-muted-foreground hover:text-accent" title="Télécharger PDF">
+                    <Download className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" onClick={() => deleteInvoice(inv.id)} className="text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-4 w-4" />
                   </Button>
