@@ -1,162 +1,300 @@
-import React, { createContext, useContext, useCallback } from 'react';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import type {
-  Client, Product, Invoice, Expense, Supplier,
-  StockMovement, DocumentCounter, DocumentType, InvoiceItem
-} from '@/types';
+import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import type { Database } from '@/integrations/supabase/types';
+
+type DbClient = Database['public']['Tables']['clients']['Row'];
+type DbProduct = Database['public']['Tables']['products']['Row'];
+type DbInvoice = Database['public']['Tables']['invoices']['Row'];
+type DbInvoiceItem = Database['public']['Tables']['invoice_items']['Row'];
+type DbExpense = Database['public']['Tables']['expenses']['Row'];
+type DbSupplier = Database['public']['Tables']['suppliers']['Row'];
+type DbStockMovement = Database['public']['Tables']['stock_movements']['Row'];
+type DbCompany = Database['public']['Tables']['companies']['Row'];
+
+export type DocumentType = 'facture' | 'devis' | 'bon_livraison' | 'bon_commande';
 
 interface DataContextType {
-  clients: Client[];
-  addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Client;
-  updateClient: (id: string, data: Partial<Client>) => void;
-  deleteClient: (id: string) => void;
+  company: DbCompany | null;
+  updateCompany: (data: Partial<DbCompany>) => Promise<void>;
 
-  products: Product[];
-  addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => Product;
-  updateProduct: (id: string, data: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
+  clients: DbClient[];
+  addClient: (data: Omit<DbClient, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => Promise<DbClient | null>;
+  updateClient: (id: string, data: Partial<DbClient>) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
 
-  invoices: Invoice[];
-  addInvoice: (invoice: Omit<Invoice, 'id' | 'number' | 'createdAt' | 'subtotal' | 'tvaTotal' | 'total'>) => Invoice;
-  updateInvoiceStatus: (id: string, status: Invoice['status'], paidAmount?: number) => void;
-  deleteInvoice: (id: string) => void;
+  products: DbProduct[];
+  addProduct: (data: Omit<DbProduct, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => Promise<DbProduct | null>;
+  updateProduct: (id: string, data: Partial<DbProduct>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
 
-  expenses: Expense[];
-  addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => Expense;
-  deleteExpense: (id: string) => void;
+  invoices: (DbInvoice & { items: DbInvoiceItem[] })[];
+  addInvoice: (data: {
+    type: DocumentType;
+    date: string;
+    due_date?: string;
+    client_id: string;
+    client_name: string;
+    items: Omit<DbInvoiceItem, 'id' | 'invoice_id' | 'sort_order'>[];
+    status: string;
+    paid_amount: number;
+    payment_terms?: string;
+    notes?: string;
+  }) => Promise<void>;
+  updateInvoiceStatus: (id: string, status: string, paidAmount?: number) => Promise<void>;
+  deleteInvoice: (id: string) => Promise<void>;
 
-  suppliers: Supplier[];
-  addSupplier: (s: Omit<Supplier, 'id' | 'createdAt'>) => Supplier;
-  deleteSupplier: (id: string) => void;
+  expenses: DbExpense[];
+  addExpense: (data: Omit<DbExpense, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
 
-  stockMovements: StockMovement[];
+  suppliers: DbSupplier[];
+  addSupplier: (data: Omit<DbSupplier, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  deleteSupplier: (id: string) => Promise<void>;
 
-  getNextDocNumber: (type: DocumentType) => string;
+  stockMovements: DbStockMovement[];
+  loading: boolean;
+  refresh: () => void;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
 
-function generateId() {
-  return crypto.randomUUID();
-}
-
-function calcInvoiceTotals(items: InvoiceItem[]) {
-  const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const tvaTotal = items.reduce((s, i) => s + (i.quantity * i.unitPrice * i.tvaRate) / 100, 0);
-  return { subtotal, tvaTotal, total: subtotal + tvaTotal };
-}
-
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [clients, setClients] = useLocalStorage<Client[]>('bm_clients', []);
-  const [products, setProducts] = useLocalStorage<Product[]>('bm_products', []);
-  const [invoices, setInvoices] = useLocalStorage<Invoice[]>('bm_invoices', []);
-  const [expenses, setExpenses] = useLocalStorage<Expense[]>('bm_expenses', []);
-  const [suppliers, setSuppliers] = useLocalStorage<Supplier[]>('bm_suppliers', []);
-  const [stockMovements, setStockMovements] = useLocalStorage<StockMovement[]>('bm_stock_movements', []);
-  const [counters, setCounters] = useLocalStorage<DocumentCounter>('bm_counters', {
-    facture: 0, devis: 0, bon_livraison: 0, bon_commande: 0,
-  });
+  const { companyId } = useAuth();
+  const [company, setCompany] = useState<DbCompany | null>(null);
+  const [clients, setClients] = useState<DbClient[]>([]);
+  const [products, setProducts] = useState<DbProduct[]>([]);
+  const [invoices, setInvoices] = useState<(DbInvoice & { items: DbInvoiceItem[] })[]>([]);
+  const [expenses, setExpenses] = useState<DbExpense[]>([]);
+  const [suppliers, setSuppliers] = useState<DbSupplier[]>([]);
+  const [stockMovements, setStockMovements] = useState<DbStockMovement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const getNextDocNumber = useCallback((type: DocumentType) => {
+  const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
+
+  useEffect(() => {
+    if (!companyId) { setLoading(false); return; }
+
+    const load = async () => {
+      setLoading(true);
+      const [companyRes, clientsRes, productsRes, invoicesRes, itemsRes, expensesRes, suppliersRes, movementsRes] = await Promise.all([
+        supabase.from('companies').select('*').eq('id', companyId).single(),
+        supabase.from('clients').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
+        supabase.from('products').select('*').eq('company_id', companyId).order('name'),
+        supabase.from('invoices').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
+        supabase.from('invoice_items').select('*'),
+        supabase.from('expenses').select('*').eq('company_id', companyId).order('date', { ascending: false }),
+        supabase.from('suppliers').select('*').eq('company_id', companyId).order('name'),
+        supabase.from('stock_movements').select('*').eq('company_id', companyId).order('date', { ascending: false }),
+      ]);
+
+      setCompany(companyRes.data);
+      setClients(clientsRes.data ?? []);
+      setProducts(productsRes.data ?? []);
+      setExpenses(expensesRes.data ?? []);
+      setSuppliers(suppliersRes.data ?? []);
+      setStockMovements(movementsRes.data ?? []);
+
+      // Merge invoice items
+      const allItems = itemsRes.data ?? [];
+      const invoicesWithItems = (invoicesRes.data ?? []).map(inv => ({
+        ...inv,
+        items: allItems.filter(it => it.invoice_id === inv.id),
+      }));
+      setInvoices(invoicesWithItems);
+      setLoading(false);
+    };
+
+    load();
+  }, [companyId, refreshKey]);
+
+  const updateCompany = useCallback(async (data: Partial<DbCompany>) => {
+    if (!companyId) return;
+    await supabase.from('companies').update(data).eq('id', companyId);
+    refresh();
+  }, [companyId, refresh]);
+
+  const addClient = useCallback(async (data: Omit<DbClient, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
+    if (!companyId) return null;
+    const { data: result } = await supabase.from('clients').insert({ ...data, company_id: companyId }).select().single();
+    refresh();
+    return result;
+  }, [companyId, refresh]);
+
+  const updateClient = useCallback(async (id: string, data: Partial<DbClient>) => {
+    await supabase.from('clients').update(data).eq('id', id);
+    refresh();
+  }, [refresh]);
+
+  const deleteClient = useCallback(async (id: string) => {
+    await supabase.from('clients').update({ is_archived: true }).eq('id', id);
+    refresh();
+  }, [refresh]);
+
+  const addProduct = useCallback(async (data: Omit<DbProduct, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
+    if (!companyId) return null;
+    const { data: result } = await supabase.from('products').insert({ ...data, company_id: companyId }).select().single();
+    refresh();
+    return result;
+  }, [companyId, refresh]);
+
+  const updateProduct = useCallback(async (id: string, data: Partial<DbProduct>) => {
+    await supabase.from('products').update(data).eq('id', id);
+    refresh();
+  }, [refresh]);
+
+  const deleteProduct = useCallback(async (id: string) => {
+    await supabase.from('products').delete().eq('id', id);
+    refresh();
+  }, [refresh]);
+
+  const getNextDocNumber = useCallback(async (type: DocumentType): Promise<string> => {
+    if (!companyId) return '';
     const year = new Date().getFullYear();
     const prefixes: Record<DocumentType, string> = {
       facture: 'FAC', devis: 'DEV', bon_livraison: 'BL', bon_commande: 'BC',
     };
-    const next = counters[type] + 1;
-    setCounters(c => ({ ...c, [type]: next }));
-    return `${prefixes[type]}-${year}-${String(next).padStart(4, '0')}`;
-  }, [counters, setCounters]);
 
-  const addClient = useCallback((data: Omit<Client, 'id' | 'createdAt'>) => {
-    const client: Client = { ...data, id: generateId(), createdAt: new Date().toISOString() };
-    setClients(prev => [...prev, client]);
-    return client;
-  }, [setClients]);
+    // Fetch and increment counter
+    const { data: counter } = await supabase
+      .from('document_counters')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('doc_type', type)
+      .eq('year', year)
+      .single();
 
-  const updateClient = useCallback((id: string, data: Partial<Client>) => {
-    setClients(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
-  }, [setClients]);
+    const next = (counter?.counter ?? 0) + 1;
 
-  const deleteClient = useCallback((id: string) => {
-    setClients(prev => prev.filter(c => c.id !== id));
-  }, [setClients]);
-
-  const addProduct = useCallback((data: Omit<Product, 'id' | 'createdAt'>) => {
-    const product: Product = { ...data, id: generateId(), createdAt: new Date().toISOString() };
-    setProducts(prev => [...prev, product]);
-    return product;
-  }, [setProducts]);
-
-  const updateProduct = useCallback((id: string, data: Partial<Product>) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-  }, [setProducts]);
-
-  const deleteProduct = useCallback((id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
-  }, [setProducts]);
-
-  const addInvoice = useCallback((data: Omit<Invoice, 'id' | 'number' | 'createdAt' | 'subtotal' | 'tvaTotal' | 'total'>) => {
-    const totals = calcInvoiceTotals(data.items);
-    const number = getNextDocNumber(data.type);
-    const invoice: Invoice = {
-      ...data, ...totals, id: generateId(), number, createdAt: new Date().toISOString(),
-    };
-    setInvoices(prev => [...prev, invoice]);
-    // Update stock for factures and bon de livraison
-    if (data.type === 'facture' || data.type === 'bon_livraison') {
-      data.items.forEach(item => {
-        setProducts(prev => prev.map(p =>
-          p.id === item.productId ? { ...p, stock: p.stock - item.quantity } : p
-        ));
-        setStockMovements(prev => [...prev, {
-          id: generateId(), productId: item.productId, productName: item.productName,
-          type: 'out', quantity: item.quantity, date: new Date().toISOString(),
-          reason: `${data.type === 'facture' ? 'Facture' : 'Bon de livraison'} ${number}`,
-        }]);
+    if (counter) {
+      await supabase.from('document_counters').update({ counter: next }).eq('id', counter.id);
+    } else {
+      await supabase.from('document_counters').insert({
+        company_id: companyId, doc_type: type, year, counter: next,
       });
     }
-    return invoice;
-  }, [setInvoices, getNextDocNumber, setProducts, setStockMovements]);
 
-  const updateInvoiceStatus = useCallback((id: string, status: Invoice['status'], paidAmount?: number) => {
-    setInvoices(prev => prev.map(inv =>
-      inv.id === id ? { ...inv, status, paidAmount: paidAmount ?? (status === 'paid' ? inv.total : inv.paidAmount) } : inv
-    ));
-  }, [setInvoices]);
+    return `${prefixes[type]}-${year}-${String(next).padStart(4, '0')}`;
+  }, [companyId]);
 
-  const deleteInvoice = useCallback((id: string) => {
-    setInvoices(prev => prev.filter(i => i.id !== id));
-  }, [setInvoices]);
+  const addInvoice = useCallback(async (data: {
+    type: DocumentType;
+    date: string;
+    due_date?: string;
+    client_id: string;
+    client_name: string;
+    items: Omit<DbInvoiceItem, 'id' | 'invoice_id' | 'sort_order'>[];
+    status: string;
+    paid_amount: number;
+    payment_terms?: string;
+    notes?: string;
+  }) => {
+    if (!companyId) return;
 
-  const addExpense = useCallback((data: Omit<Expense, 'id' | 'createdAt'>) => {
-    const expense: Expense = { ...data, id: generateId(), createdAt: new Date().toISOString() };
-    setExpenses(prev => [...prev, expense]);
-    return expense;
-  }, [setExpenses]);
+    const number = await getNextDocNumber(data.type);
+    const subtotal = data.items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+    const tvaTotal = data.items.reduce((s, i) => s + (i.quantity * i.unit_price * i.tva_rate) / 100, 0);
+    const total = subtotal + tvaTotal;
 
-  const deleteExpense = useCallback((id: string) => {
-    setExpenses(prev => prev.filter(e => e.id !== id));
-  }, [setExpenses]);
+    const { data: invoice } = await supabase.from('invoices').insert({
+      company_id: companyId,
+      number,
+      type: data.type,
+      date: data.date,
+      due_date: data.due_date || null,
+      client_id: data.client_id,
+      client_name: data.client_name,
+      subtotal,
+      tva_total: tvaTotal,
+      total,
+      status: data.status,
+      paid_amount: data.paid_amount,
+      payment_terms: data.payment_terms || null,
+      notes: data.notes || null,
+    }).select().single();
 
-  const addSupplier = useCallback((data: Omit<Supplier, 'id' | 'createdAt'>) => {
-    const supplier: Supplier = { ...data, id: generateId(), createdAt: new Date().toISOString() };
-    setSuppliers(prev => [...prev, supplier]);
-    return supplier;
-  }, [setSuppliers]);
+    if (invoice) {
+      const itemsToInsert = data.items.map((item, idx) => ({
+        invoice_id: invoice.id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        tva_rate: item.tva_rate,
+        total: item.total,
+        sort_order: idx,
+      }));
+      await supabase.from('invoice_items').insert(itemsToInsert);
 
-  const deleteSupplier = useCallback((id: string) => {
-    setSuppliers(prev => prev.filter(s => s.id !== id));
-  }, [setSuppliers]);
+      // Update stock for factures/BL
+      if (data.type === 'facture' || data.type === 'bon_livraison') {
+        for (const item of data.items) {
+          if (item.product_id) {
+            const product = products.find(p => p.id === item.product_id);
+            if (product) {
+              await supabase.from('products').update({ stock: product.stock - item.quantity }).eq('id', item.product_id);
+            }
+            await supabase.from('stock_movements').insert({
+              company_id: companyId,
+              product_id: item.product_id,
+              product_name: item.product_name,
+              type: 'out',
+              quantity: item.quantity,
+              reason: `${data.type === 'facture' ? 'Facture' : 'BL'} ${number}`,
+            });
+          }
+        }
+      }
+    }
+    refresh();
+  }, [companyId, getNextDocNumber, products, refresh]);
+
+  const updateInvoiceStatus = useCallback(async (id: string, status: string, paidAmount?: number) => {
+    const inv = invoices.find(i => i.id === id);
+    await supabase.from('invoices').update({
+      status,
+      paid_amount: paidAmount ?? (status === 'paid' ? inv?.total ?? 0 : inv?.paid_amount ?? 0),
+    }).eq('id', id);
+    refresh();
+  }, [invoices, refresh]);
+
+  const deleteInvoice = useCallback(async (id: string) => {
+    await supabase.from('invoices').delete().eq('id', id);
+    refresh();
+  }, [refresh]);
+
+  const addExpense = useCallback(async (data: Omit<DbExpense, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
+    if (!companyId) return;
+    await supabase.from('expenses').insert({ ...data, company_id: companyId });
+    refresh();
+  }, [companyId, refresh]);
+
+  const deleteExpense = useCallback(async (id: string) => {
+    await supabase.from('expenses').delete().eq('id', id);
+    refresh();
+  }, [refresh]);
+
+  const addSupplier = useCallback(async (data: Omit<DbSupplier, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
+    if (!companyId) return;
+    await supabase.from('suppliers').insert({ ...data, company_id: companyId });
+    refresh();
+  }, [companyId, refresh]);
+
+  const deleteSupplier = useCallback(async (id: string) => {
+    await supabase.from('suppliers').delete().eq('id', id);
+    refresh();
+  }, [refresh]);
 
   return (
     <DataContext.Provider value={{
-      clients, addClient, updateClient, deleteClient,
+      company, updateCompany,
+      clients: clients.filter(c => !c.is_archived), addClient, updateClient, deleteClient,
       products, addProduct, updateProduct, deleteProduct,
       invoices, addInvoice, updateInvoiceStatus, deleteInvoice,
       expenses, addExpense, deleteExpense,
       suppliers, addSupplier, deleteSupplier,
-      stockMovements,
-      getNextDocNumber,
+      stockMovements, loading, refresh,
     }}>
       {children}
     </DataContext.Provider>

@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Check, X } from 'lucide-react';
-import type { TVARate } from '@/types';
 
 export default function ProductsPage() {
   const { products, addProduct, deleteProduct, updateProduct } = useData();
@@ -15,16 +14,16 @@ export default function ProductsPage() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({
-    name: '', description: '', purchasePrice: 0, sellingPrice: 0,
-    tvaRate: 19 as TVARate, stock: 0, minStock: 5, unit: 'pièce',
+    name: '', description: '', purchase_price: 0, selling_price: 0,
+    tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
   });
 
   const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addProduct(form);
-    setForm({ name: '', description: '', purchasePrice: 0, sellingPrice: 0, tvaRate: 19, stock: 0, minStock: 5, unit: 'pièce' });
+    await addProduct(form as any);
+    setForm({ name: '', description: '', purchase_price: 0, selling_price: 0, tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce' });
     setOpen(false);
   };
 
@@ -42,13 +41,13 @@ export default function ProductsPage() {
               <div><Label>Nom *</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
               <div><Label>Description</Label><Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Prix d'achat (TND)</Label><Input type="number" step="0.001" min={0} value={form.purchasePrice} onChange={e => setForm(f => ({ ...f, purchasePrice: +e.target.value }))} /></div>
-                <div><Label>Prix de vente (TND)</Label><Input type="number" step="0.001" min={0} value={form.sellingPrice} onChange={e => setForm(f => ({ ...f, sellingPrice: +e.target.value }))} /></div>
+                <div><Label>Prix d'achat (TND)</Label><Input type="number" step="0.001" min={0} value={form.purchase_price} onChange={e => setForm(f => ({ ...f, purchase_price: +e.target.value }))} /></div>
+                <div><Label>Prix de vente (TND)</Label><Input type="number" step="0.001" min={0} value={form.selling_price} onChange={e => setForm(f => ({ ...f, selling_price: +e.target.value }))} /></div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label>TVA %</Label>
-                  <Select value={String(form.tvaRate)} onValueChange={v => setForm(f => ({ ...f, tvaRate: +v as TVARate }))}>
+                  <Select value={String(form.tva_rate)} onValueChange={v => setForm(f => ({ ...f, tva_rate: +v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="0">0%</SelectItem>
@@ -59,7 +58,7 @@ export default function ProductsPage() {
                   </Select>
                 </div>
                 <div><Label>Stock initial</Label><Input type="number" min={0} value={form.stock} onChange={e => setForm(f => ({ ...f, stock: +e.target.value }))} /></div>
-                <div><Label>Stock min</Label><Input type="number" min={0} value={form.minStock} onChange={e => setForm(f => ({ ...f, minStock: +e.target.value }))} /></div>
+                <div><Label>Stock min</Label><Input type="number" min={0} value={form.min_stock} onChange={e => setForm(f => ({ ...f, min_stock: +e.target.value }))} /></div>
               </div>
               <div><Label>Unité</Label><Input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} /></div>
               <Button type="submit" className="w-full">Enregistrer</Button>
@@ -97,15 +96,13 @@ export default function ProductsPage() {
                     <div className="font-medium">{p.name}</div>
                     {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
                   </td>
-                  <td className="py-3">{p.sellingPrice.toFixed(3)} TND</td>
-                  <td className="py-3">{p.tvaRate}%</td>
+                  <td className="py-3">{Number(p.selling_price).toFixed(3)} TND</td>
+                  <td className="py-3">{p.tva_rate}%</td>
                   <td className="py-3">
                     {editingId === p.id ? (
                       <div className="flex items-center gap-1">
-                        <Input type="number" min={0} className="h-8 w-20 text-xs" value={editStock}
-                          onChange={e => setEditStock(+e.target.value)} />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-[hsl(var(--success))]"
-                          onClick={() => { updateProduct(p.id, { stock: editStock }); setEditingId(null); }}>
+                        <Input type="number" min={0} className="h-8 w-20 text-xs" value={editStock} onChange={e => setEditStock(+e.target.value)} />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-[hsl(var(--success))]" onClick={() => { updateProduct(p.id, { stock: editStock }); setEditingId(null); }}>
                           <Check className="h-3.5 w-3.5" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingId(null)}>
@@ -113,9 +110,8 @@ export default function ProductsPage() {
                         </Button>
                       </div>
                     ) : (
-                      <span className={`flex items-center gap-1 cursor-pointer ${p.stock <= p.minStock ? 'text-[hsl(var(--warning))] font-semibold' : ''}`}
-                        onClick={() => { setEditingId(p.id); setEditStock(p.stock); }}>
-                        {p.stock <= p.minStock && <AlertTriangle className="h-3.5 w-3.5" />}
+                      <span className={`flex items-center gap-1 cursor-pointer ${p.stock <= p.min_stock ? 'text-[hsl(var(--warning))] font-semibold' : ''}`} onClick={() => { setEditingId(p.id); setEditStock(p.stock); }}>
+                        {p.stock <= p.min_stock && <AlertTriangle className="h-3.5 w-3.5" />}
                         {p.stock} {p.unit}
                         <Pencil className="h-3 w-3 ml-1 opacity-40" />
                       </span>

@@ -1,26 +1,31 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Users, Package, Truck,
-  Receipt, DollarSign, Building2, Menu, X
+  Receipt, Building2, Menu, X, Settings, LogOut, User, ChevronDown
 } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
   { to: '/factures', icon: FileText, label: 'Factures' },
   { to: '/devis', icon: FileText, label: 'Devis' },
-  { to: '/clients', icon: Users, label: 'Clients' },
+  { to: '/clients', icon: Users, label: 'Gestion clients' },
   { to: '/produits', icon: Package, label: 'Produits & Stock' },
   { to: '/fournisseurs', icon: Truck, label: 'Fournisseurs' },
   { to: '/depenses', icon: Receipt, label: 'Dépenses' },
+  { to: '/parametres', icon: Settings, label: 'Paramètres' },
 ];
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { profile, role, signOut } = useAuth();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm lg:hidden"
@@ -28,7 +33,6 @@ export default function AppLayout() {
         />
       )}
 
-      {/* Sidebar */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground
         transform transition-transform duration-200 ease-in-out
@@ -41,8 +45,8 @@ export default function AppLayout() {
               <Building2 className="h-5 w-5 text-sidebar-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-sidebar-foreground">GestPro</h1>
-              <p className="text-xs text-sidebar-muted">Gestion d'entreprise</p>
+              <h1 className="text-base font-bold text-sidebar-foreground">Fatourty</h1>
+              <p className="text-xs text-sidebar-muted">Facturation Tunisie</p>
             </div>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-sidebar-muted hover:text-sidebar-foreground">
@@ -74,17 +78,16 @@ export default function AppLayout() {
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 px-2">
             <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center">
-              <DollarSign className="h-4 w-4 text-sidebar-primary" />
+              <User className="h-4 w-4 text-sidebar-primary" />
             </div>
-            <div>
-              <p className="text-xs font-medium text-sidebar-foreground">Mode hors-ligne</p>
-              <p className="text-xs text-sidebar-muted">Données locales</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-sidebar-foreground truncate">{profile?.full_name || profile?.email}</p>
+              <p className="text-xs text-sidebar-muted capitalize">{role || 'utilisateur'}</p>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center gap-4 border-b border-border bg-card px-4 py-3 lg:px-6">
           <button
@@ -94,6 +97,33 @@ export default function AppLayout() {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex-1" />
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center">
+                <User className="h-4 w-4" />
+              </div>
+              <span className="hidden sm:inline">{profile?.full_name || profile?.email}</span>
+              <ChevronDown className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                {profile?.email}
+                <br />
+                <span className="capitalize font-medium">{role}</span>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <NavLink to="/parametres" className="flex items-center gap-2 cursor-pointer">
+                  <Settings className="h-4 w-4" /> Paramètres
+                </NavLink>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
+                <LogOut className="h-4 w-4 mr-2" /> Déconnexion
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">

@@ -10,16 +10,20 @@ export default function SuppliersPage() {
   const { suppliers, addSupplier, deleteSupplier } = useData();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ name: '', address: '', phone: '', email: '', taxId: '' });
+  const [form, setForm] = useState({ name: '', address: '', phone: '', email: '', tax_id: '' });
 
-  const filtered = suppliers.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = suppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addSupplier(form);
-    setForm({ name: '', address: '', phone: '', email: '', taxId: '' });
+    await addSupplier({
+      name: form.name,
+      address: form.address || null,
+      phone: form.phone || null,
+      email: form.email || null,
+      tax_id: form.tax_id || null,
+    } as any);
+    setForm({ name: '', address: '', phone: '', email: '', tax_id: '' });
     setOpen(false);
   };
 
@@ -40,7 +44,7 @@ export default function SuppliersPage() {
                 <div><Label>Téléphone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
                 <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
               </div>
-              <div><Label>Matricule fiscal</Label><Input value={form.taxId} onChange={e => setForm(f => ({ ...f, taxId: e.target.value }))} /></div>
+              <div><Label>Matricule fiscal</Label><Input value={form.tax_id} onChange={e => setForm(f => ({ ...f, tax_id: e.target.value }))} /></div>
               <Button type="submit" className="w-full">Enregistrer</Button>
             </form>
           </DialogContent>

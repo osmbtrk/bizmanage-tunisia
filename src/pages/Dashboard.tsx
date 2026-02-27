@@ -1,9 +1,9 @@
 import { useData } from '@/contexts/DataContext';
-import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign } from 'lucide-react';
+import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2 } from 'lucide-react';
 import { useMemo } from 'react';
 
 export default function Dashboard() {
-  const { invoices, clients, products, expenses } = useData();
+  const { invoices, clients, products, expenses, loading } = useData();
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -12,14 +12,14 @@ export default function Dashboard() {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && i.type === 'facture';
     });
 
-    const monthlyRevenue = thisMonth.reduce((s, i) => s + i.total, 0);
+    const monthlyRevenue = thisMonth.reduce((s, i) => s + Number(i.total), 0);
     const unpaidInvoices = invoices.filter(i => i.type === 'facture' && i.status !== 'paid');
-    const unpaidTotal = unpaidInvoices.reduce((s, i) => s + (i.total - i.paidAmount), 0);
-    const lowStockProducts = products.filter(p => p.stock <= p.minStock);
+    const unpaidTotal = unpaidInvoices.reduce((s, i) => s + (Number(i.total) - Number(i.paid_amount)), 0);
+    const lowStockProducts = products.filter(p => p.stock <= p.min_stock);
     const monthlyExpenses = expenses.filter(e => {
       const d = new Date(e.date);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).reduce((s, e) => s + e.amount, 0);
+    }).reduce((s, e) => s + Number(e.amount), 0);
 
     return { monthlyRevenue, unpaidTotal, unpaidCount: unpaidInvoices.length, lowStockProducts, monthlyExpenses };
   }, [invoices, products, expenses]);
@@ -28,17 +28,26 @@ export default function Dashboard() {
     const productSales: Record<string, { name: string; qty: number; revenue: number }> = {};
     invoices.filter(i => i.type === 'facture').forEach(inv => {
       inv.items.forEach(item => {
-        if (!productSales[item.productId]) {
-          productSales[item.productId] = { name: item.productName, qty: 0, revenue: 0 };
+        const pid = item.product_id || item.product_name;
+        if (!productSales[pid]) {
+          productSales[pid] = { name: item.product_name, qty: 0, revenue: 0 };
         }
-        productSales[item.productId].qty += item.quantity;
-        productSales[item.productId].revenue += item.total;
+        productSales[pid].qty += item.quantity;
+        productSales[pid].revenue += Number(item.total);
       });
     });
     return Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   }, [invoices]);
 
   const formatDT = (n: number) => n.toLocaleString('fr-TN', { style: 'currency', currency: 'TND' });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in">
@@ -54,21 +63,20 @@ export default function Dashboard() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Recent invoices */}
         <div className="stat-card">
           <h3 className="mb-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Dernières factures</h3>
-          {invoices.filter(i => i.type === 'facture').slice(-5).reverse().length === 0 ? (
+          {invoices.filter(i => i.type === 'facture').slice(0, 5).length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Aucune facture pour le moment</p>
           ) : (
             <div className="space-y-3">
-              {invoices.filter(i => i.type === 'facture').slice(-5).reverse().map(inv => (
+              {invoices.filter(i => i.type === 'facture').slice(0, 5).map(inv => (
                 <div key={inv.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div>
                     <p className="text-sm font-medium">{inv.number}</p>
-                    <p className="text-xs text-muted-foreground">{inv.clientName}</p>
+                    <p className="text-xs text-muted-foreground">{inv.client_name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold">{formatDT(inv.total)}</p>
+                    <p className="text-sm font-semibold">{formatDT(Number(inv.total))}</p>
                     <StatusBadge status={inv.status} />
                   </div>
                 </div>
@@ -77,7 +85,6 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Low stock & top products */}
         <div className="space-y-4">
           {stats.lowStockProducts.length > 0 && (
             <div className="stat-card border-warning/30 bg-warning/5">
@@ -136,17 +143,7 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    paid: 'status-paid',
-    unpaid: 'status-unpaid',
-    partial: 'status-partial',
-  };
-  const labels: Record<string, string> = {
-    paid: 'Payée', unpaid: 'Impayée', partial: 'Partielle',
-  };
-  return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
-      {labels[status]}
-    </span>
-  );
+  const styles: Record<string, string> = { paid: 'status-paid', unpaid: 'status-unpaid', partial: 'status-partial' };
+  const labels: Record<string, string> = { paid: 'Payée', unpaid: 'Impayée', partial: 'Partielle' };
+  return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>{labels[status]}</span>;
 }
