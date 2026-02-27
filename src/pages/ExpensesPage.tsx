@@ -19,11 +19,11 @@ export default function ExpensesPage() {
   });
 
   const sorted = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addExpense(form);
+    await addExpense({ description: form.description, amount: form.amount, date: form.date, category: form.category } as any);
     setForm({ description: '', amount: 0, date: new Date().toISOString().split('T')[0], category: 'Autre' });
     setOpen(false);
   };
@@ -76,7 +76,7 @@ export default function ExpensesPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-bold">{exp.amount.toFixed(3)} TND</span>
+                <span className="font-bold">{Number(exp.amount).toFixed(3)} TND</span>
                 <Button variant="ghost" size="icon" onClick={() => deleteExpense(exp.id)} className="text-muted-foreground hover:text-destructive">
                   <Trash2 className="h-4 w-4" />
                 </Button>
