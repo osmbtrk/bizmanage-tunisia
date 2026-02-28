@@ -108,7 +108,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
 function InvoiceForm({ docType, clients, products, company, onSubmit }: {
   docType: DocumentType;
   clients: { id: string; name: string }[];
-  products: { id: string; name: string; selling_price: number; tva_rate: number }[];
+  products: { id: string; name: string; selling_price: number; tva_rate: number; stock: number }[];
   company: any;
   onSubmit: (data: any) => Promise<void>;
 }) {
@@ -156,6 +156,28 @@ function InvoiceForm({ docType, clients, products, company, onSubmit }: {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId || items.length === 0) return;
+
+    // Stock validation for factures and bons de livraison
+    if (docType === 'facture' || docType === 'bon_livraison') {
+      const insufficientItems = items
+        .map((item: any) => {
+          const product = products.find(p => p.id === item.product_id);
+          if (product && item.quantity > product.stock) {
+            return { name: product.name, stock: product.stock, requested: item.quantity };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      if (insufficientItems.length > 0) {
+        const message = insufficientItems
+          .map((i: any) => `• ${i.name} : stock disponible ${i.stock}, demandé ${i.requested}`)
+          .join('\n');
+        alert(`⚠️ Stock insuffisant !\n\nVeuillez réapprovisionner les produits suivants :\n${message}`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     await onSubmit({
       type: docType, date, due_date: dueDate || undefined,
