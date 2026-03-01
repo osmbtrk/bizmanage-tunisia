@@ -1,6 +1,9 @@
 import { useData } from '@/contexts/DataContext';
-import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2 } from 'lucide-react';
+import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2, Receipt, Clock, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const { invoices, clients, products, expenses, loading } = useData();
@@ -13,30 +16,95 @@ export default function Dashboard() {
     });
 
     const monthlyRevenue = thisMonth.reduce((s, i) => s + Number(i.total), 0);
+    const monthlyHT = thisMonth.reduce((s, i) => s + Number(i.subtotal), 0);
+    const monthlyTVA = thisMonth.reduce((s, i) => s + Number(i.tva_total), 0);
+    const monthlyCount = thisMonth.length;
+
     const unpaidInvoices = invoices.filter(i => i.type === 'facture' && i.status !== 'paid');
     const unpaidTotal = unpaidInvoices.reduce((s, i) => s + (Number(i.total) - Number(i.paid_amount)), 0);
+
+    const overdueInvoices = invoices.filter(i => {
+      if (i.type !== 'facture' || i.status === 'paid') return false;
+      if (!i.due_date) return false;
+      return new Date(i.due_date) < now;
+    });
+
     const lowStockProducts = products.filter(p => p.stock <= p.min_stock);
+
     const monthlyExpenses = expenses.filter(e => {
       const d = new Date(e.date);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).reduce((s, e) => s + Number(e.amount), 0);
 
-    return { monthlyRevenue, unpaidTotal, unpaidCount: unpaidInvoices.length, lowStockProducts, monthlyExpenses };
+    // Previous month comparison
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthInvoices = invoices.filter(i => {
+      const d = new Date(i.date);
+      return d.getMonth() === prevMonth.getMonth() && d.getFullYear() === prevMonth.getFullYear() && i.type === 'facture';
+    });
+    const prevMonthRevenue = prevMonthInvoices.reduce((s, i) => s + Number(i.total), 0);
+    const revenueGrowth = prevMonthRevenue > 0 ? ((monthlyRevenue - prevMonthRevenue) / prevMonthRevenue) * 100 : 0;
+
+    return {
+      monthlyRevenue, monthlyHT, monthlyTVA, monthlyCount,
+      unpaidTotal, unpaidCount: unpaidInvoices.length,
+      overdueCount: overdueInvoices.length,
+      lowStockProducts, monthlyExpenses,
+      revenueGrowth,
+    };
   }, [invoices, products, expenses]);
 
-  const topProducts = useMemo(() => {
-    const productSales: Record<string, { name: string; qty: number; revenue: number }> = {};
+  // Monthly revenue evolution (last 6 months)
+  const revenueChart = useMemo(() => {
+    const now = new Date();
+    const months: { month: string; revenue: number; expenses: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const m = d.getMonth();
+      const y = d.getFullYear();
+      const label = d.toLocaleDateString('fr-TN', { month: 'short', year: '2-digit' });
+      const rev = invoices
+        .filter(inv => inv.type === 'facture' && new Date(inv.date).getMonth() === m && new Date(inv.date).getFullYear() === y)
+        .reduce((s, inv) => s + Number(inv.total), 0);
+      const exp = expenses
+        .filter(e => new Date(e.date).getMonth() === m && new Date(e.date).getFullYear() === y)
+        .reduce((s, e) => s + Number(e.amount), 0);
+      months.push({ month: label, revenue: rev, expenses: exp });
+    }
+    return months;
+  }, [invoices, expenses]);
+
+  // Invoice status distribution
+  const statusChart = useMemo(() => {
+    const factures = invoices.filter(i => i.type === 'facture');
+    const paid = factures.filter(i => i.status === 'paid').length;
+    const unpaid = factures.filter(i => i.status === 'unpaid').length;
+    const partial = factures.filter(i => i.status === 'partial').length;
+    return [
+      { name: 'Payées', value: paid, fill: 'hsl(var(--success))' },
+      { name: 'Impayées', value: unpaid, fill: 'hsl(var(--destructive))' },
+      { name: 'Partielles', value: partial, fill: 'hsl(var(--warning))' },
+    ].filter(d => d.value > 0);
+  }, [invoices]);
+
+  // Top 5 clients by revenue
+  const topClients = useMemo(() => {
+    const clientRevenue: Record<string, { name: string; total: number }> = {};
     invoices.filter(i => i.type === 'facture').forEach(inv => {
-      inv.items.forEach(item => {
-        const pid = item.product_id || item.product_name;
-        if (!productSales[pid]) {
-          productSales[pid] = { name: item.product_name, qty: 0, revenue: 0 };
-        }
-        productSales[pid].qty += item.quantity;
-        productSales[pid].revenue += Number(item.total);
-      });
+      if (!clientRevenue[inv.client_name]) {
+        clientRevenue[inv.client_name] = { name: inv.client_name, total: 0 };
+      }
+      clientRevenue[inv.client_name].total += Number(inv.total);
     });
-    return Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+    return Object.values(clientRevenue).sort((a, b) => b.total - a.total).slice(0, 5);
+  }, [invoices]);
+
+  // Recent invoices
+  const recentInvoices = useMemo(() => {
+    return invoices
+      .filter(i => i.type === 'facture')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10);
   }, [invoices]);
 
   const formatDT = (n: number) => n.toLocaleString('fr-TN', { style: 'currency', currency: 'TND' });
@@ -50,95 +118,224 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in space-y-6">
       <div className="page-header">
-        <h1 className="page-title">Tableau de bord</h1>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={TrendingUp} label="Chiffre d'affaires du mois" value={formatDT(stats.monthlyRevenue)} color="text-accent" />
-        <StatCard icon={DollarSign} label="Impayés" value={formatDT(stats.unpaidTotal)} sub={`${stats.unpaidCount} facture(s)`} color="text-destructive" />
-        <StatCard icon={Users} label="Clients" value={String(clients.length)} color="text-primary" />
-        <StatCard icon={Package} label="Produits" value={String(products.length)} color="text-primary" />
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="stat-card">
-          <h3 className="mb-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Dernières factures</h3>
-          {invoices.filter(i => i.type === 'facture').slice(0, 5).length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Aucune facture pour le moment</p>
-          ) : (
-            <div className="space-y-3">
-              {invoices.filter(i => i.type === 'facture').slice(0, 5).map(inv => (
-                <div key={inv.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{inv.number}</p>
-                    <p className="text-xs text-muted-foreground">{inv.client_name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">{formatDT(Number(inv.total))}</p>
-                    <StatusBadge status={inv.status} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <div>
+          <h1 className="page-title">Tableau de bord</h1>
+          <p className="text-sm text-muted-foreground mt-1">Vue d'ensemble du mois en cours</p>
         </div>
+      </div>
 
-        <div className="space-y-4">
-          {stats.lowStockProducts.length > 0 && (
-            <div className="stat-card border-warning/30 bg-warning/5">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-warning">
-                <AlertTriangle className="h-4 w-4" /> Stock faible
-              </h3>
-              <div className="space-y-2">
-                {stats.lowStockProducts.map(p => (
-                  <div key={p.id} className="flex justify-between text-sm">
-                    <span>{p.name}</span>
-                    <span className="font-semibold text-warning">{p.stock} {p.unit}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      {/* KPI Cards */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <KpiCard
+          icon={TrendingUp}
+          label="Chiffre d'affaires TTC"
+          value={formatDT(stats.monthlyRevenue)}
+          trend={stats.revenueGrowth}
+          color="text-accent"
+        />
+        <KpiCard icon={Receipt} label="Total HT" value={formatDT(stats.monthlyHT)} color="text-primary" />
+        <KpiCard icon={Receipt} label="Total TVA" value={formatDT(stats.monthlyTVA)} color="text-muted-foreground" />
+        <KpiCard
+          icon={DollarSign}
+          label="Impayés"
+          value={formatDT(stats.unpaidTotal)}
+          sub={`${stats.unpaidCount} facture(s)`}
+          color="text-destructive"
+        />
+        <KpiCard icon={FileText} label="Factures du mois" value={String(stats.monthlyCount)} color="text-primary" />
+        <KpiCard
+          icon={Clock}
+          label="En retard"
+          value={String(stats.overdueCount)}
+          color={stats.overdueCount > 0 ? 'text-destructive' : 'text-muted-foreground'}
+        />
+      </div>
 
-          <div className="stat-card">
-            <h3 className="mb-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Top produits</h3>
-            {topProducts.length === 0 ? (
+      {/* Charts Row */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Revenue Evolution */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Évolution des revenus (6 mois)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={{
+              revenue: { label: 'Revenus', color: 'hsl(var(--accent))' },
+              expenses: { label: 'Dépenses', color: 'hsl(var(--destructive))' },
+            }} className="h-[260px] w-full">
+              <BarChart data={revenueChart} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="revenue" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="Revenus" />
+                <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Dépenses" />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Status Distribution */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Statut des factures
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center">
+            {statusChart.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8">Aucune facture</p>
+            ) : (
+              <>
+                <div className="h-[200px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={statusChart} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={45} paddingAngle={3}>
+                        {statusChart.map((entry, idx) => (
+                          <Cell key={idx} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex gap-4 mt-2">
+                  {statusChart.map((s, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-xs">
+                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.fill }} />
+                      <span className="text-muted-foreground">{s.name}</span>
+                      <span className="font-semibold">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Row */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Top Clients */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Top 5 clients
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topClients.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">Pas encore de ventes</p>
             ) : (
               <div className="space-y-3">
-                {topProducts.map((p, i) => (
-                  <div key={i} className="flex items-center justify-between py-1">
-                    <span className="text-sm">{p.name}</span>
-                    <span className="text-sm font-medium">{formatDT(p.revenue)}</span>
+                {topClients.map((c, i) => (
+                  <div key={i} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm font-medium truncate max-w-[140px]">{c.name}</span>
+                    </div>
+                    <span className="text-sm font-semibold">{formatDT(c.total)}</span>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Invoices */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Dernières factures
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recentInvoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Aucune facture</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th className="text-left py-2 font-medium text-xs">N°</th>
+                      <th className="text-left py-2 font-medium text-xs">Client</th>
+                      <th className="text-left py-2 font-medium text-xs">Date</th>
+                      <th className="text-right py-2 font-medium text-xs">Total</th>
+                      <th className="text-right py-2 font-medium text-xs">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentInvoices.map(inv => (
+                      <tr key={inv.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                        <td className="py-2.5 font-medium">{inv.number}</td>
+                        <td className="py-2.5 text-muted-foreground">{inv.client_name}</td>
+                        <td className="py-2.5 text-muted-foreground">{new Date(inv.date).toLocaleDateString('fr-TN')}</td>
+                        <td className="py-2.5 text-right font-semibold">{formatDT(Number(inv.total))}</td>
+                        <td className="py-2.5 text-right"><StatusBadge status={inv.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Low Stock Warning */}
+      {stats.lowStockProducts.length > 0 && (
+        <Card className="border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-[hsl(var(--warning))]">
+              <AlertTriangle className="h-4 w-4" /> Produits en stock faible
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {stats.lowStockProducts.map(p => (
+                <div key={p.id} className="flex justify-between text-sm py-1">
+                  <span>{p.name}</span>
+                  <span className="font-semibold text-[hsl(var(--warning))]">{p.stock} {p.unit}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
 
-function StatCard({ icon: Icon, label, value, sub, color }: {
-  icon: React.ElementType; label: string; value: string; sub?: string; color: string;
+function KpiCard({ icon: Icon, label, value, sub, color, trend }: {
+  icon: React.ElementType; label: string; value: string; sub?: string; color: string; trend?: number;
 }) {
   return (
-    <div className="stat-card">
-      <div className="flex items-center gap-3">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-secondary ${color}`}>
-          <Icon className="h-5 w-5" />
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-secondary ${color}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+          {trend !== undefined && trend !== 0 && (
+            <span className={`flex items-center text-xs font-medium ${trend > 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
+              {trend > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+              {Math.abs(trend).toFixed(0)}%
+            </span>
+          )}
         </div>
-        <div>
+        <div className="mt-3">
           <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-xl font-bold">{value}</p>
+          <p className="text-lg font-bold mt-0.5">{value}</p>
           {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

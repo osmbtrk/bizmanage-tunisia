@@ -1,29 +1,87 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useData, type DocumentType } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Search, FileText, Download } from 'lucide-react';
+import { Plus, Trash2, Search, FileText, Download, Calendar } from 'lucide-react';
 import { generateInvoicePdf } from '@/lib/generatePdf';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
+
+type PeriodFilter = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
 
 interface InvoicesPageProps {
   docType: DocumentType;
   title: string;
 }
 
+function getDateRange(period: PeriodFilter, customStart?: string, customEnd?: string): { start: Date; end: Date } | null {
+  const now = new Date();
+  switch (period) {
+    case 'today': return { start: startOfDay(now), end: endOfDay(now) };
+    case 'week': return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
+    case 'month': return { start: startOfMonth(now), end: endOfMonth(now) };
+    case 'year': return { start: startOfYear(now), end: endOfYear(now) };
+    case 'custom':
+      if (customStart && customEnd) return { start: startOfDay(new Date(customStart)), end: endOfDay(new Date(customEnd)) };
+      return null;
+    default: return null;
+  }
+}
+
 export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
   const { invoices, addInvoice, deleteInvoice, updateInvoiceStatus, clients, products, company } = useData();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [period, setPeriod] = useState<PeriodFilter>('all');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [perPage, setPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const filtered = invoices
-    .filter(i => i.type === docType)
-    .filter(i => i.number.includes(search) || i.client_name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const isFacture = docType === 'facture';
+
+  const filtered = useMemo(() => {
+    let list = invoices
+      .filter(i => i.type === docType)
+      .filter(i => i.number.includes(search) || i.client_name.toLowerCase().includes(search.toLowerCase()));
+
+    if (isFacture && period !== 'all') {
+      const range = getDateRange(period, customStart, customEnd);
+      if (range) {
+        list = list.filter(i => isWithinInterval(new Date(i.date), range));
+      }
+    }
+
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [invoices, docType, search, period, customStart, customEnd, isFacture]);
+
+  const totals = useMemo(() => {
+    if (!isFacture) return null;
+    const ht = filtered.reduce((s, i) => s + Number(i.subtotal), 0);
+    const tva = filtered.reduce((s, i) => s + Number(i.tva_total), 0);
+    const ttc = filtered.reduce((s, i) => s + Number(i.total), 0);
+    const unpaid = filtered.filter(i => i.status !== 'paid').reduce((s, i) => s + (Number(i.total) - Number(i.paid_amount)), 0);
+    return { ht, tva, ttc, unpaid };
+  }, [filtered, isFacture]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
+
+  // Reset page when filters change
+  useMemo(() => setCurrentPage(1), [period, customStart, customEnd, search, perPage]);
 
   const formatDT = (n: number) => n.toLocaleString('fr-TN', { style: 'currency', currency: 'TND' });
+
+  const periodButtons: { value: PeriodFilter; label: string }[] = [
+    { value: 'all', label: 'Tout' },
+    { value: 'today', label: "Aujourd'hui" },
+    { value: 'week', label: 'Cette semaine' },
+    { value: 'month', label: 'Ce mois' },
+    { value: 'year', label: 'Cette année' },
+    { value: 'custom', label: 'Personnalisé' },
+  ];
 
   return (
     <div className="animate-fade-in">
@@ -49,19 +107,73 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
         </Dialog>
       </div>
 
+      {/* Period Filter - Only for Factures */}
+      {isFacture && (
+        <div className="mb-4 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {periodButtons.map(pb => (
+              <Button
+                key={pb.value}
+                variant={period === pb.value ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPeriod(pb.value)}
+                className="text-xs"
+              >
+                {pb.value === 'custom' && <Calendar className="mr-1.5 h-3 w-3" />}
+                {pb.label}
+              </Button>
+            ))}
+          </div>
+          {period === 'custom' && (
+            <div className="flex gap-3 items-end">
+              <div>
+                <Label className="text-xs">Du</Label>
+                <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="h-8 text-xs w-40" />
+              </div>
+              <div>
+                <Label className="text-xs">Au</Label>
+                <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="h-8 text-xs w-40" />
+              </div>
+            </div>
+          )}
+
+          {/* Summary totals */}
+          {totals && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="stat-card p-3">
+                <p className="text-xs text-muted-foreground">Total HT</p>
+                <p className="text-sm font-bold">{formatDT(totals.ht)}</p>
+              </div>
+              <div className="stat-card p-3">
+                <p className="text-xs text-muted-foreground">TVA</p>
+                <p className="text-sm font-bold">{formatDT(totals.tva)}</p>
+              </div>
+              <div className="stat-card p-3">
+                <p className="text-xs text-muted-foreground">Total TTC</p>
+                <p className="text-sm font-bold text-primary">{formatDT(totals.ttc)}</p>
+              </div>
+              <div className="stat-card p-3">
+                <p className="text-xs text-muted-foreground">Impayés</p>
+                <p className="text-sm font-bold text-destructive">{formatDT(totals.unpaid)}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Rechercher..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      {filtered.length === 0 ? (
+      {paginated.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <FileText className="mx-auto h-12 w-12 mb-3 opacity-40" />
           <p>Aucun document trouvé</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(inv => (
+          {paginated.map(inv => (
             <div key={inv.id} className="stat-card">
               <div className="flex items-center justify-between">
                 <div>
@@ -99,6 +211,33 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Afficher</span>
+            <Select value={String(perPage)} onValueChange={v => setPerPage(Number(v))}>
+              <SelectTrigger className="w-20 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">sur {filtered.length}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)} className="text-xs h-8">
+              Précédent
+            </Button>
+            <span className="text-xs text-muted-foreground px-2">{currentPage} / {totalPages}</span>
+            <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)} className="text-xs h-8">
+              Suivant
+            </Button>
+          </div>
         </div>
       )}
     </div>
