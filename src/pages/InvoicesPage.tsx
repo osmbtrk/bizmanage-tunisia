@@ -41,13 +41,14 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
   const [currentPage, setCurrentPage] = useState(1);
 
   const isFacture = docType === 'facture';
+  const showFiltering = docType === 'facture' || docType === 'devis';
 
   const filtered = useMemo(() => {
     let list = invoices
       .filter(i => i.type === docType)
       .filter(i => i.number.includes(search) || i.client_name.toLowerCase().includes(search.toLowerCase()));
 
-    if (isFacture && period !== 'all') {
+    if (showFiltering && period !== 'all') {
       const range = getDateRange(period, customStart, customEnd);
       if (range) {
         list = list.filter(i => isWithinInterval(new Date(i.date), range));
@@ -55,16 +56,16 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
     }
 
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [invoices, docType, search, period, customStart, customEnd, isFacture]);
+  }, [invoices, docType, search, period, customStart, customEnd, showFiltering]);
 
   const totals = useMemo(() => {
-    if (!isFacture) return null;
+    if (!showFiltering) return null;
     const ht = filtered.reduce((s, i) => s + Number(i.subtotal), 0);
     const tva = filtered.reduce((s, i) => s + Number(i.tva_total), 0);
     const ttc = filtered.reduce((s, i) => s + Number(i.total), 0);
     const unpaid = filtered.filter(i => i.status !== 'paid').reduce((s, i) => s + (Number(i.total) - Number(i.paid_amount)), 0);
     return { ht, tva, ttc, unpaid };
-  }, [filtered, isFacture]);
+  }, [filtered, showFiltering]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
@@ -107,8 +108,8 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
         </Dialog>
       </div>
 
-      {/* Period Filter - Only for Factures */}
-      {isFacture && (
+      {/* Period Filter - For Factures & Devis */}
+      {showFiltering && (
         <div className="mb-4 space-y-3">
           <div className="flex flex-wrap gap-2">
             {periodButtons.map(pb => (
