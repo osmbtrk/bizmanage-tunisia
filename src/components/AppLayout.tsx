@@ -1,16 +1,16 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Users, Package, Truck,
-  Receipt, Building2, Menu, X, Settings, LogOut, User, ChevronDown
+  Receipt, Building2, Menu, X, Settings, LogOut, User, ChevronDown, Plus
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Plus, Package as PackageIcon } from 'lucide-react';
+import GlobalCreateDialogs, { type GlobalDialogType } from '@/components/GlobalCreateDialogs';
+import { Package as PackageIcon } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -25,8 +25,8 @@ const navItems = [
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [createDialog, setCreateDialog] = useState<GlobalDialogType>(null);
   const { profile, role, signOut } = useAuth();
-  const navigate = useNavigate();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -111,17 +111,17 @@ export default function AppLayout() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => navigate('/factures?new=1')} className="cursor-pointer">
+              <DropdownMenuItem onClick={() => setCreateDialog('facture')} className="cursor-pointer">
                 <FileText className="h-4 w-4 mr-2" /> Nouvelle Facture
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/devis?new=1')} className="cursor-pointer">
+              <DropdownMenuItem onClick={() => setCreateDialog('devis')} className="cursor-pointer">
                 <FileText className="h-4 w-4 mr-2" /> Nouveau Devis
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/clients?new=1')} className="cursor-pointer">
+              <DropdownMenuItem onClick={() => setCreateDialog('client')} className="cursor-pointer">
                 <Users className="h-4 w-4 mr-2" /> Nouveau Client
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/produits?new=1')} className="cursor-pointer">
+              <DropdownMenuItem onClick={() => setCreateDialog('product')} className="cursor-pointer">
                 <PackageIcon className="h-4 w-4 mr-2" /> Nouveau Produit
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -160,6 +160,8 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <GlobalCreateDialogs openDialog={createDialog} onClose={() => setCreateDialog(null)} />
     </div>
   );
 }
