@@ -1,11 +1,14 @@
 import { useData } from '@/contexts/DataContext';
-import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2, Receipt, Clock, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2, Receipt, Clock, ArrowUpRight, ArrowDownRight, Plus } from 'lucide-react';
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { invoices, clients, products, expenses, loading } = useData();
 
   const stats = useMemo(() => {
@@ -119,12 +122,52 @@ export default function Dashboard() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div className="page-header">
+      <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="page-title">Tableau de bord</h1>
           <p className="text-sm text-muted-foreground mt-1">Vue d'ensemble du mois en cours</p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => navigate('/invoices/facture?new=1')}>
+            <Plus className="h-4 w-4" /> Nouvelle Facture
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigate('/invoices/devis?new=1')}>
+            <Plus className="h-4 w-4" /> Nouveau Devis
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigate('/clients?new=1')}>
+            <Users className="h-4 w-4" /> Nouveau Client
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigate('/products?new=1')}>
+            <Package className="h-4 w-4" /> Nouveau Produit
+          </Button>
+        </div>
       </div>
+
+      {/* Low Stock Warning - prominent position */}
+      {stats.lowStockProducts.length > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-destructive mb-2">
+                  ⚠ {stats.lowStockProducts.length} produit(s) en stock faible
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1.5">
+                  {stats.lowStockProducts.map(p => (
+                    <div key={p.id} className="flex items-center justify-between text-sm">
+                      <span className="truncate text-foreground">{p.name}</span>
+                      <span className="ml-2 font-bold text-destructive whitespace-nowrap">{p.stock} {p.unit}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -288,26 +331,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Low Stock Warning */}
-      {stats.lowStockProducts.length > 0 && (
-        <Card className="border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-[hsl(var(--warning))]">
-              <AlertTriangle className="h-4 w-4" /> Produits en stock faible
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {stats.lowStockProducts.map(p => (
-                <div key={p.id} className="flex justify-between text-sm py-1">
-                  <span>{p.name}</span>
-                  <span className="font-semibold text-[hsl(var(--warning))]">{p.stock} {p.unit}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
