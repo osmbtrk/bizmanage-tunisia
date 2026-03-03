@@ -1,9 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Users, Package, Truck,
-  Receipt, Building2, Menu, X, Settings, LogOut, User, ChevronDown, Plus
+  Receipt, Building2, Menu, X, Settings, LogOut, User, ChevronDown, Plus, ShoppingCart
 } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
@@ -14,6 +15,7 @@ import { Package as PackageIcon } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
+  { to: '/pos', icon: ShoppingCart, label: 'Point de Vente' },
   { to: '/factures', icon: FileText, label: 'Factures' },
   { to: '/devis', icon: FileText, label: 'Devis' },
   { to: '/clients', icon: Users, label: 'Gestion clients' },
@@ -27,6 +29,7 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [createDialog, setCreateDialog] = useState<GlobalDialogType>(null);
   const { profile, role, signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -101,6 +104,12 @@ export default function AppLayout() {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex-1" />
+
+          {/* POS Quick Button */}
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/pos')}>
+            <ShoppingCart className="h-4 w-4" />
+            <span className="hidden sm:inline">POS</span>
+          </Button>
 
           {/* Quick Actions */}
           <DropdownMenu>
