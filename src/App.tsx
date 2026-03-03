@@ -12,6 +12,7 @@ import ClientsPage from "@/pages/ClientsPage";
 import ProductsPage from "@/pages/ProductsPage";
 import SuppliersPage from "@/pages/SuppliersPage";
 import ExpensesPage from "@/pages/ExpensesPage";
+import PosPage from "@/pages/PosPage";
 import SettingsPage from "@/pages/SettingsPage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "./pages/NotFound";
@@ -37,6 +38,7 @@ function ProtectedRoutes() {
       <Routes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/pos" element={<PosPage />} />
           <Route path="/factures" element={<InvoicesPage docType="facture" title="Factures" />} />
           <Route path="/devis" element={<InvoicesPage docType="devis" title="Devis" />} />
           <Route path="/clients" element={<ClientsPage />} />

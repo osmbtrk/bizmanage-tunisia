@@ -1,0 +1,630 @@
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote,
+  Building2, AlertTriangle, Check, Percent, Hash, ScanBarcode, X
+} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+// ── Types ──
+interface PosItem {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  purchase_price: number;
+  tva_rate: number;
+  stock: number;
+  unit: string;
+}
+
+type PaymentMethod = 'cash' | 'card' | 'virement';
+type DiscountType = 'percent' | 'fixed';
+
+// ── Main POS Component ──
+export default function PosPage() {
+  const { clients, products, addInvoice, addClient, refresh } = useData();
+  const { role, companyId } = useAuth();
+  const { toast } = useToast();
+  const isAdmin = role === 'admin';
+
+  // State
+  const [items, setItems] = useState<PosItem[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [clientSearch, setClientSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [discountType, setDiscountType] = useState<DiscountType>('percent');
+  const [discountValue, setDiscountValue] = useState(0);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [amountReceived, setAmountReceived] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [passagerId, setPassagerId] = useState<string | null>(null);
+
+  const barcodeRef = useRef<HTMLInputElement>(null);
+  const productSearchRef = useRef<HTMLInputElement>(null);
+
+  // ── Auto-create "Passager" client ──
+  useEffect(() => {
+    const ensurePassager = async () => {
+      if (!companyId) return;
+      const existing = clients.find(c => c.name === 'Passager');
+      if (existing) {
+        setPassagerId(existing.id);
+        if (!selectedClientId) setSelectedClientId(existing.id);
+      } else {
+        const result = await addClient({
+          name: 'Passager',
+          legal_form: 'personne_physique' as any,
+          matricule_fiscal: null,
+          code_tva: null,
+          rne: null,
+          address: null,
+          governorate: null,
+          phone: null,
+          email: null,
+          contact_person: null,
+          payment_terms: null,
+          status: 'active' as any,
+          is_archived: false,
+        });
+        if (result) {
+          setPassagerId(result.id);
+          if (!selectedClientId) setSelectedClientId(result.id);
+        }
+      }
+    };
+    ensurePassager();
+  }, [companyId, clients.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Calculations ──
+  const subtotalHT = useMemo(() => items.reduce((s, i) => s + i.quantity * i.unit_price, 0), [items]);
+  const tvaTotal = useMemo(() => items.reduce((s, i) => s + (i.quantity * i.unit_price * i.tva_rate) / 100, 0), [items]);
+  const grossTotal = subtotalHT + tvaTotal;
+  const discountAmount = discountType === 'percent'
+    ? (grossTotal * discountValue) / 100
+    : discountValue;
+  const total = Math.max(0, grossTotal - discountAmount);
+  const change = amountReceived - total;
+  const isPartial = paymentMethod === 'cash' && amountReceived > 0 && amountReceived < total;
+
+  const profitMargin = useMemo(() => {
+    if (!isAdmin) return 0;
+    return items.reduce((s, i) => s + (i.unit_price - i.purchase_price) * i.quantity, 0);
+  }, [items, isAdmin]);
+
+  // ── Product filtering ──
+  const filteredProducts = useMemo(() => {
+    if (!productSearch.trim()) return products;
+    const q = productSearch.toLowerCase();
+    return products.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.description?.toLowerCase().includes(q)
+    );
+  }, [products, productSearch]);
+
+  // ── Client filtering ──
+  const filteredClients = useMemo(() => {
+    if (!clientSearch.trim()) return clients;
+    const q = clientSearch.toLowerCase();
+    return clients.filter(c => c.name.toLowerCase().includes(q));
+  }, [clients, clientSearch]);
+
+  // ── Add product to order ──
+  const addProductToOrder = useCallback((productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    setItems(prev => {
+      const existing = prev.find(i => i.product_id === productId);
+      if (existing) {
+        return prev.map(i =>
+          i.product_id === productId
+            ? { ...i, quantity: i.quantity + 1 }
+            : i
+        );
+      }
+      return [...prev, {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+        unit_price: product.selling_price,
+        purchase_price: product.purchase_price,
+        tva_rate: product.tva_rate,
+        stock: product.stock,
+        unit: product.unit,
+      }];
+    });
+  }, [products]);
+
+  // ── Barcode handler ──
+  const handleBarcodeInput = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const code = (e.target as HTMLInputElement).value.trim();
+      if (!code) return;
+      const product = products.find(p => p.name.toLowerCase() === code.toLowerCase() || p.id === code);
+      if (product) {
+        addProductToOrder(product.id);
+        (e.target as HTMLInputElement).value = '';
+        toast({ title: `${product.name} ajouté` });
+      } else {
+        toast({ title: 'Produit non trouvé', variant: 'destructive' });
+      }
+    }
+  }, [products, addProductToOrder, toast]);
+
+  // ── Quantity controls ──
+  const updateQuantity = (productId: string, delta: number) => {
+    setItems(prev => prev.map(i => {
+      if (i.product_id !== productId) return i;
+      const newQty = Math.max(1, i.quantity + delta);
+      return { ...i, quantity: newQty };
+    }));
+  };
+
+  const removeItem = (productId: string) => {
+    setItems(prev => prev.filter(i => i.product_id !== productId));
+  };
+
+  // ── Keyboard shortcuts ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        productSearchRef.current?.focus();
+      }
+      if (e.key === 'F4') {
+        e.preventDefault();
+        barcodeRef.current?.focus();
+      }
+      if (e.key === 'F8' && items.length > 0) {
+        e.preventDefault();
+        setCheckoutOpen(true);
+      }
+      if (e.key === 'Escape') {
+        setCheckoutOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [items.length]);
+
+  // ── Checkout ──
+  const handleCheckout = async () => {
+    if (items.length === 0 || !selectedClientId) return;
+
+    // Stock validation
+    const insufficientItems = items.filter(i => i.quantity > i.stock);
+    if (insufficientItems.length > 0) {
+      toast({
+        title: 'Stock insuffisant',
+        description: insufficientItems.map(i => `${i.product_name}: ${i.stock} dispo`).join(', '),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const client = clients.find(c => c.id === selectedClientId);
+      const paidAmount = paymentMethod === 'cash'
+        ? Math.min(amountReceived, total)
+        : total;
+      const status = paidAmount >= total ? 'paid' : (paidAmount > 0 ? 'partial' : 'unpaid');
+
+      await addInvoice({
+        type: 'facture',
+        date: new Date().toISOString().split('T')[0],
+        client_id: selectedClientId,
+        client_name: client?.name || 'Passager',
+        items: items.map(i => ({
+          product_id: i.product_id,
+          product_name: i.product_name,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          tva_rate: i.tva_rate,
+          total: i.quantity * i.unit_price,
+        })),
+        status,
+        paid_amount: paidAmount,
+        notes: `POS - ${paymentMethod === 'cash' ? 'Espèces' : paymentMethod === 'card' ? 'Carte' : 'Virement'}`,
+      });
+
+      toast({
+        title: '✅ Vente enregistrée',
+        description: `Total: ${total.toFixed(3)} TND — ${status === 'paid' ? 'Payée' : 'Partielle'}`,
+      });
+
+      // Reset
+      setItems([]);
+      setDiscountValue(0);
+      setAmountReceived(0);
+      setCheckoutOpen(false);
+      setPaymentMethod('cash');
+      if (passagerId) setSelectedClientId(passagerId);
+    } catch (err) {
+      toast({ title: 'Erreur lors de la validation', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatDT = (n: number) => n.toFixed(3) + ' TND';
+
+  return (
+    <div className="animate-fade-in h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4 overflow-hidden">
+      {/* ═══ LEFT: Product Selection ═══ */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Client selector */}
+        <Card className="mb-3 shrink-0">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <Label className="text-xs text-muted-foreground mb-1 block">Client</Label>
+                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Sélectionner un client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="px-2 pb-2">
+                      <Input
+                        placeholder="Rechercher client..."
+                        value={clientSearch}
+                        onChange={e => setClientSearch(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    {filteredClients.map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Barcode input */}
+              <div className="flex-1 min-w-0">
+                <Label className="text-xs text-muted-foreground mb-1 block">
+                  <ScanBarcode className="h-3 w-3 inline mr-1" />
+                  Scanner / Code (F4)
+                </Label>
+                <Input
+                  ref={barcodeRef}
+                  placeholder="Scanner code-barres..."
+                  className="h-9 text-xs"
+                  onKeyDown={handleBarcodeInput}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Product search */}
+        <div className="relative mb-3 shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            ref={productSearchRef}
+            placeholder="Rechercher un produit... (F2)"
+            className="pl-9 h-10"
+            value={productSearch}
+            onChange={e => setProductSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Product grid */}
+        <div className="flex-1 overflow-y-auto pb-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+            {filteredProducts.map(p => {
+              const isLowStock = p.stock <= p.min_stock;
+              const isOutOfStock = p.stock <= 0;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => !isOutOfStock && addProductToOrder(p.id)}
+                  disabled={isOutOfStock}
+                  className={`
+                    relative text-left rounded-lg border p-3 transition-all
+                    ${isOutOfStock
+                      ? 'bg-muted/50 border-border opacity-60 cursor-not-allowed'
+                      : 'bg-card border-border hover:border-primary hover:shadow-md cursor-pointer active:scale-[0.98]'
+                    }
+                  `}
+                >
+                  <p className="text-sm font-medium truncate text-foreground">{p.name}</p>
+                  <p className="text-lg font-bold text-primary mt-1">{formatDT(p.selling_price)}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <Badge
+                      variant={isOutOfStock ? 'destructive' : isLowStock ? 'secondary' : 'outline'}
+                      className="text-[10px] px-1.5"
+                    >
+                      {p.stock} {p.unit}
+                    </Badge>
+                    {isLowStock && !isOutOfStock && (
+                      <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--warning))]" />
+                    )}
+                  </div>
+                  {isAdmin && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Marge: {formatDT(p.selling_price - p.purchase_price)}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+            {filteredProducts.length === 0 && (
+              <div className="col-span-full text-center py-8 text-muted-foreground text-sm">
+                Aucun produit trouvé
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ RIGHT: Order Card ═══ */}
+      <Card className="w-full lg:w-[380px] xl:w-[420px] shrink-0 flex flex-col overflow-hidden">
+        <CardHeader className="pb-2 px-4 pt-4 shrink-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Commande
+              {items.length > 0 && (
+                <Badge variant="secondary" className="text-xs ml-1">
+                  {items.reduce((s, i) => s + i.quantity, 0)}
+                </Badge>
+              )}
+            </CardTitle>
+            {items.length > 0 && (
+              <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => setItems([])}>
+                <Trash2 className="h-3 w-3 mr-1" /> Vider
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+
+        <CardContent className="flex-1 overflow-y-auto px-4 pb-0">
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <ShoppingCart className="h-10 w-10 mb-3 opacity-30" />
+              <p className="text-sm">Aucun article</p>
+              <p className="text-xs mt-1">Cliquez sur un produit pour l'ajouter</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {items.map(item => {
+                const overStock = item.quantity > item.stock;
+                return (
+                  <div
+                    key={item.product_id}
+                    className={`rounded-lg border p-3 ${overStock ? 'border-destructive/50 bg-destructive/5' : 'border-border'}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{item.product_name}</p>
+                        <p className="text-xs text-muted-foreground">{formatDT(item.unit_price)} / {item.unit}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeItem(item.product_id)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-1">
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product_id, -1)}>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={item.quantity}
+                          onChange={e => {
+                            const val = Math.max(1, parseInt(e.target.value) || 1);
+                            setItems(prev => prev.map(i => i.product_id === item.product_id ? { ...i, quantity: val } : i));
+                          }}
+                          className="h-7 w-14 text-center text-sm px-1"
+                        />
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product_id, 1)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <p className="text-sm font-bold">{formatDT(item.quantity * item.unit_price)}</p>
+                    </div>
+                    {overStock && (
+                      <div className="flex items-center gap-1 mt-1.5 text-[11px] text-destructive">
+                        <AlertTriangle className="h-3 w-3" />
+                        Stock: {item.stock} — Excès: {item.quantity - item.stock}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+
+        {/* ── Totals & Checkout ── */}
+        <div className="border-t border-border px-4 py-3 mt-auto shrink-0 space-y-2 bg-card">
+          {/* Discount */}
+          <div className="flex items-center gap-2">
+            <Select value={discountType} onValueChange={v => setDiscountType(v as DiscountType)}>
+              <SelectTrigger className="h-8 w-24 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="percent"><Percent className="h-3 w-3 inline mr-1" />%</SelectItem>
+                <SelectItem value="fixed"><Hash className="h-3 w-3 inline mr-1" />TND</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="number"
+              min={0}
+              step={discountType === 'percent' ? 1 : 0.001}
+              max={discountType === 'percent' ? 100 : grossTotal}
+              value={discountValue || ''}
+              onChange={e => setDiscountValue(+e.target.value)}
+              placeholder="Remise"
+              className="h-8 text-xs flex-1"
+            />
+          </div>
+
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between text-muted-foreground">
+              <span>Sous-total HT</span>
+              <span>{formatDT(subtotalHT)}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>TVA</span>
+              <span>{formatDT(tvaTotal)}</span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-[hsl(var(--success))]">
+                <span>Remise</span>
+                <span>-{formatDT(discountAmount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-lg pt-1 border-t border-border">
+              <span>Total</span>
+              <span className="text-primary">{formatDT(total)}</span>
+            </div>
+            {isAdmin && profitMargin > 0 && (
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Marge brute</span>
+                <span className="text-[hsl(var(--success))]">{formatDT(profitMargin)}</span>
+              </div>
+            )}
+          </div>
+
+          <Button
+            className="w-full h-12 text-base font-semibold gap-2"
+            disabled={items.length === 0}
+            onClick={() => {
+              setAmountReceived(0);
+              setCheckoutOpen(true);
+            }}
+          >
+            <CreditCard className="h-5 w-5" />
+            Encaisser (F8)
+          </Button>
+
+          <p className="text-[10px] text-center text-muted-foreground">
+            F2: Recherche • F4: Scanner • F8: Encaisser
+          </p>
+        </div>
+      </Card>
+
+      {/* ═══ Checkout Dialog ═══ */}
+      <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Encaissement
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="text-center p-4 rounded-lg bg-secondary">
+              <p className="text-sm text-muted-foreground">Total à payer</p>
+              <p className="text-3xl font-bold text-primary">{formatDT(total)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {items.reduce((s, i) => s + i.quantity, 0)} article(s) — TVA: {formatDT(tvaTotal)}
+              </p>
+            </div>
+
+            {/* Payment method */}
+            <div>
+              <Label className="text-sm mb-2 block">Mode de paiement</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { value: 'cash' as const, label: 'Espèces', icon: Banknote },
+                  { value: 'card' as const, label: 'Carte', icon: CreditCard },
+                  { value: 'virement' as const, label: 'Virement', icon: Building2 },
+                ]).map(pm => (
+                  <button
+                    key={pm.value}
+                    type="button"
+                    onClick={() => setPaymentMethod(pm.value)}
+                    className={`
+                      flex flex-col items-center gap-1.5 rounded-lg border p-3 transition-all text-sm font-medium
+                      ${paymentMethod === pm.value
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/50'
+                      }
+                    `}
+                  >
+                    <pm.icon className="h-5 w-5" />
+                    {pm.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cash: Amount received */}
+            {paymentMethod === 'cash' && (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm">Montant reçu (TND)</Label>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    min={0}
+                    value={amountReceived || ''}
+                    onChange={e => setAmountReceived(+e.target.value)}
+                    className="h-12 text-xl text-center font-bold"
+                    autoFocus
+                  />
+                </div>
+                {/* Quick amount buttons */}
+                <div className="flex gap-2">
+                  {[5, 10, 20, 50].map(v => (
+                    <Button key={v} variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setAmountReceived(v)}>
+                      {v} TND
+                    </Button>
+                  ))}
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setAmountReceived(Math.ceil(total))}>
+                    Exact
+                  </Button>
+                </div>
+                {amountReceived >= total && (
+                  <div className="text-center p-3 rounded-lg bg-[hsl(var(--success))]/10 border border-[hsl(var(--success))]/20">
+                    <p className="text-sm text-muted-foreground">Monnaie à rendre</p>
+                    <p className="text-2xl font-bold text-[hsl(var(--success))]">{formatDT(change)}</p>
+                  </div>
+                )}
+                {isPartial && (
+                  <div className="text-center p-2 rounded-lg bg-[hsl(var(--warning))]/10 border border-[hsl(var(--warning))]/20">
+                    <p className="text-xs text-[hsl(var(--warning))]">
+                      ⚠ Paiement partiel — Reste: {formatDT(total - amountReceived)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <Button
+              className="w-full h-12 text-base font-semibold gap-2"
+              disabled={submitting || (paymentMethod === 'cash' && amountReceived <= 0)}
+              onClick={handleCheckout}
+            >
+              {submitting ? (
+                'Validation...'
+              ) : (
+                <>
+                  <Check className="h-5 w-5" />
+                  Valider la vente
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
