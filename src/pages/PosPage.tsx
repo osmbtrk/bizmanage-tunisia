@@ -52,6 +52,58 @@ export default function PosPage() {
 
   const barcodeRef = useRef<HTMLInputElement>(null);
   const productSearchRef = useRef<HTMLInputElement>(null);
+  const [newClientOpen, setNewClientOpen] = useState(false);
+  const [clientForm, setClientForm] = useState({
+    name: '', legal_form: 'personne_physique' as string, matricule_fiscal: '', code_tva: '', rne: '',
+    address: '', governorate: '', phone: '', email: '', contact_person: '',
+    payment_terms: 'Paiement à 30 jours', status: 'active' as string,
+  });
+
+  const GOVERNORATES = [
+    'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan', 'Bizerte',
+    'Béja', 'Jendouba', 'Le Kef', 'Siliana', 'Sousse', 'Monastir', 'Mahdia',
+    'Sfax', 'Kairouan', 'Kasserine', 'Sidi Bouzid', 'Gabès', 'Médenine',
+    'Tataouine', 'Gafsa', 'Tozeur', 'Kébili',
+  ];
+  const LEGAL_FORMS = [
+    { value: 'personne_physique', label: 'Personne physique' },
+    { value: 'suarl', label: 'SUARL' },
+    { value: 'sarl', label: 'SARL' },
+    { value: 'sa', label: 'SA' },
+    { value: 'sas', label: 'SAS' },
+    { value: 'snc', label: 'SNC' },
+    { value: 'autre', label: 'Autre' },
+  ];
+  const emptyClientForm = {
+    name: '', legal_form: 'personne_physique' as string, matricule_fiscal: '', code_tva: '', rne: '',
+    address: '', governorate: '', phone: '', email: '', contact_person: '',
+    payment_terms: 'Paiement à 30 jours', status: 'active' as string,
+  };
+
+  const handleNewClientSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await addClient({
+      name: clientForm.name,
+      legal_form: clientForm.legal_form as any,
+      matricule_fiscal: clientForm.matricule_fiscal || null,
+      code_tva: clientForm.code_tva || null,
+      rne: clientForm.rne || null,
+      address: clientForm.address || null,
+      governorate: clientForm.governorate || null,
+      phone: clientForm.phone || null,
+      email: clientForm.email || null,
+      contact_person: clientForm.contact_person || null,
+      payment_terms: clientForm.payment_terms || null,
+      status: clientForm.status as any,
+      is_archived: false,
+    });
+    if (result) {
+      setSelectedClientId(result.id);
+      toast({ title: `Client "${result.name}" créé et sélectionné` });
+    }
+    setClientForm({ ...emptyClientForm });
+    setNewClientOpen(false);
+  };
 
   // ── Auto-create "Passager" client ──
   useEffect(() => {
@@ -270,26 +322,37 @@ export default function PosPage() {
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <Label className="text-xs text-muted-foreground mb-1 block">Client</Label>
-                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Sélectionner un client" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="px-2 pb-2">
-                      <Input
-                        placeholder="Rechercher client..."
-                        value={clientSearch}
-                        onChange={e => setClientSearch(e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    {filteredClients.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-1">
+                  <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Sélectionner un client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="px-2 pb-2">
+                        <Input
+                          placeholder="Rechercher client..."
+                          value={clientSearch}
+                          onChange={e => setClientSearch(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      {filteredClients.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => setNewClientOpen(true)}
+                    title="Nouveau client"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               {/* Barcode input */}
               <div className="flex-1 min-w-0">
@@ -307,6 +370,51 @@ export default function PosPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* New Client Modal */}
+        <Dialog open={newClientOpen} onOpenChange={o => { setNewClientOpen(o); if (!o) setClientForm({ ...emptyClientForm }); }}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>Nouveau client</DialogTitle></DialogHeader>
+            <form onSubmit={handleNewClientSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><Label>Raison sociale *</Label><Input required value={clientForm.name} onChange={e => setClientForm(f => ({ ...f, name: e.target.value }))} /></div>
+                <div>
+                  <Label>Forme juridique</Label>
+                  <Select value={clientForm.legal_form} onValueChange={v => setClientForm(f => ({ ...f, legal_form: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{LEGAL_FORMS.map(lf => <SelectItem key={lf.value} value={lf.value}>{lf.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Statut</Label>
+                  <Select value={clientForm.status} onValueChange={v => setClientForm(f => ({ ...f, status: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Actif</SelectItem>
+                      <SelectItem value="inactive">Inactif</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Matricule fiscal</Label><Input value={clientForm.matricule_fiscal} onChange={e => setClientForm(f => ({ ...f, matricule_fiscal: e.target.value }))} /></div>
+                <div><Label>Code TVA</Label><Input value={clientForm.code_tva} onChange={e => setClientForm(f => ({ ...f, code_tva: e.target.value }))} /></div>
+                <div className="col-span-2"><Label>RNE</Label><Input value={clientForm.rne} onChange={e => setClientForm(f => ({ ...f, rne: e.target.value }))} /></div>
+                <div className="col-span-2"><Label>Adresse</Label><Input value={clientForm.address} onChange={e => setClientForm(f => ({ ...f, address: e.target.value }))} /></div>
+                <div>
+                  <Label>Gouvernorat</Label>
+                  <Select value={clientForm.governorate} onValueChange={v => setClientForm(f => ({ ...f, governorate: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                    <SelectContent>{GOVERNORATES.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Téléphone</Label><Input value={clientForm.phone} onChange={e => setClientForm(f => ({ ...f, phone: e.target.value }))} /></div>
+                <div><Label>Email</Label><Input type="email" value={clientForm.email} onChange={e => setClientForm(f => ({ ...f, email: e.target.value }))} /></div>
+                <div><Label>Personne de contact</Label><Input value={clientForm.contact_person} onChange={e => setClientForm(f => ({ ...f, contact_person: e.target.value }))} /></div>
+                <div className="col-span-2"><Label>Conditions de paiement</Label><Input value={clientForm.payment_terms} onChange={e => setClientForm(f => ({ ...f, payment_terms: e.target.value }))} /></div>
+              </div>
+              <Button type="submit" className="w-full">Enregistrer</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Product search */}
         <div className="relative mb-3 shrink-0">
