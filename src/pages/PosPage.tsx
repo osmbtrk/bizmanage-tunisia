@@ -32,7 +32,7 @@ type DiscountType = 'percent' | 'fixed';
 
 // ── Main POS Component ──
 export default function PosPage() {
-  const { clients, products, addInvoice, addClient, refresh } = useData();
+  const { clients, products, addInvoice, addClient, addProduct, refresh } = useData();
   const { role, companyId } = useAuth();
   const { toast } = useToast();
   const isAdmin = role === 'admin';
@@ -58,6 +58,13 @@ export default function PosPage() {
     address: '', governorate: '', phone: '', email: '', contact_person: '',
     payment_terms: 'Paiement à 30 jours', status: 'active' as string,
   });
+  const [newProductOpen, setNewProductOpen] = useState(false);
+  const [productForm, setProductForm] = useState({
+    name: '', description: '', selling_price: 0, purchase_price: 0, stock: 0, min_stock: 5, unit: 'pièce', tva_rate: 19,
+  });
+  const emptyProductForm = {
+    name: '', description: '', selling_price: 0, purchase_price: 0, stock: 0, min_stock: 5, unit: 'pièce', tva_rate: 19,
+  };
 
   const GOVERNORATES = [
     'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan', 'Bizerte',
@@ -103,6 +110,26 @@ export default function PosPage() {
     }
     setClientForm({ ...emptyClientForm });
     setNewClientOpen(false);
+  };
+
+  const handleNewProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await addProduct({
+      name: productForm.name,
+      description: productForm.description || null,
+      selling_price: productForm.selling_price,
+      purchase_price: productForm.purchase_price,
+      stock: productForm.stock,
+      min_stock: productForm.min_stock,
+      unit: productForm.unit,
+      tva_rate: productForm.tva_rate,
+    });
+    if (result) {
+      addProductToOrder(result.id);
+      toast({ title: `Produit "${result.name}" créé et ajouté` });
+    }
+    setProductForm({ ...emptyProductForm });
+    setNewProductOpen(false);
   };
 
   // ── Auto-create "Passager" client ──
@@ -416,16 +443,71 @@ export default function PosPage() {
           </DialogContent>
         </Dialog>
 
+        {/* New Product Modal */}
+        <Dialog open={newProductOpen} onOpenChange={o => { setNewProductOpen(o); if (!o) setProductForm({ ...emptyProductForm }); }}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>Nouveau produit</DialogTitle></DialogHeader>
+            <form onSubmit={handleNewProductSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><Label>Nom *</Label><Input required value={productForm.name} onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))} /></div>
+                <div className="col-span-2"><Label>Description</Label><Input value={productForm.description} onChange={e => setProductForm(f => ({ ...f, description: e.target.value }))} /></div>
+                <div><Label>Prix de vente *</Label><Input type="number" step="0.001" min="0" required value={productForm.selling_price || ''} onChange={e => setProductForm(f => ({ ...f, selling_price: parseFloat(e.target.value) || 0 }))} /></div>
+                <div><Label>Prix d'achat</Label><Input type="number" step="0.001" min="0" value={productForm.purchase_price || ''} onChange={e => setProductForm(f => ({ ...f, purchase_price: parseFloat(e.target.value) || 0 }))} /></div>
+                <div><Label>Stock initial</Label><Input type="number" min="0" value={productForm.stock || ''} onChange={e => setProductForm(f => ({ ...f, stock: parseInt(e.target.value) || 0 }))} /></div>
+                <div><Label>Stock minimum</Label><Input type="number" min="0" value={productForm.min_stock || ''} onChange={e => setProductForm(f => ({ ...f, min_stock: parseInt(e.target.value) || 0 }))} /></div>
+                <div>
+                  <Label>Unité</Label>
+                  <Select value={productForm.unit} onValueChange={v => setProductForm(f => ({ ...f, unit: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pièce">Pièce</SelectItem>
+                      <SelectItem value="kg">Kg</SelectItem>
+                      <SelectItem value="litre">Litre</SelectItem>
+                      <SelectItem value="mètre">Mètre</SelectItem>
+                      <SelectItem value="boîte">Boîte</SelectItem>
+                      <SelectItem value="carton">Carton</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>TVA (%)</Label>
+                  <Select value={String(productForm.tva_rate)} onValueChange={v => setProductForm(f => ({ ...f, tva_rate: parseInt(v) }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">0%</SelectItem>
+                      <SelectItem value="7">7%</SelectItem>
+                      <SelectItem value="13">13%</SelectItem>
+                      <SelectItem value="19">19%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button type="submit" className="w-full">Enregistrer</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         {/* Product search */}
-        <div className="relative mb-3 shrink-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            ref={productSearchRef}
-            placeholder="Rechercher un produit... (F2)"
-            className="pl-9 h-10"
-            value={productSearch}
-            onChange={e => setProductSearch(e.target.value)}
-          />
+        <div className="relative mb-3 shrink-0 flex items-center gap-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              ref={productSearchRef}
+              placeholder="Rechercher un produit... (F2)"
+              className="pl-9 h-10"
+              value={productSearch}
+              onChange={e => setProductSearch(e.target.value)}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 shrink-0"
+            onClick={() => setNewProductOpen(true)}
+            title="Nouveau produit"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Product grid */}
