@@ -91,7 +91,7 @@ export default function ProductsPage() {
             </thead>
             <tbody>
               {filtered.map(p => (
-                <tr key={p.id} className="border-b border-border last:border-0">
+                <tr key={p.id} className="border-b border-border last:border-0 transition-colors duration-200 hover:bg-muted/50">
                   <td className="py-3">
                     <div className="font-medium">{p.name}</div>
                     {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
