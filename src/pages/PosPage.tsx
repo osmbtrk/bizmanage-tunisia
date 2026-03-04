@@ -522,28 +522,32 @@ export default function PosPage() {
                   onClick={() => !isOutOfStock && addProductToOrder(p.id)}
                   disabled={isOutOfStock}
                   className={`
-                    relative text-left rounded-lg border p-3 transition-all
+                    relative text-left rounded-lg border p-3 transition-all duration-200
                     ${isOutOfStock
-                      ? 'bg-muted/50 border-border opacity-60 cursor-not-allowed'
-                      : 'bg-card border-border hover:border-primary hover:shadow-md cursor-pointer active:scale-[0.98]'
+                      ? 'bg-muted/50 border-border opacity-50 cursor-not-allowed'
+                      : isLowStock
+                        ? 'bg-card border-warning/40 hover:border-warning hover:shadow-md cursor-pointer active:scale-[0.97]'
+                        : 'bg-card border-border hover:border-primary hover:shadow-md cursor-pointer active:scale-[0.97] hover:-translate-y-0.5'
                     }
                   `}
                 >
-                  <p className="text-sm font-medium truncate text-foreground">{p.name}</p>
-                  <p className="text-lg font-bold text-primary mt-1">{formatDT(p.selling_price)}</p>
+                  <p className="text-sm font-semibold truncate text-foreground">{p.name}</p>
+                  <p className="text-lg font-bold text-primary mt-1 tabular-nums">{formatDT(p.selling_price)}</p>
                   <div className="flex items-center justify-between mt-2">
                     <Badge
                       variant={isOutOfStock ? 'destructive' : isLowStock ? 'secondary' : 'outline'}
-                      className="text-[10px] px-1.5"
+                      className={`text-[10px] px-2 py-0.5 font-semibold tabular-nums ${
+                        isLowStock && !isOutOfStock ? 'bg-warning/15 text-warning border-warning/30' : ''
+                      }`}
                     >
-                      {p.stock} {p.unit}
+                      {isOutOfStock ? '⛔ Rupture' : `📦 ${p.stock} ${p.unit}`}
                     </Badge>
                     {isLowStock && !isOutOfStock && (
-                      <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--warning))]" />
+                      <AlertTriangle className="h-3.5 w-3.5 text-warning animate-pulse" />
                     )}
                   </div>
                   {isAdmin && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-[10px] text-muted-foreground mt-1.5 tabular-nums">
                       Marge: {formatDT(p.selling_price - p.purchase_price)}
                     </p>
                   )}
@@ -560,7 +564,7 @@ export default function PosPage() {
       </div>
 
       {/* ═══ RIGHT: Order Card ═══ */}
-      <Card className="w-full lg:w-[380px] xl:w-[420px] shrink-0 flex flex-col overflow-hidden">
+      <Card className="w-full lg:w-[380px] xl:w-[420px] shrink-0 flex flex-col overflow-hidden shadow-lg">
         <CardHeader className="pb-2 px-4 pt-4 shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
@@ -594,7 +598,7 @@ export default function PosPage() {
                 return (
                   <div
                     key={item.product_id}
-                    className={`rounded-lg border p-3 ${overStock ? 'border-destructive/50 bg-destructive/5' : 'border-border'}`}
+                    className={`rounded-lg border p-3 transition-all duration-200 ${overStock ? 'border-destructive/50 bg-destructive/5 border-l-4 border-l-destructive' : 'border-border hover:border-primary/30'}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -679,9 +683,9 @@ export default function PosPage() {
                 <span>-{formatDT(discountAmount)}</span>
               </div>
             )}
-            <div className="flex justify-between font-bold text-lg pt-1 border-t border-border">
-              <span>Total</span>
-              <span className="text-primary">{formatDT(total)}</span>
+            <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
+              <span>Total TTC</span>
+              <span className="text-primary tabular-nums text-xl">{formatDT(total)}</span>
             </div>
             {isAdmin && profitMargin > 0 && (
               <div className="flex justify-between text-xs text-muted-foreground">

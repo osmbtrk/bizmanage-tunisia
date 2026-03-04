@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import GlobalCreateDialogs, { type GlobalDialogType } from '@/components/GlobalCreateDialogs';
 import { Package as PackageIcon } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -105,8 +106,11 @@ export default function AppLayout() {
           </button>
           <div className="flex-1" />
 
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* POS Quick Button */}
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/pos')}>
+          <Button variant="outline" size="sm" className="gap-1.5 transition-colors duration-200" onClick={() => navigate('/pos')}>
             <ShoppingCart className="h-4 w-4" />
             <span className="hidden sm:inline">POS</span>
           </Button>

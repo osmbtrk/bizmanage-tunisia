@@ -157,28 +157,39 @@ export default function Dashboard() {
 
       {/* Low Stock Warning - below KPI cards */}
       {stats.lowStockProducts.length > 0 && (
-        <Card className="border-destructive/40 bg-destructive/5 shadow-sm">
+        <div className="stock-alert-card">
           <CardContent className="p-5">
             <div className="flex items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-destructive/10">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-destructive/15">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-destructive mb-3">
-                  ⚠ {stats.lowStockProducts.length} produit(s) en stock faible
+                <h3 className="text-sm font-bold text-destructive mb-1">
+                  Alerte stock
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                <p className="text-xs text-muted-foreground mb-3">
+                  {stats.lowStockProducts.length} produit(s) en dessous du seuil minimum
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                   {stats.lowStockProducts.map(p => (
-                    <div key={p.id} className="flex items-center justify-between rounded-lg bg-destructive/5 border border-destructive/15 px-3 py-2 text-sm">
-                      <span className="truncate text-foreground font-medium">{p.name}</span>
-                      <span className="ml-3 font-bold text-destructive whitespace-nowrap">{p.stock} {p.unit}</span>
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between rounded-lg bg-card border border-destructive/20 px-3 py-2.5 text-sm transition-colors duration-200 hover:border-destructive/40"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`h-2 w-2 rounded-full shrink-0 ${p.stock <= 0 ? 'bg-destructive' : 'bg-warning'}`} />
+                        <span className="truncate font-medium text-foreground">{p.name}</span>
+                      </div>
+                      <span className={`ml-3 font-bold whitespace-nowrap tabular-nums ${p.stock <= 0 ? 'text-destructive' : 'text-warning'}`}>
+                        {p.stock} {p.unit}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
           </CardContent>
-        </Card>
+        </div>
       )}
 
       {/* Charts Row */}
@@ -300,7 +311,7 @@ export default function Dashboard() {
                   </thead>
                   <tbody>
                     {recentInvoices.map(inv => (
-                      <tr key={inv.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                      <tr key={inv.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-200 cursor-default">
                         <td className="py-2.5 font-medium">{inv.number}</td>
                         <td className="py-2.5 text-muted-foreground">{inv.client_name}</td>
                         <td className="py-2.5 text-muted-foreground">{new Date(inv.date).toLocaleDateString('fr-TN')}</td>
@@ -324,23 +335,23 @@ function KpiCard({ icon: Icon, label, value, sub, color, trend }: {
   icon: React.ElementType; label: string; value: string; sub?: string; color: string; trend?: number;
 }) {
   return (
-    <Card>
+    <Card className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-secondary ${color}`}>
             <Icon className="h-4 w-4" />
           </div>
           {trend !== undefined && trend !== 0 && (
-            <span className={`flex items-center text-xs font-medium ${trend > 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
+            <span className={`flex items-center text-xs font-semibold ${trend > 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
               {trend > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
               {Math.abs(trend).toFixed(0)}%
             </span>
           )}
         </div>
         <div className="mt-3">
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold mt-0.5">{value}</p>
-          {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+          <p className="text-xl font-bold mt-1 tabular-nums">{value}</p>
+          {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
         </div>
       </CardContent>
     </Card>
