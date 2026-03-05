@@ -11,10 +11,12 @@ import Dashboard from "@/pages/Dashboard";
 import InvoicesPage from "@/pages/InvoicesPage";
 import ClientsPage from "@/pages/ClientsPage";
 import ProductsPage from "@/pages/ProductsPage";
+import StockPage from "@/pages/StockPage";
 import SuppliersPage from "@/pages/SuppliersPage";
 import ExpensesPage from "@/pages/ExpensesPage";
 import PosPage from "@/pages/PosPage";
 import SettingsPage from "@/pages/SettingsPage";
+import AnalyticsPage from "@/pages/AnalyticsPage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -44,8 +46,10 @@ function ProtectedRoutes() {
           <Route path="/devis" element={<InvoicesPage docType="devis" title="Devis" />} />
           <Route path="/clients" element={<ClientsPage />} />
           <Route path="/produits" element={<ProductsPage />} />
+          <Route path="/stock" element={<StockPage />} />
           <Route path="/fournisseurs" element={<SuppliersPage />} />
           <Route path="/depenses" element={<ExpensesPage />} />
+          <Route path="/analytiques" element={<AnalyticsPage />} />
           <Route path="/parametres" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

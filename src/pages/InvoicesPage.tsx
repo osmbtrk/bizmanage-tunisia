@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Search, FileText, Download, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Trash2, Search, FileText, Download, Calendar, Eye } from 'lucide-react';
 import { generateInvoicePdf } from '@/lib/generatePdf';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 
@@ -39,6 +40,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
   const [customEnd, setCustomEnd] = useState('');
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [detailInvoice, setDetailInvoice] = useState<any>(null);
 
   const isFacture = docType === 'facture';
   const showFiltering = docType === 'facture' || docType === 'devis';
@@ -175,7 +177,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
       ) : (
         <div className="space-y-3">
           {paginated.map(inv => (
-            <div key={inv.id} className="stat-card">
+            <div key={inv.id} className="stat-card cursor-pointer transition-all duration-200 hover:shadow-md" onClick={() => setDetailInvoice(inv)}>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -192,20 +194,25 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
                       <p className="text-xs text-muted-foreground">Payé: {formatDT(inv.paid_amount)}</p>
                     )}
                   </div>
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDetailInvoice(inv); }} className="text-muted-foreground hover:text-primary" title="Voir détails">
+                    <Eye className="h-4 w-4" />
+                  </Button>
                   {docType === 'facture' && inv.status !== 'paid' && (
-                    <Select value={inv.status} onValueChange={v => updateInvoiceStatus(inv.id, v)}>
-                      <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="paid">Payée</SelectItem>
-                        <SelectItem value="partial">Partielle</SelectItem>
-                        <SelectItem value="unpaid">Impayée</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div onClick={e => e.stopPropagation()}>
+                      <Select value={inv.status} onValueChange={v => updateInvoiceStatus(inv.id, v)}>
+                        <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="paid">Payée</SelectItem>
+                          <SelectItem value="partial">Partielle</SelectItem>
+                          <SelectItem value="unpaid">Impayée</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   )}
-                  <Button variant="ghost" size="icon" onClick={() => generateInvoicePdf({ ...inv, clientName: inv.client_name, subtotal: inv.subtotal, tvaTotal: inv.tva_total, paidAmount: inv.paid_amount }, company)} className="text-muted-foreground hover:text-accent" title="Télécharger PDF">
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); generateInvoicePdf({ ...inv, clientName: inv.client_name, subtotal: inv.subtotal, tvaTotal: inv.tva_total, paidAmount: inv.paid_amount }, company); }} className="text-muted-foreground hover:text-accent" title="Télécharger PDF">
                     <Download className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => deleteInvoice(inv.id)} className="text-muted-foreground hover:text-destructive">
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteInvoice(inv.id); }} className="text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -241,6 +248,96 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
           </div>
         </div>
       )}
+
+      {/* Invoice Detail Dialog */}
+      <Dialog open={!!detailInvoice} onOpenChange={o => { if (!o) setDetailInvoice(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {detailInvoice && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-3">
+                  <FileText className="h-5 w-5" />
+                  {detailInvoice.number}
+                  <StatusBadge status={detailInvoice.status} />
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs uppercase tracking-wider">Client</p>
+                    <p className="font-medium mt-1">{detailInvoice.client_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs uppercase tracking-wider">Date</p>
+                    <p className="font-medium mt-1">{new Date(detailInvoice.date).toLocaleDateString('fr-TN')}</p>
+                  </div>
+                  {detailInvoice.due_date && (
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wider">Échéance</p>
+                      <p className="font-medium mt-1">{new Date(detailInvoice.due_date).toLocaleDateString('fr-TN')}</p>
+                    </div>
+                  )}
+                  {detailInvoice.payment_terms && (
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wider">Conditions</p>
+                      <p className="font-medium mt-1">{detailInvoice.payment_terms}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Items table */}
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr className="text-muted-foreground">
+                        <th className="text-left p-3 font-medium">Produit</th>
+                        <th className="text-right p-3 font-medium">Qté</th>
+                        <th className="text-right p-3 font-medium">P.U.</th>
+                        <th className="text-right p-3 font-medium">TVA</th>
+                        <th className="text-right p-3 font-medium">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detailInvoice.items?.map((item: any, i: number) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="p-3 font-medium">{item.product_name}</td>
+                          <td className="p-3 text-right tabular-nums">{item.quantity}</td>
+                          <td className="p-3 text-right tabular-nums">{Number(item.unit_price).toFixed(3)}</td>
+                          <td className="p-3 text-right tabular-nums">{item.tva_rate}%</td>
+                          <td className="p-3 text-right tabular-nums font-medium">{formatDT(item.quantity * Number(item.unit_price))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Totals */}
+                <div className="space-y-1 text-sm border-t border-border pt-3">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Sous-total HT</span><span className="tabular-nums">{formatDT(detailInvoice.subtotal)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span className="tabular-nums">{formatDT(detailInvoice.tva_total)}</span></div>
+                  <div className="flex justify-between font-bold text-lg pt-2"><span>Total TTC</span><span className="tabular-nums">{formatDT(detailInvoice.total)}</span></div>
+                  {detailInvoice.paid_amount > 0 && detailInvoice.status !== 'paid' && (
+                    <div className="flex justify-between text-muted-foreground"><span>Montant payé</span><span className="tabular-nums">{formatDT(detailInvoice.paid_amount)}</span></div>
+                  )}
+                </div>
+
+                {detailInvoice.notes && (
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Notes</p>
+                    <p className="text-sm">{detailInvoice.notes}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => generateInvoicePdf({ ...detailInvoice, clientName: detailInvoice.client_name, subtotal: detailInvoice.subtotal, tvaTotal: detailInvoice.tva_total, paidAmount: detailInvoice.paid_amount }, company)}>
+                    <Download className="h-4 w-4 mr-2" /> Télécharger PDF
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

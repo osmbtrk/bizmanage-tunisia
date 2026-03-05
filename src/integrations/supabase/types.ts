@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      bom_items: {
+        Row: {
+          created_at: string
+          finished_product_id: string
+          id: string
+          quantity: number
+          raw_material_id: string
+          unit_type: string
+        }
+        Insert: {
+          created_at?: string
+          finished_product_id: string
+          id?: string
+          quantity?: number
+          raw_material_id: string
+          unit_type?: string
+        }
+        Update: {
+          created_at?: string
+          finished_product_id?: string
+          id?: string
+          quantity?: number
+          raw_material_id?: string
+          unit_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_items_finished_product_id_fkey"
+            columns: ["finished_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_items_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -171,35 +213,50 @@ export type Database = {
       expenses: {
         Row: {
           amount: number
+          amount_ht: number
           category: string
           company_id: string
           created_at: string
           date: string
           description: string
           id: string
+          is_recurring: boolean
+          recurrence_period: string | null
           supplier_id: string | null
+          tva_amount: number
+          tva_rate: number
           updated_at: string
         }
         Insert: {
           amount?: number
+          amount_ht?: number
           category?: string
           company_id: string
           created_at?: string
           date?: string
           description: string
           id?: string
+          is_recurring?: boolean
+          recurrence_period?: string | null
           supplier_id?: string | null
+          tva_amount?: number
+          tva_rate?: number
           updated_at?: string
         }
         Update: {
           amount?: number
+          amount_ht?: number
           category?: string
           company_id?: string
           created_at?: string
           date?: string
           description?: string
           id?: string
+          is_recurring?: boolean
+          recurrence_period?: string | null
           supplier_id?: string | null
+          tva_amount?: number
+          tva_rate?: number
           updated_at?: string
         }
         Relationships: [
@@ -347,43 +404,52 @@ export type Database = {
       }
       products: {
         Row: {
+          category_type: Database["public"]["Enums"]["category_type"]
           company_id: string
           created_at: string
           description: string | null
           id: string
           min_stock: number
           name: string
+          product_type: Database["public"]["Enums"]["product_type"]
           purchase_price: number
           selling_price: number
           stock: number
+          supplier_id: string | null
           tva_rate: number
           unit: string
           updated_at: string
         }
         Insert: {
+          category_type?: Database["public"]["Enums"]["category_type"]
           company_id: string
           created_at?: string
           description?: string | null
           id?: string
           min_stock?: number
           name: string
+          product_type?: Database["public"]["Enums"]["product_type"]
           purchase_price?: number
           selling_price?: number
           stock?: number
+          supplier_id?: string | null
           tva_rate?: number
           unit?: string
           updated_at?: string
         }
         Update: {
+          category_type?: Database["public"]["Enums"]["category_type"]
           company_id?: string
           created_at?: string
           description?: string | null
           id?: string
           min_stock?: number
           name?: string
+          product_type?: Database["public"]["Enums"]["product_type"]
           purchase_price?: number
           selling_price?: number
           stock?: number
+          supplier_id?: string | null
           tva_rate?: number
           unit?: string
           updated_at?: string
@@ -394,6 +460,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -562,6 +635,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "employee"
+      category_type: "normal" | "matiere_premiere"
       client_status: "active" | "inactive"
       legal_form:
         | "personne_physique"
@@ -571,6 +645,7 @@ export type Database = {
         | "sas"
         | "snc"
         | "autre"
+      product_type: "finished_product" | "raw_material" | "service"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -699,6 +774,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "employee"],
+      category_type: ["normal", "matiere_premiere"],
       client_status: ["active", "inactive"],
       legal_form: [
         "personne_physique",
@@ -709,6 +785,7 @@ export const Constants = {
         "snc",
         "autre",
       ],
+      product_type: ["finished_product", "raw_material", "service"],
     },
   },
 } as const

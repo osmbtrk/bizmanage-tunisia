@@ -137,7 +137,7 @@ export default function Dashboard() {
           trend={stats.revenueGrowth}
           color="text-accent"
         />
-        <KpiCard icon={Receipt} label="Total HT" value={formatDT(stats.monthlyHT)} color="text-primary" />
+        <KpiCard icon={TrendingUp} label="Bénéfice net" value={formatDT(stats.monthlyRevenue - stats.monthlyExpenses)} color={stats.monthlyRevenue - stats.monthlyExpenses >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'} />
         <KpiCard icon={Receipt} label="Total TVA" value={formatDT(stats.monthlyTVA)} color="text-muted-foreground" />
         <KpiCard
           icon={DollarSign}

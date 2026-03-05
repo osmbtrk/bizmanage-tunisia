@@ -61,9 +61,11 @@ export default function PosPage() {
   const [newProductOpen, setNewProductOpen] = useState(false);
   const [productForm, setProductForm] = useState({
     name: '', description: '', selling_price: 0, purchase_price: 0, stock: 0, min_stock: 5, unit: 'pièce', tva_rate: 19,
+    product_type: 'finished_product' as string, category_type: 'normal' as string, supplier_id: null as string | null,
   });
   const emptyProductForm = {
     name: '', description: '', selling_price: 0, purchase_price: 0, stock: 0, min_stock: 5, unit: 'pièce', tva_rate: 19,
+    product_type: 'finished_product' as string, category_type: 'normal' as string, supplier_id: null as string | null,
   };
 
   const GOVERNORATES = [
@@ -123,6 +125,9 @@ export default function PosPage() {
       min_stock: productForm.min_stock,
       unit: productForm.unit,
       tva_rate: productForm.tva_rate,
+      product_type: productForm.product_type as any,
+      category_type: productForm.category_type as any,
+      supplier_id: productForm.supplier_id,
     });
     if (result) {
       addProductToOrder(result.id);

@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Users, Package, Truck,
-  Receipt, Building2, Menu, X, Settings, LogOut, User, ChevronDown, Plus, ShoppingCart
+  Receipt, Building2, Menu, X, Settings, LogOut, User, ChevronDown, Plus, ShoppingCart, BarChart3, Warehouse
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -21,8 +21,10 @@ const navItems = [
   { to: '/devis', icon: FileText, label: 'Devis' },
   { to: '/clients', icon: Users, label: 'Gestion clients' },
   { to: '/produits', icon: Package, label: 'Produits & Stock' },
+  { to: '/stock', icon: Warehouse, label: 'Gestion Stock' },
   { to: '/fournisseurs', icon: Truck, label: 'Fournisseurs' },
   { to: '/depenses', icon: Receipt, label: 'Dépenses' },
+  { to: '/analytiques', icon: BarChart3, label: 'Analytiques' },
   { to: '/parametres', icon: Settings, label: 'Paramètres' },
 ];
 

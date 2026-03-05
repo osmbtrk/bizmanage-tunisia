@@ -5,26 +5,65 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Check, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Check, X, Settings2, Layers } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ProductsPage() {
-  const { products, addProduct, deleteProduct, updateProduct } = useData();
+  const { products, addProduct, deleteProduct, updateProduct, suppliers } = useData();
+  const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStock, setEditStock] = useState(0);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [bomOpen, setBomOpen] = useState(false);
+  const [bomProductId, setBomProductId] = useState<string | null>(null);
+  const [bomItems, setBomItems] = useState<{ raw_material_id: string; quantity: number; unit_type: string }[]>([]);
   const [form, setForm] = useState({
     name: '', description: '', purchase_price: 0, selling_price: 0,
     tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
+    product_type: 'finished_product' as string, category_type: 'normal' as string, supplier_id: '' as string,
   });
 
-  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = products
+    .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(p => typeFilter === 'all' || p.product_type === typeFilter);
+
+  const rawMaterials = products.filter(p => p.product_type === 'raw_material');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addProduct(form as any);
-    setForm({ name: '', description: '', purchase_price: 0, selling_price: 0, tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce' });
+    await addProduct({
+      ...form,
+      description: form.description || null,
+      supplier_id: form.supplier_id || null,
+      product_type: form.product_type as any,
+      category_type: form.category_type as any,
+    } as any);
+    setForm({ name: '', description: '', purchase_price: 0, selling_price: 0, tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce', product_type: 'finished_product', category_type: 'normal', supplier_id: '' });
     setOpen(false);
+  };
+
+  const openBom = async (productId: string) => {
+    setBomProductId(productId);
+    const { data } = await supabase.from('bom_items').select('*').eq('finished_product_id', productId);
+    setBomItems((data ?? []).map(b => ({ raw_material_id: b.raw_material_id, quantity: Number(b.quantity), unit_type: b.unit_type })));
+    setBomOpen(true);
+  };
+
+  const saveBom = async () => {
+    if (!bomProductId) return;
+    await supabase.from('bom_items').delete().eq('finished_product_id', bomProductId);
+    if (bomItems.length > 0) {
+      await supabase.from('bom_items').insert(
+        bomItems.map(b => ({ finished_product_id: bomProductId, raw_material_id: b.raw_material_id, quantity: b.quantity, unit_type: b.unit_type }))
+      );
+    }
+    toast({ title: 'Nomenclature enregistrée' });
+    setBomOpen(false);
   };
 
   return (
@@ -40,6 +79,40 @@ export default function ProductsPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div><Label>Nom *</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
               <div><Label>Description</Label><Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Type</Label>
+                  <Select value={form.product_type} onValueChange={v => setForm(f => ({ ...f, product_type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="finished_product">Produit fini</SelectItem>
+                      <SelectItem value="raw_material">Matière première</SelectItem>
+                      <SelectItem value="service">Service</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Catégorie</Label>
+                  <Select value={form.category_type} onValueChange={v => setForm(f => ({ ...f, category_type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="matiere_premiere">Matière première</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {form.product_type === 'raw_material' && (
+                <div>
+                  <Label>Fournisseur</Label>
+                  <Select value={form.supplier_id} onValueChange={v => setForm(f => ({ ...f, supplier_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner un fournisseur" /></SelectTrigger>
+                    <SelectContent>
+                      {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Prix d'achat (TND)</Label><Input type="number" step="0.001" min={0} value={form.purchase_price} onChange={e => setForm(f => ({ ...f, purchase_price: +e.target.value }))} /></div>
                 <div><Label>Prix de vente (TND)</Label><Input type="number" step="0.001" min={0} value={form.selling_price} onChange={e => setForm(f => ({ ...f, selling_price: +e.target.value }))} /></div>
@@ -67,9 +140,20 @@ export default function ProductsPage() {
         </Dialog>
       </div>
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Rechercher un produit..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="flex flex-wrap gap-3 mb-4 items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Rechercher un produit..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Type" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les types</SelectItem>
+            <SelectItem value="finished_product">Produit fini</SelectItem>
+            <SelectItem value="raw_material">Matière première</SelectItem>
+            <SelectItem value="service">Service</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {filtered.length === 0 ? (
@@ -83,6 +167,7 @@ export default function ProductsPage() {
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
                 <th className="pb-3 font-medium">Produit</th>
+                <th className="pb-3 font-medium">Type</th>
                 <th className="pb-3 font-medium">Prix vente</th>
                 <th className="pb-3 font-medium">TVA</th>
                 <th className="pb-3 font-medium">Stock</th>
@@ -90,11 +175,16 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(p => (
+              {filtered.map(p => {
+                const typeLabels: Record<string, string> = { finished_product: 'Produit fini', raw_material: 'Matière 1ère', service: 'Service' };
+                return (
                 <tr key={p.id} className="border-b border-border last:border-0 transition-colors duration-200 hover:bg-muted/50">
                   <td className="py-3">
                     <div className="font-medium">{p.name}</div>
                     {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
+                  </td>
+                  <td className="py-3">
+                    <Badge variant="outline" className="text-xs">{typeLabels[p.product_type] || p.product_type}</Badge>
                   </td>
                   <td className="py-3">{Number(p.selling_price).toFixed(3)} TND</td>
                   <td className="py-3">{p.tva_rate}%</td>
@@ -118,16 +208,69 @@ export default function ProductsPage() {
                     )}
                   </td>
                   <td className="py-3">
-                    <Button variant="ghost" size="icon" onClick={() => deleteProduct(p.id)} className="text-muted-foreground hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {p.product_type === 'finished_product' && (
+                        <Button variant="ghost" size="icon" onClick={() => openBom(p.id)} className="text-muted-foreground hover:text-primary" title="Nomenclature (BOM)">
+                          <Layers className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={() => deleteProduct(p.id)} className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* BOM Dialog */}
+      <Dialog open={bomOpen} onOpenChange={setBomOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Layers className="h-5 w-5" /> Nomenclature (BOM)</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Définir les matières premières nécessaires pour fabriquer ce produit.</p>
+            {bomItems.map((item, idx) => (
+              <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                <div className="col-span-5">
+                  <Label className="text-xs">Matière première</Label>
+                  <Select value={item.raw_material_id} onValueChange={v => setBomItems(prev => prev.map((b, i) => i === idx ? { ...b, raw_material_id: v } : b))}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>{rawMaterials.map(rm => <SelectItem key={rm.id} value={rm.id}>{rm.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-3">
+                  <Label className="text-xs">Quantité</Label>
+                  <Input type="number" step="0.01" min={0} className="h-9 text-xs" value={item.quantity} onChange={e => setBomItems(prev => prev.map((b, i) => i === idx ? { ...b, quantity: +e.target.value } : b))} />
+                </div>
+                <div className="col-span-3">
+                  <Label className="text-xs">Type</Label>
+                  <Select value={item.unit_type} onValueChange={v => setBomItems(prev => prev.map((b, i) => i === idx ? { ...b, unit_type: v } : b))}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">Fixe</SelectItem>
+                      <SelectItem value="percentage">%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-1">
+                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setBomItems(prev => prev.filter((_, i) => i !== idx))}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={() => setBomItems(prev => [...prev, { raw_material_id: rawMaterials[0]?.id || '', quantity: 1, unit_type: 'fixed' }])} disabled={rawMaterials.length === 0}>
+              <Plus className="h-3 w-3 mr-1" /> Ajouter matière
+            </Button>
+            {rawMaterials.length === 0 && <p className="text-xs text-muted-foreground">Créez d'abord des produits de type "Matière première"</p>}
+            <Button className="w-full" onClick={saveBom}>Enregistrer la nomenclature</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
