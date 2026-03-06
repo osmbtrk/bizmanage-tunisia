@@ -45,7 +45,7 @@ interface DataContextType {
   deleteInvoice: (id: string) => Promise<void>;
 
   expenses: DbExpense[];
-  addExpense: (data: Omit<DbExpense, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  addExpense: (data: Omit<DbExpense, 'id' | 'company_id' | 'created_at' | 'updated_at'>, stockItems?: { product_id: string; product_name: string; quantity: number }[]) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
 
   suppliers: DbSupplier[];
@@ -234,6 +234,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             const product = products.find(p => p.id === item.product_id);
             if (product) {
               await supabase.from('products').update({ stock: product.stock - item.quantity }).eq('id', item.product_id);
+
+              // BOM: if finished product, deduct raw materials
+              if (product.product_type === 'finished_product') {
+                const { data: bomItems } = await supabase
+                  .from('bom_items')
+                  .select('*')
+                  .eq('finished_product_id', product.id);
+
+                if (bomItems && bomItems.length > 0) {
+                  for (const bom of bomItems) {
+                    const rawMat = products.find(p => p.id === bom.raw_material_id);
+                    const deductQty = bom.unit_type === 'percentage'
+                      ? Math.ceil((bom.quantity / 100) * item.quantity)
+                      : bom.quantity * item.quantity;
+
+                    if (rawMat) {
+                      await supabase.from('products').update({
+                        stock: Math.max(0, rawMat.stock - deductQty),
+                      }).eq('id', rawMat.id);
+
+                      await supabase.from('stock_movements').insert({
+                        company_id: companyId,
+                        product_id: rawMat.id,
+                        product_name: rawMat.name,
+                        type: 'out',
+                        quantity: deductQty,
+                        reason: `BOM - ${product.name} (${data.type === 'facture' ? 'Facture' : 'BL'} ${number})`,
+                      });
+                    }
+                  }
+                }
+              }
             }
             await supabase.from('stock_movements').insert({
               company_id: companyId,
@@ -264,11 +296,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [refresh]);
 
-  const addExpense = useCallback(async (data: Omit<DbExpense, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
+  const addExpense = useCallback(async (
+    data: Omit<DbExpense, 'id' | 'company_id' | 'created_at' | 'updated_at'>,
+    stockItems?: { product_id: string; product_name: string; quantity: number }[]
+  ) => {
     if (!companyId) return;
     await supabase.from('expenses').insert({ ...data, company_id: companyId });
+
+    // Auto-increase raw material stock when supplier expense has linked products
+    if (stockItems && stockItems.length > 0) {
+      for (const si of stockItems) {
+        const product = products.find(p => p.id === si.product_id);
+        if (product) {
+          await supabase.from('products').update({
+            stock: product.stock + si.quantity,
+          }).eq('id', si.product_id);
+
+          await supabase.from('stock_movements').insert({
+            company_id: companyId,
+            product_id: si.product_id,
+            product_name: si.product_name,
+            type: 'in',
+            quantity: si.quantity,
+            reason: `Achat fournisseur - ${data.description}`,
+          });
+        }
+      }
+    }
+
     refresh();
-  }, [companyId, refresh]);
+  }, [companyId, products, refresh]);
 
   const deleteExpense = useCallback(async (id: string) => {
     await supabase.from('expenses').delete().eq('id', id);

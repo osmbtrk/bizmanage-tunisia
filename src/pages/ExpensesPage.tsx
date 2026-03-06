@@ -8,11 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2, Receipt, Calendar } from 'lucide-react';
+import { Plus, Trash2, Receipt, Calendar, Package } from 'lucide-react';
 
 const categories = [
   'Loyer', 'Électricité', 'Eau', 'Internet', 'Téléphone',
-  'Transport', 'Fournitures', 'Salaires', 'Impôts', 'Autre',
+  'Transport', 'Fournitures', 'Salaires', 'Impôts', 'Achat matières', 'Autre',
 ];
 
 const recurrencePeriods = [
@@ -21,8 +21,14 @@ const recurrencePeriods = [
   { value: 'yearly', label: 'Annuel' },
 ];
 
+interface StockLineItem {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+}
+
 export default function ExpensesPage() {
-  const { expenses, addExpense, deleteExpense, suppliers } = useData();
+  const { expenses, addExpense, deleteExpense, suppliers, products } = useData();
   const [open, setOpen] = useState(false);
   const [monthFilter, setMonthFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -30,10 +36,36 @@ export default function ExpensesPage() {
     description: '', amount: 0, date: new Date().toISOString().split('T')[0], category: 'Autre',
     tva_rate: 19, is_recurring: false, recurrence_period: '' as string, supplier_id: '' as string,
   });
+  const [stockLines, setStockLines] = useState<StockLineItem[]>([]);
+
+  // Raw materials for selected supplier
+  const supplierRawMaterials = useMemo(() => {
+    if (!form.supplier_id) return [];
+    return products.filter(p => p.product_type === 'raw_material' && p.supplier_id === form.supplier_id);
+  }, [products, form.supplier_id]);
 
   // Auto-calc TVA
   const amountHT = form.tva_rate > 0 ? form.amount / (1 + form.tva_rate / 100) : form.amount;
   const tvaAmount = form.amount - amountHT;
+
+  const addStockLine = () => {
+    setStockLines(prev => [...prev, { product_id: '', product_name: '', quantity: 1 }]);
+  };
+
+  const updateStockLine = (idx: number, field: keyof StockLineItem, value: string | number) => {
+    setStockLines(prev => prev.map((line, i) => {
+      if (i !== idx) return line;
+      if (field === 'product_id') {
+        const p = products.find(pr => pr.id === value);
+        return { ...line, product_id: value as string, product_name: p?.name || '' };
+      }
+      return { ...line, [field]: value };
+    }));
+  };
+
+  const removeStockLine = (idx: number) => {
+    setStockLines(prev => prev.filter((_, i) => i !== idx));
+  };
 
   const sorted = useMemo(() => {
     let list = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -50,7 +82,6 @@ export default function ExpensesPage() {
     return list;
   }, [expenses, monthFilter, categoryFilter]);
 
-  // Monthly grouping
   const monthlyGroups = useMemo(() => {
     const groups: Record<string, { total: number; tva: number; count: number }> = {};
     expenses.forEach(e => {
@@ -64,7 +95,6 @@ export default function ExpensesPage() {
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
   }, [expenses]);
 
-  // Available months for filter
   const availableMonths = useMemo(() => {
     const set = new Set<string>();
     expenses.forEach(e => {
@@ -76,11 +106,11 @@ export default function ExpensesPage() {
 
   const total = sorted.reduce((s, e) => s + Number(e.amount), 0);
   const totalTVA = sorted.reduce((s, e) => s + Number(e.tva_amount || 0), 0);
-
   const formatDT = (n: number) => n.toLocaleString('fr-TN', { style: 'currency', currency: 'TND' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validStockLines = stockLines.filter(sl => sl.product_id && sl.quantity > 0);
     await addExpense({
       description: form.description,
       amount: form.amount,
@@ -92,8 +122,9 @@ export default function ExpensesPage() {
       is_recurring: form.is_recurring,
       recurrence_period: form.is_recurring ? form.recurrence_period : null,
       supplier_id: form.supplier_id || null,
-    } as any);
+    } as any, validStockLines.length > 0 ? validStockLines : undefined);
     setForm({ description: '', amount: 0, date: new Date().toISOString().split('T')[0], category: 'Autre', tva_rate: 19, is_recurring: false, recurrence_period: '', supplier_id: '' });
+    setStockLines([]);
     setOpen(false);
   };
 
@@ -166,6 +197,45 @@ export default function ExpensesPage() {
                   </Select>
                 </div>
               )}
+
+              {/* Raw material stock lines when supplier selected */}
+              {form.supplier_id && (
+                <div className="space-y-2 border rounded-lg p-3 bg-secondary/30">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium flex items-center gap-1.5">
+                      <Package className="h-3.5 w-3.5" />
+                      Matières premières reçues
+                    </Label>
+                    <Button type="button" variant="outline" size="sm" onClick={addStockLine} className="h-7 text-xs">
+                      <Plus className="h-3 w-3 mr-1" /> Ajouter
+                    </Button>
+                  </div>
+                  {supplierRawMaterials.length === 0 && stockLines.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Aucune matière première liée à ce fournisseur.</p>
+                  )}
+                  {stockLines.map((line, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <Select value={line.product_id} onValueChange={v => updateStockLine(idx, 'product_id', v)}>
+                        <SelectTrigger className="flex-1 h-8 text-xs"><SelectValue placeholder="Matière première..." /></SelectTrigger>
+                        <SelectContent>
+                          {supplierRawMaterials.map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.name} (stock: {p.stock})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number" min={1} value={line.quantity || ''}
+                        onChange={e => updateStockLine(idx, 'quantity', +e.target.value)}
+                        className="w-20 h-8 text-xs" placeholder="Qté"
+                      />
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeStockLine(idx)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <Button type="submit" className="w-full">Enregistrer</Button>
             </form>
           </DialogContent>
