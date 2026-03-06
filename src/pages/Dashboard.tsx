@@ -11,7 +11,8 @@ import { generateInvoicePdf } from '@/lib/generatePdf';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { invoices, clients, products, expenses, loading } = useData();
+  const { invoices, clients, products, expenses, loading, company } = useData();
+  const [detailInvoice, setDetailInvoice] = useState<any>(null);
 
   const stats = useMemo(() => {
     const now = new Date();
