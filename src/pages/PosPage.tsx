@@ -137,14 +137,23 @@ export default function PosPage() {
     setNewProductOpen(false);
   };
 
-  // ── Auto-create "Passager" client ──
+  // ── Auto-create or reuse "Passager" client ──
   useEffect(() => {
     const ensurePassager = async () => {
       if (!companyId) return;
-      const existing = clients.find(c => c.name === 'Passager');
-      if (existing) {
-        setPassagerId(existing.id);
-        if (!selectedClientId) setSelectedClientId(existing.id);
+
+      // Query DB directly to find existing Passager client
+      const { data: existingRows } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('name', 'Passager')
+        .eq('is_archived', false)
+        .limit(1);
+
+      if (existingRows && existingRows.length > 0) {
+        setPassagerId(existingRows[0].id);
+        if (!selectedClientId) setSelectedClientId(existingRows[0].id);
       } else {
         const result = await addClient({
           name: 'Passager',
@@ -168,7 +177,7 @@ export default function PosPage() {
       }
     };
     ensurePassager();
-  }, [companyId, clients.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Calculations ──
   const subtotalHT = useMemo(() => items.reduce((s, i) => s + i.quantity * i.unit_price, 0), [items]);
