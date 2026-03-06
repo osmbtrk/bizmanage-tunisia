@@ -354,7 +354,7 @@ export default function PosPage() {
   const formatDT = (n: number) => n.toFixed(3) + ' TND';
 
   return (
-    <div className="animate-fade-in h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4 overflow-hidden">
+    <div className="animate-fade-in h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4 overflow-auto lg:overflow-hidden">
       {/* ═══ LEFT: Product Selection ═══ */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Client selector */}
