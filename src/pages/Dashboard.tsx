@@ -331,6 +331,75 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Invoice Detail Modal */}
+      <Dialog open={!!detailInvoice} onOpenChange={o => { if (!o) setDetailInvoice(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {detailInvoice && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  {detailInvoice.number}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="text-muted-foreground">Client</span><p className="font-medium">{detailInvoice.client_name}</p></div>
+                  <div><span className="text-muted-foreground">Date</span><p className="font-medium">{new Date(detailInvoice.date).toLocaleDateString('fr-TN')}</p></div>
+                  <div><span className="text-muted-foreground">Statut</span><p><StatusBadge status={detailInvoice.status} /></p></div>
+                  {detailInvoice.due_date && <div><span className="text-muted-foreground">Échéance</span><p className="font-medium">{new Date(detailInvoice.due_date).toLocaleDateString('fr-TN')}</p></div>}
+                </div>
+
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-left p-3 font-medium text-xs">Produit</th>
+                        <th className="text-right p-3 font-medium text-xs">Qté</th>
+                        <th className="text-right p-3 font-medium text-xs">P.U.</th>
+                        <th className="text-right p-3 font-medium text-xs">TVA</th>
+                        <th className="text-right p-3 font-medium text-xs">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detailInvoice.items?.map((item: any, i: number) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="p-3 font-medium">{item.product_name}</td>
+                          <td className="p-3 text-right tabular-nums">{item.quantity}</td>
+                          <td className="p-3 text-right tabular-nums">{Number(item.unit_price).toFixed(3)}</td>
+                          <td className="p-3 text-right tabular-nums">{item.tva_rate}%</td>
+                          <td className="p-3 text-right tabular-nums font-medium">{formatDT(item.quantity * Number(item.unit_price))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="space-y-1 text-sm border-t border-border pt-3">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Sous-total HT</span><span className="tabular-nums">{formatDT(Number(detailInvoice.subtotal))}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span className="tabular-nums">{formatDT(Number(detailInvoice.tva_total))}</span></div>
+                  <div className="flex justify-between font-bold text-lg pt-2"><span>Total TTC</span><span className="tabular-nums">{formatDT(Number(detailInvoice.total))}</span></div>
+                  {detailInvoice.paid_amount > 0 && detailInvoice.status !== 'paid' && (
+                    <div className="flex justify-between text-muted-foreground"><span>Montant payé</span><span className="tabular-nums">{formatDT(Number(detailInvoice.paid_amount))}</span></div>
+                  )}
+                </div>
+
+                {detailInvoice.notes && (
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Notes</p>
+                    <p className="text-sm">{detailInvoice.notes}</p>
+                  </div>
+                )}
+
+                <Button variant="outline" className="w-full" onClick={() => generateInvoicePdf({ ...detailInvoice, clientName: detailInvoice.client_name, subtotal: detailInvoice.subtotal, tvaTotal: detailInvoice.tva_total, paidAmount: detailInvoice.paid_amount }, company)}>
+                  <Download className="h-4 w-4 mr-2" /> Télécharger PDF
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

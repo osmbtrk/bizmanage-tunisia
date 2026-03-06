@@ -356,7 +356,7 @@ export default function PosPage() {
   return (
     <div className="animate-fade-in h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4 overflow-auto lg:overflow-hidden">
       {/* ═══ LEFT: Product Selection ═══ */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-[50vh] lg:min-h-0 overflow-hidden">
         {/* Client selector */}
         <Card className="mb-3 shrink-0">
           <CardContent className="p-3">
