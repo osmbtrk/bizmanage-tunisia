@@ -1,10 +1,13 @@
 import { useData } from '@/contexts/DataContext';
-import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2, Receipt, Clock, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { useMemo } from 'react';
+import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2, Receipt, Clock, ArrowUpRight, ArrowDownRight, Download } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { generateInvoicePdf } from '@/lib/generatePdf';
 
 export default function Dashboard() {
   const navigate = useNavigate();
