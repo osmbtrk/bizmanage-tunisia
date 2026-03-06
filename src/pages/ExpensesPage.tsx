@@ -176,10 +176,10 @@ export default function ExpensesPage() {
               </div>
               <div>
                 <Label>Fournisseur (optionnel)</Label>
-                <Select value={form.supplier_id} onValueChange={v => setForm(f => ({ ...f, supplier_id: v }))}>
+                <Select value={form.supplier_id || 'none'} onValueChange={v => setForm(f => ({ ...f, supplier_id: v === 'none' ? '' : v }))}>
                   <SelectTrigger><SelectValue placeholder="Aucun" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="none">Aucun</SelectItem>
                     {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
