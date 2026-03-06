@@ -315,7 +315,7 @@ export default function Dashboard() {
                   </thead>
                   <tbody>
                     {recentInvoices.map(inv => (
-                      <tr key={inv.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-200 cursor-default">
+                      <tr key={inv.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-200 cursor-pointer" onClick={() => setDetailInvoice(inv)}>
                         <td className="py-2.5 font-medium">{inv.number}</td>
                         <td className="py-2.5 text-muted-foreground">{inv.client_name}</td>
                         <td className="py-2.5 text-muted-foreground">{new Date(inv.date).toLocaleDateString('fr-TN')}</td>
