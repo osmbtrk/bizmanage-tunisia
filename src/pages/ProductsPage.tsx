@@ -23,6 +23,7 @@ export default function ProductsPage() {
   const [bomOpen, setBomOpen] = useState(false);
   const [bomProductId, setBomProductId] = useState<string | null>(null);
   const [bomItems, setBomItems] = useState<{ raw_material_id: string; quantity: number; unit_type: string }[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '', description: '', purchase_price: 0, selling_price: 0,
     tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
