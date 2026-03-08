@@ -312,7 +312,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     }
     refresh();
-  }, [companyId, getNextDocNumber, products, refresh]);
+  }, [companyId, getNextDocNumber, refresh]);
 
   const updateInvoiceStatus = useCallback(async (id: string, status: string, paidAmount?: number) => {
     const inv = invoices.find(i => i.id === id);
