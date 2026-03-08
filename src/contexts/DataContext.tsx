@@ -121,7 +121,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addClient = useCallback(async (data: Omit<DbClient, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
     if (!companyId) return null;
-    const { data: result } = await supabase.from('clients').insert({ ...data, company_id: companyId }).select().single();
+    const { data: result, error } = await supabase.from('clients').insert({ ...data, company_id: companyId }).select().single();
+    if (error) { toast({ title: 'Erreur ajout client', description: error.message, variant: 'destructive' }); return null; }
     refresh();
     return result;
   }, [companyId, refresh]);
