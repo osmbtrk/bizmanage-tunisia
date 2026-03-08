@@ -430,6 +430,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       company, updateCompany,
       clients: clients.filter(c => !c.is_archived), addClient, updateClient, deleteClient,
       products, addProduct, updateProduct, deleteProduct,
+      categories, addCategory, updateCategory, deleteCategory,
       invoices, addInvoice, updateInvoiceStatus, deleteInvoice,
       expenses, addExpense, deleteExpense,
       suppliers, addSupplier, deleteSupplier,
