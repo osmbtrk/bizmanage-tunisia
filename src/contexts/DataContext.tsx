@@ -2,6 +2,7 @@ import React, { createContext, useContext, useCallback, useState, useEffect } fr
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
+import { archiveDocument } from '@/lib/archiveService';
 
 type DbClient = Database['public']['Tables']['clients']['Row'];
 type DbProduct = Database['public']['Tables']['products']['Row'];
