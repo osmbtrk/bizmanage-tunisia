@@ -255,7 +255,12 @@ export default function PurchaseInvoicesPage() {
       {/* View Dialog */}
       <Dialog open={!!viewDialog} onOpenChange={o => { if (!o) setViewDialog(null); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Détails — {viewDialog?.number}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Détails — {viewDialog?.number}</DialogTitle>
+              {viewDialog && <Button variant="outline" size="sm" onClick={() => exportPdf(viewDialog)}><Download className="mr-2 h-4 w-4" />Exporter PDF</Button>}
+            </div>
+          </DialogHeader>
           {viewDialog && <PurchaseInvoiceView invoice={viewDialog} />}
         </DialogContent>
       </Dialog>
