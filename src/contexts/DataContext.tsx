@@ -84,7 +84,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         supabase.from('clients').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
         supabase.from('products').select('*').eq('company_id', companyId).order('name'),
         supabase.from('invoices').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
-        supabase.from('invoice_items').select('*'),
+        supabase.from('invoice_items').select('*, invoices!inner(company_id)').eq('invoices.company_id', companyId),
         supabase.from('expenses').select('*').eq('company_id', companyId).order('date', { ascending: false }),
         supabase.from('suppliers').select('*').eq('company_id', companyId).order('name'),
         supabase.from('stock_movements').select('*').eq('company_id', companyId).order('date', { ascending: false }),
