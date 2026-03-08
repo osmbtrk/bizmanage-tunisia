@@ -42,6 +42,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [detailInvoice, setDetailInvoice] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const isFacture = docType === 'facture';
   const showFiltering = docType === 'facture' || docType === 'devis';
