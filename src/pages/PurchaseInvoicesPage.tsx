@@ -311,7 +311,25 @@ function PurchaseInvoiceForm({
 }) {
   const [supplierId, setSupplierId] = useState(editingInvoice?.supplier_id || '');
   const [number, setNumber] = useState(editingInvoice?.number || '');
+  const [numberLoading, setNumberLoading] = useState(false);
   const [date, setDate] = useState(editingInvoice?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
+
+  // Auto-generate number for new invoices
+  useEffect(() => {
+    if (editingInvoice || !companyId) return;
+    const generate = async () => {
+      setNumberLoading(true);
+      try {
+        const { data, error } = await supabase.rpc('next_document_number', {
+          _company_id: companyId,
+          _doc_type: 'facture_achat',
+        });
+        if (!error && data) setNumber(data as string);
+      } catch {}
+      setNumberLoading(false);
+    };
+    generate();
+  }, [editingInvoice, companyId]);
   const [dueDate, setDueDate] = useState(editingInvoice?.due_date?.split('T')[0] || '');
   const [status, setStatus] = useState(editingInvoice?.status || 'unpaid');
   const [paidAmount, setPaidAmount] = useState(editingInvoice?.paid_amount || 0);
