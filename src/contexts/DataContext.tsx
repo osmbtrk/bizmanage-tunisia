@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
 import { archiveDocument } from '@/lib/archiveService';
+import { toast } from '@/hooks/use-toast';
 
 type DbClient = Database['public']['Tables']['clients']['Row'];
 type DbProduct = Database['public']['Tables']['products']['Row'];
