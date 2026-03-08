@@ -214,7 +214,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
                   <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); generateInvoicePdf({ ...inv, clientName: inv.client_name, subtotal: inv.subtotal, tvaTotal: inv.tva_total, paidAmount: inv.paid_amount }, company); }} className="text-muted-foreground hover:text-accent" title="Télécharger PDF">
                     <Download className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteInvoice(inv.id); }} className="text-muted-foreground hover:text-destructive">
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteTarget(inv.id); }} className="text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
