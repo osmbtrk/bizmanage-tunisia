@@ -39,7 +39,36 @@ export default function ArchivePage() {
   const [yearFilter, setYearFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState('all');
   const [detail, setDetail] = useState<ArchiveRow | null>(null);
+  const [detailHtml, setDetailHtml] = useState<string>('');
   const [exporting, setExporting] = useState(false);
+
+  const fetchHtmlContent = async (url: string) => {
+    try {
+      const res = await fetch(url);
+      return await res.text();
+    } catch { return ''; }
+  };
+
+  const handleView = async (arc: ArchiveRow) => {
+    setDetail(arc);
+    if (arc.pdf_file_url) {
+      const html = await fetchHtmlContent(arc.pdf_file_url);
+      setDetailHtml(html);
+    } else {
+      setDetailHtml('');
+    }
+  };
+
+  const handleDownloadPdf = async (arc: ArchiveRow) => {
+    if (!arc.pdf_file_url) return;
+    const html = await fetchHtmlContent(arc.pdf_file_url);
+    if (!html) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => { printWindow.print(); };
+  };
 
   const fetchArchives = useCallback(async () => {
     if (!companyId) return;
@@ -191,14 +220,12 @@ export default function ArchivePage() {
                     <td className="p-3 text-muted-foreground">{new Date(arc.created_at).toLocaleDateString('fr-TN')}</td>
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => setDetail(arc)} title="Voir">
+                        <Button variant="ghost" size="icon" onClick={() => handleView(arc)} title="Voir">
                           <Eye className="h-4 w-4" />
                         </Button>
                         {arc.pdf_file_url && (
-                          <Button variant="ghost" size="icon" asChild title="Télécharger">
-                            <a href={arc.pdf_file_url} target="_blank" rel="noopener noreferrer" download>
-                              <Download className="h-4 w-4" />
-                            </a>
+                          <Button variant="ghost" size="icon" onClick={() => handleDownloadPdf(arc)} title="Télécharger PDF">
+                            <Download className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
@@ -212,7 +239,7 @@ export default function ArchivePage() {
       )}
 
       {/* Detail Dialog */}
-      <Dialog open={!!detail} onOpenChange={o => { if (!o) setDetail(null); }}>
+      <Dialog open={!!detail} onOpenChange={o => { if (!o) { setDetail(null); setDetailHtml(''); } }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           {detail && (
             <>
@@ -245,23 +272,22 @@ export default function ArchivePage() {
                   </div>
                 </div>
 
-                {/* PDF Preview */}
-                {detail.pdf_file_url && (
+                {/* Document Preview */}
+                {detailHtml && (
                   <div className="border rounded-lg overflow-hidden bg-muted/30">
                     <iframe
-                      src={detail.pdf_file_url}
+                      srcDoc={detailHtml}
                       className="w-full h-[500px]"
                       title="Aperçu du document"
+                      sandbox="allow-same-origin"
                     />
                   </div>
                 )}
 
                 <div className="flex gap-2">
                   {detail.pdf_file_url && (
-                    <Button variant="outline" className="flex-1" asChild>
-                      <a href={detail.pdf_file_url} target="_blank" rel="noopener noreferrer" download>
-                        <Download className="h-4 w-4 mr-2" /> Télécharger le document
-                      </a>
+                    <Button variant="outline" className="flex-1" onClick={() => handleDownloadPdf(detail)}>
+                      <Download className="h-4 w-4 mr-2" /> Télécharger en PDF
                     </Button>
                   )}
                 </div>
