@@ -141,7 +141,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addProduct = useCallback(async (data: Omit<DbProduct, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
     if (!companyId) return null;
-    const { data: result } = await supabase.from('products').insert({ ...data, company_id: companyId }).select().single();
+    const { data: result, error } = await supabase.from('products').insert({ ...data, company_id: companyId }).select().single();
+    if (error) { toast({ title: 'Erreur ajout produit', description: error.message, variant: 'destructive' }); return null; }
     refresh();
     return result;
   }, [companyId, refresh]);
