@@ -41,6 +41,7 @@ interface DataContextType {
     paid_amount: number;
     payment_terms?: string;
     notes?: string;
+    discount_amount?: number;
   }) => Promise<void>;
   updateInvoiceStatus: (id: string, status: string, paidAmount?: number) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
