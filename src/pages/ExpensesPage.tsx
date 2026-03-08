@@ -313,7 +313,7 @@ export default function ExpensesPage() {
                     <p className="text-[10px] text-muted-foreground">HT: {Number(exp.amount_ht).toFixed(3)}</p>
                   )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => deleteExpense(exp.id)} className="text-muted-foreground hover:text-destructive">
+                <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(exp.id)} className="text-muted-foreground hover:text-destructive">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
