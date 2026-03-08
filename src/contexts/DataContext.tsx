@@ -152,31 +152,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const getNextDocNumber = useCallback(async (type: DocumentType): Promise<string> => {
     if (!companyId) return '';
-    const year = new Date().getFullYear();
-    const prefixes: Record<DocumentType, string> = {
-      facture: 'FAC', devis: 'DEV', bon_livraison: 'BL', bon_commande: 'BC',
-    };
-
-    // Fetch and increment counter
-    const { data: counter } = await supabase
-      .from('document_counters')
-      .select('*')
-      .eq('company_id', companyId)
-      .eq('doc_type', type)
-      .eq('year', year)
-      .single();
-
-    const next = (counter?.counter ?? 0) + 1;
-
-    if (counter) {
-      await supabase.from('document_counters').update({ counter: next }).eq('id', counter.id);
-    } else {
-      await supabase.from('document_counters').insert({
-        company_id: companyId, doc_type: type, year, counter: next,
-      });
-    }
-
-    return `${prefixes[type]}-${year}-${String(next).padStart(4, '0')}`;
+    const { data, error } = await supabase.rpc('next_document_number', {
+      _company_id: companyId,
+      _doc_type: type,
+    });
+    if (error) throw error;
+    return data as string;
   }, [companyId]);
 
   const addInvoice = useCallback(async (data: {
