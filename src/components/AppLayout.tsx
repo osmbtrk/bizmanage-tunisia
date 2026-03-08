@@ -1,7 +1,8 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Users, Package, Truck,
-  Receipt, Building2, Menu, X, Settings, LogOut, User, ChevronDown, Plus, ShoppingCart, BarChart3, Warehouse, Archive, FolderTree
+  Receipt, Menu, X, Settings, LogOut, User, ChevronDown, Plus, ShoppingCart, BarChart3,
+  Warehouse, Archive, FolderTree, CreditCard, ArrowLeftRight, Calculator, ChevronRight
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -11,47 +12,125 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import GlobalCreateDialogs, { type GlobalDialogType } from '@/components/GlobalCreateDialogs';
-import { Package as PackageIcon } from 'lucide-react';
+import { Package as PackageIcon, Building2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 
-const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
-  { to: '/pos', icon: ShoppingCart, label: 'Point de Vente' },
-  { to: '/factures', icon: FileText, label: 'Factures' },
-  { to: '/devis', icon: FileText, label: 'Devis' },
-  { to: '/clients', icon: Users, label: 'Gestion clients' },
-  { to: '/produits', icon: Package, label: 'Produits & Stock' },
-  { to: '/categories', icon: FolderTree, label: 'Catégories' },
-  { to: '/stock', icon: Warehouse, label: 'Gestion Stock' },
-  { to: '/fournisseurs', icon: Truck, label: 'Fournisseurs' },
-  { to: '/depenses', icon: Receipt, label: 'Dépenses' },
-  { to: '/archives', icon: Archive, label: 'Archive numérique' },
+interface NavGroup {
+  label: string;
+  items: { to: string; icon: React.ElementType; label: string }[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: 'VENTES',
+    items: [
+      { to: '/pos', icon: ShoppingCart, label: 'Point de Vente' },
+      { to: '/factures', icon: FileText, label: 'Factures' },
+      { to: '/devis', icon: FileText, label: 'Devis' },
+      { to: '/paiements', icon: CreditCard, label: 'Paiements' },
+    ],
+  },
+  {
+    label: 'CLIENTS',
+    items: [
+      { to: '/clients', icon: Users, label: 'Gestion clients' },
+    ],
+  },
+  {
+    label: 'PRODUITS & INVENTAIRE',
+    items: [
+      { to: '/produits', icon: Package, label: 'Produits' },
+      { to: '/categories', icon: FolderTree, label: 'Catégories' },
+      { to: '/stock', icon: Warehouse, label: 'Gestion Stock' },
+      { to: '/mouvements', icon: ArrowLeftRight, label: 'Mouvements' },
+    ],
+  },
+  {
+    label: 'ACHATS',
+    items: [
+      { to: '/fournisseurs', icon: Truck, label: 'Fournisseurs' },
+      { to: '/factures-fournisseurs', icon: FileText, label: 'Factures fournisseurs' },
+    ],
+  },
+  {
+    label: 'FINANCES',
+    items: [
+      { to: '/depenses', icon: Receipt, label: 'Dépenses' },
+      { to: '/taxes', icon: Calculator, label: 'Taxes' },
+      { to: '/archives', icon: Archive, label: 'Archive numérique' },
+    ],
+  },
+];
+
+const standaloneTop = { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' };
+const standaloneBottom = [
   { to: '/analytiques', icon: BarChart3, label: 'Analytiques' },
   { to: '/parametres', icon: Settings, label: 'Paramètres' },
 ];
+
+function SidebarNavGroup({ group, currentPath, onNavigate }: { group: NavGroup; currentPath: string; onNavigate: () => void }) {
+  const isGroupActive = group.items.some(i => currentPath === i.to || (i.to !== '/' && currentPath.startsWith(i.to)));
+  const [open, setOpen] = useState(isGroupActive);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-[10px] font-semibold tracking-wider text-sidebar-muted/70 uppercase hover:text-sidebar-muted transition-colors">
+        {group.label}
+        <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", open && "rotate-90")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-0.5">
+        {group.items.map(item => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === '/'}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ml-1',
+                isActive
+                  ? 'bg-sidebar-accent text-sidebar-primary'
+                  : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
+              )
+            }
+          >
+            <item.icon className="h-4 w-4 shrink-0" />
+            {item.label}
+          </NavLink>
+        ))}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [createDialog, setCreateDialog] = useState<GlobalDialogType>(null);
   const { profile, role, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground
-        transform transition-transform duration-200 ease-in-out
-        lg:relative lg:translate-x-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border">
+      <aside className={cn(
+        'fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground',
+        'transform transition-transform duration-200 ease-in-out',
+        'lg:relative lg:translate-x-0 flex flex-col',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      )}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
               <Building2 className="h-5 w-5 text-sidebar-primary-foreground" />
@@ -61,33 +140,61 @@ export default function AppLayout() {
               <p className="text-xs text-sidebar-muted">Facturation Tunisie</p>
             </div>
           </div>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-sidebar-muted hover:text-sidebar-foreground">
+          <button onClick={closeSidebar} className="lg:hidden text-sidebar-muted hover:text-sidebar-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex flex-col gap-1 p-3 mt-2">
-          {navItems.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-sidebar-accent text-sidebar-primary'
-                    : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
-                }`
-              }
-            >
-              <item.icon className="h-4.5 w-4.5 shrink-0" />
-              {item.label}
-            </NavLink>
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+          {/* Dashboard - standalone */}
+          <NavLink
+            to={standaloneTop.to}
+            end
+            onClick={closeSidebar}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-sidebar-accent text-sidebar-primary'
+                  : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
+              )
+            }
+          >
+            <standaloneTop.icon className="h-4.5 w-4.5 shrink-0" />
+            {standaloneTop.label}
+          </NavLink>
+
+          {/* Grouped sections */}
+          {navGroups.map(group => (
+            <SidebarNavGroup key={group.label} group={group} currentPath={location.pathname} onNavigate={closeSidebar} />
           ))}
+
+          {/* Bottom standalone items */}
+          <div className="pt-2 border-t border-sidebar-border mt-2 space-y-0.5">
+            {standaloneBottom.map(item => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={closeSidebar}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-sidebar-accent text-sidebar-primary'
+                      : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                  )
+                }
+              >
+                <item.icon className="h-4.5 w-4.5 shrink-0" />
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
+        {/* User info */}
+        <div className="p-4 border-t border-sidebar-border shrink-0">
           <div className="flex items-center gap-3 px-2">
             <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center">
               <User className="h-4 w-4 text-sidebar-primary" />
@@ -110,16 +217,13 @@ export default function AppLayout() {
           </button>
           <div className="flex-1" />
 
-          {/* Theme Toggle */}
           <ThemeToggle />
 
-          {/* POS Quick Button */}
           <Button variant="outline" size="sm" className="gap-1.5 transition-colors duration-200" onClick={() => navigate('/pos')}>
             <ShoppingCart className="h-4 w-4" />
             <span className="hidden sm:inline">POS</span>
           </Button>
 
-          {/* Quick Actions */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" className="gap-1.5">
@@ -144,7 +248,6 @@ export default function AppLayout() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center">
