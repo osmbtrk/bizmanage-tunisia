@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
 import { archiveDocument } from '@/lib/archiveService';
+import { toast } from '@/hooks/use-toast';
 
 type DbClient = Database['public']['Tables']['clients']['Row'];
 type DbProduct = Database['public']['Tables']['products']['Row'];
@@ -113,41 +114,48 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateCompany = useCallback(async (data: Partial<DbCompany>) => {
     if (!companyId) return;
-    await supabase.from('companies').update(data).eq('id', companyId);
+    const { error } = await supabase.from('companies').update(data).eq('id', companyId);
+    if (error) { toast({ title: 'Erreur mise à jour entreprise', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [companyId, refresh]);
 
   const addClient = useCallback(async (data: Omit<DbClient, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
     if (!companyId) return null;
-    const { data: result } = await supabase.from('clients').insert({ ...data, company_id: companyId }).select().single();
+    const { data: result, error } = await supabase.from('clients').insert({ ...data, company_id: companyId }).select().single();
+    if (error) { toast({ title: 'Erreur ajout client', description: error.message, variant: 'destructive' }); return null; }
     refresh();
     return result;
   }, [companyId, refresh]);
 
   const updateClient = useCallback(async (id: string, data: Partial<DbClient>) => {
-    await supabase.from('clients').update(data).eq('id', id);
+    const { error } = await supabase.from('clients').update(data).eq('id', id);
+    if (error) { toast({ title: 'Erreur mise à jour client', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
   const deleteClient = useCallback(async (id: string) => {
-    await supabase.from('clients').update({ is_archived: true }).eq('id', id);
+    const { error } = await supabase.from('clients').update({ is_archived: true }).eq('id', id);
+    if (error) { toast({ title: 'Erreur archivage client', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
   const addProduct = useCallback(async (data: Omit<DbProduct, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
     if (!companyId) return null;
-    const { data: result } = await supabase.from('products').insert({ ...data, company_id: companyId }).select().single();
+    const { data: result, error } = await supabase.from('products').insert({ ...data, company_id: companyId }).select().single();
+    if (error) { toast({ title: 'Erreur ajout produit', description: error.message, variant: 'destructive' }); return null; }
     refresh();
     return result;
   }, [companyId, refresh]);
 
   const updateProduct = useCallback(async (id: string, data: Partial<DbProduct>) => {
-    await supabase.from('products').update(data).eq('id', id);
+    const { error } = await supabase.from('products').update(data).eq('id', id);
+    if (error) { toast({ title: 'Erreur mise à jour produit', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
   const deleteProduct = useCallback(async (id: string) => {
-    await supabase.from('products').delete().eq('id', id);
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) { toast({ title: 'Erreur suppression produit', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 

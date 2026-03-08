@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Trash2, Receipt, Calendar, Package } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const categories = [
   'Loyer', 'Électricité', 'Eau', 'Internet', 'Téléphone',
@@ -37,6 +38,7 @@ export default function ExpensesPage() {
     tva_rate: 19, is_recurring: false, recurrence_period: '' as string, supplier_id: '' as string,
   });
   const [stockLines, setStockLines] = useState<StockLineItem[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // Raw materials for selected supplier
   const supplierRawMaterials = useMemo(() => {
@@ -311,7 +313,7 @@ export default function ExpensesPage() {
                     <p className="text-[10px] text-muted-foreground">HT: {Number(exp.amount_ht).toFixed(3)}</p>
                   )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => deleteExpense(exp.id)} className="text-muted-foreground hover:text-destructive">
+                <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(exp.id)} className="text-muted-foreground hover:text-destructive">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -319,6 +321,14 @@ export default function ExpensesPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Supprimer cette dépense ?"
+        description="La dépense sera supprimée définitivement."
+        onConfirm={() => { if (deleteTarget) { deleteExpense(deleteTarget); setDeleteTarget(null); } }}
+      />
     </div>
   );
 }

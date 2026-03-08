@@ -5,12 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Trash2, Search, Truck } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function SuppliersPage() {
   const { suppliers, addSupplier, deleteSupplier } = useData();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ name: '', address: '', phone: '', email: '', tax_id: '' });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const filtered = suppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -71,7 +73,7 @@ export default function SuppliersPage() {
                   {s.phone && <p className="text-sm text-muted-foreground mt-1">{s.phone}</p>}
                   {s.email && <p className="text-sm text-muted-foreground">{s.email}</p>}
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => deleteSupplier(s.id)} className="text-muted-foreground hover:text-destructive">
+                <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(s.id)} className="text-muted-foreground hover:text-destructive">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -79,6 +81,14 @@ export default function SuppliersPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Supprimer ce fournisseur ?"
+        description="Le fournisseur sera supprimé définitivement."
+        onConfirm={() => { if (deleteTarget) { deleteSupplier(deleteTarget); setDeleteTarget(null); } }}
+      />
     </div>
   );
 }

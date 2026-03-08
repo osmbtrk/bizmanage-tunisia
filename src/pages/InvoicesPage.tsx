@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useData, type DocumentType } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Search, FileText, Download, Calendar, Eye } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { generateInvoicePdf } from '@/lib/generatePdf';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 
@@ -41,6 +42,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [detailInvoice, setDetailInvoice] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const isFacture = docType === 'facture';
   const showFiltering = docType === 'facture' || docType === 'devis';
@@ -73,7 +75,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
   const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
 
   // Reset page when filters change
-  useMemo(() => setCurrentPage(1), [period, customStart, customEnd, search, perPage]);
+  useEffect(() => { setCurrentPage(1); }, [period, customStart, customEnd, search, perPage]);
 
   const formatDT = (n: number) => n.toLocaleString('fr-TN', { style: 'currency', currency: 'TND' });
 
@@ -212,7 +214,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
                   <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); generateInvoicePdf({ ...inv, clientName: inv.client_name, subtotal: inv.subtotal, tvaTotal: inv.tva_total, paidAmount: inv.paid_amount }, company); }} className="text-muted-foreground hover:text-accent" title="Télécharger PDF">
                     <Download className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteInvoice(inv.id); }} className="text-muted-foreground hover:text-destructive">
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteTarget(inv.id); }} className="text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -338,6 +340,14 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Supprimer ce document ?"
+        description="Le document sera supprimé définitivement et le stock sera restauré si applicable."
+        onConfirm={() => { if (deleteTarget) { deleteInvoice(deleteTarget); setDeleteTarget(null); } }}
+      />
     </div>
   );
 }

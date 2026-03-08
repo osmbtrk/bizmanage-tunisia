@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Check, X, Settings2, Layers } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,6 +23,7 @@ export default function ProductsPage() {
   const [bomOpen, setBomOpen] = useState(false);
   const [bomProductId, setBomProductId] = useState<string | null>(null);
   const [bomItems, setBomItems] = useState<{ raw_material_id: string; quantity: number; unit_type: string }[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '', description: '', purchase_price: 0, selling_price: 0,
     tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
@@ -214,7 +216,7 @@ export default function ProductsPage() {
                           <Layers className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" onClick={() => deleteProduct(p.id)} className="text-muted-foreground hover:text-destructive">
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(p.id)} className="text-muted-foreground hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -271,6 +273,14 @@ export default function ProductsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Supprimer ce produit ?"
+        description="Le produit sera supprimé définitivement. Cette action est irréversible."
+        onConfirm={() => { if (deleteTarget) { deleteProduct(deleteTarget); setDeleteTarget(null); } }}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Search, Users, Eye, Pencil, Archive, DollarSign } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const GOVERNORATES = [
   'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan', 'Bizerte',
@@ -37,6 +38,7 @@ export default function ClientsPage() {
   const [viewId, setViewId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ ...emptyForm });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const filtered = clients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -246,7 +248,7 @@ export default function ClientsPage() {
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => openEdit(client)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteClient(client.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(client.id)}>
                     <Archive className="h-4 w-4" />
                   </Button>
                 </div>
@@ -255,6 +257,15 @@ export default function ClientsPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Archiver ce client ?"
+        description="Le client sera archivé et n'apparaîtra plus dans la liste."
+        confirmLabel="Archiver"
+        onConfirm={() => { if (deleteTarget) { deleteClient(deleteTarget); setDeleteTarget(null); } }}
+      />
     </div>
   );
 }
