@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Trash2, Receipt, Calendar, Package } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const categories = [
   'Loyer', 'Électricité', 'Eau', 'Internet', 'Téléphone',
