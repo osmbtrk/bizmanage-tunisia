@@ -321,9 +321,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [invoices, refresh]);
 
   const deleteInvoice = useCallback(async (id: string) => {
+    // Restore stock before deleting
+    const inv = invoices.find(i => i.id === id);
+    if (inv && (inv.type === 'facture' || inv.type === 'bon_livraison')) {
+      for (const item of inv.items) {
+        if (item.product_id) {
+          const { data: product } = await supabase
+            .from('products')
+            .select('stock')
+            .eq('id', item.product_id)
+            .single();
+          if (product) {
+            await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
+            if (companyId) {
+              await supabase.from('stock_movements').insert({
+                company_id: companyId,
+                product_id: item.product_id,
+                product_name: item.product_name,
+                type: 'in',
+                quantity: item.quantity,
+                reason: `Annulation ${inv.type === 'facture' ? 'Facture' : 'BL'} ${inv.number}`,
+              });
+            }
+          }
+        }
+      }
+    }
     await supabase.from('invoices').delete().eq('id', id);
     refresh();
-  }, [refresh]);
+  }, [invoices, companyId, refresh]);
 
   const addExpense = useCallback(async (
     data: Omit<DbExpense, 'id' | 'company_id' | 'created_at' | 'updated_at'>,
