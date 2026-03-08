@@ -75,7 +75,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
   const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
 
   // Reset page when filters change
-  useMemo(() => setCurrentPage(1), [period, customStart, customEnd, search, perPage]);
+  useEffect(() => { setCurrentPage(1); }, [period, customStart, customEnd, search, perPage]);
 
   const formatDT = (n: number) => n.toLocaleString('fr-TN', { style: 'currency', currency: 'TND' });
 
