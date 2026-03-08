@@ -19,15 +19,20 @@ export default function SuppliersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addSupplier({
-      name: form.name,
-      address: form.address || null,
-      phone: form.phone || null,
-      email: form.email || null,
-      tax_id: form.tax_id || null,
-    } as any);
-    setForm({ name: '', address: '', phone: '', email: '', tax_id: '' });
-    setOpen(false);
+    setSubmitting(true);
+    try {
+      await addSupplier({
+        name: form.name,
+        address: form.address || null,
+        phone: form.phone || null,
+        email: form.email || null,
+        tax_id: form.tax_id || null,
+      } as any);
+      setForm({ name: '', address: '', phone: '', email: '', tax_id: '' });
+      setOpen(false);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
