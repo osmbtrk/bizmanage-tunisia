@@ -73,7 +73,7 @@ export default function SuppliersPage() {
                   {s.phone && <p className="text-sm text-muted-foreground mt-1">{s.phone}</p>}
                   {s.email && <p className="text-sm text-muted-foreground">{s.email}</p>}
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => deleteSupplier(s.id)} className="text-muted-foreground hover:text-destructive">
+                <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(s.id)} className="text-muted-foreground hover:text-destructive">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
