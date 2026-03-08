@@ -38,6 +38,7 @@ export default function ExpensesPage() {
     tva_rate: 19, is_recurring: false, recurrence_period: '' as string, supplier_id: '' as string,
   });
   const [stockLines, setStockLines] = useState<StockLineItem[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // Raw materials for selected supplier
   const supplierRawMaterials = useMemo(() => {
