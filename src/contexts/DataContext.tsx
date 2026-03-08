@@ -228,6 +228,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }));
       await supabase.from('invoice_items').insert(itemsToInsert);
 
+      // Auto-archive the document
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user && companyId) {
+        archiveDocument(
+          {
+            number,
+            type: data.type,
+            date: data.date,
+            clientName: data.client_name,
+            items: data.items.map(i => ({ product_name: i.product_name, quantity: i.quantity, unit_price: i.unit_price, tva_rate: i.tva_rate })),
+            subtotal,
+            tvaTotal,
+            total,
+            notes: data.notes,
+            payment_terms: data.payment_terms,
+            paidAmount: data.paid_amount,
+          },
+          company,
+          {
+            companyId,
+            userId: authData.user.id,
+            invoiceId: invoice.id,
+            documentType: data.type,
+            documentNumber: number,
+            clientName: data.client_name,
+            totalAmount: total,
+          }
+        );
+      }
+
       // Update stock for factures/BL
       if (data.type === 'facture' || data.type === 'bon_livraison') {
         for (const item of data.items) {

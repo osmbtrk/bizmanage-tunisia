@@ -50,6 +50,7 @@ function ProtectedRoutes() {
           <Route path="/stock" element={<StockPage />} />
           <Route path="/fournisseurs" element={<SuppliersPage />} />
           <Route path="/depenses" element={<ExpensesPage />} />
+          <Route path="/archives" element={<ArchivePage />} />
           <Route path="/analytiques" element={<AnalyticsPage />} />
           <Route path="/parametres" element={<SettingsPage />} />
         </Route>
