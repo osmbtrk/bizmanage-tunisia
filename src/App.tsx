@@ -17,6 +17,7 @@ import ExpensesPage from "@/pages/ExpensesPage";
 import PosPage from "@/pages/PosPage";
 import SettingsPage from "@/pages/SettingsPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
+import ArchivePage from "@/pages/ArchivePage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -49,6 +50,7 @@ function ProtectedRoutes() {
           <Route path="/stock" element={<StockPage />} />
           <Route path="/fournisseurs" element={<SuppliersPage />} />
           <Route path="/depenses" element={<ExpensesPage />} />
+          <Route path="/archives" element={<ArchivePage />} />
           <Route path="/analytiques" element={<AnalyticsPage />} />
           <Route path="/parametres" element={<SettingsPage />} />
         </Route>

@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      archives: {
+        Row: {
+          client_name: string
+          company_id: string
+          created_at: string
+          created_by_user: string
+          document_number: string
+          document_type: string
+          id: string
+          invoice_id: string | null
+          pdf_file_url: string | null
+          total_amount: number
+        }
+        Insert: {
+          client_name: string
+          company_id: string
+          created_at?: string
+          created_by_user: string
+          document_number: string
+          document_type: string
+          id?: string
+          invoice_id?: string | null
+          pdf_file_url?: string | null
+          total_amount?: number
+        }
+        Update: {
+          client_name?: string
+          company_id?: string
+          created_at?: string
+          created_by_user?: string
+          document_number?: string
+          document_type?: string
+          id?: string
+          invoice_id?: string | null
+          pdf_file_url?: string | null
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archives_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archives_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bom_items: {
         Row: {
           created_at: string
