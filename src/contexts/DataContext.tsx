@@ -168,6 +168,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [refresh]);
 
+  const addCategory = useCallback(async (data: { name: string; parent_id?: string | null }) => {
+    if (!companyId) return null;
+    const { data: result, error } = await supabase.from('product_categories').insert({ ...data, company_id: companyId }).select().single();
+    if (error) { toast({ title: 'Erreur ajout catégorie', description: error.message, variant: 'destructive' }); return null; }
+    refresh();
+    return result;
+  }, [companyId, refresh]);
+
+  const updateCategory = useCallback(async (id: string, data: { name?: string; parent_id?: string | null }) => {
+    const { error } = await supabase.from('product_categories').update(data).eq('id', id);
+    if (error) { toast({ title: 'Erreur mise à jour catégorie', description: error.message, variant: 'destructive' }); return; }
+    refresh();
+  }, [refresh]);
+
+  const deleteCategory = useCallback(async (id: string): Promise<boolean> => {
+    const { count } = await supabase.from('products').select('id', { count: 'exact', head: true }).eq('category_id', id);
+    if (count && count > 0) {
+      toast({ title: 'Impossible de supprimer', description: `${count} produit(s) utilisent cette catégorie. Réassignez-les d'abord.`, variant: 'destructive' });
+      return false;
+    }
+    const { error } = await supabase.from('product_categories').delete().eq('id', id);
+    if (error) { toast({ title: 'Erreur suppression catégorie', description: error.message, variant: 'destructive' }); return false; }
+    refresh();
+    return true;
+  }, [refresh]);
+
   const getNextDocNumber = useCallback(async (type: DocumentType): Promise<string> => {
     if (!companyId) return '';
     const { data, error } = await supabase.rpc('next_document_number', {
