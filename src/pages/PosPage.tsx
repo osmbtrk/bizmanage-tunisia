@@ -693,8 +693,8 @@ export default function PosPage() {
               <span>TVA</span>
               <span>{formatDT(tvaTotal)}</span>
             </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-[hsl(var(--success))]">
+              {discountAmount > 0 && (
+              <div className="flex justify-between text-success">
                 <span>Remise</span>
                 <span>-{formatDT(discountAmount)}</span>
               </div>
