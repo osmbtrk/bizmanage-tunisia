@@ -340,6 +340,14 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Supprimer ce document ?"
+        description="Le document sera supprimé définitivement et le stock sera restauré si applicable."
+        onConfirm={() => { if (deleteTarget) { deleteInvoice(deleteTarget); setDeleteTarget(null); } }}
+      />
     </div>
   );
 }
