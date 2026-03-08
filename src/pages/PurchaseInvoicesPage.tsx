@@ -311,7 +311,25 @@ function PurchaseInvoiceForm({
 }) {
   const [supplierId, setSupplierId] = useState(editingInvoice?.supplier_id || '');
   const [number, setNumber] = useState(editingInvoice?.number || '');
+  const [numberLoading, setNumberLoading] = useState(false);
   const [date, setDate] = useState(editingInvoice?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
+
+  // Auto-generate number for new invoices
+  useEffect(() => {
+    if (editingInvoice || !companyId) return;
+    const generate = async () => {
+      setNumberLoading(true);
+      try {
+        const { data, error } = await supabase.rpc('next_document_number', {
+          _company_id: companyId,
+          _doc_type: 'facture_achat',
+        });
+        if (!error && data) setNumber(data as string);
+      } catch {}
+      setNumberLoading(false);
+    };
+    generate();
+  }, [editingInvoice, companyId]);
   const [dueDate, setDueDate] = useState(editingInvoice?.due_date?.split('T')[0] || '');
   const [status, setStatus] = useState(editingInvoice?.status || 'unpaid');
   const [paidAmount, setPaidAmount] = useState(editingInvoice?.paid_amount || 0);
@@ -498,7 +516,7 @@ function PurchaseInvoiceForm({
         </div>
         <div>
           <Label>Numéro de facture *</Label>
-          <Input required value={number} onChange={e => setNumber(e.target.value)} placeholder="FA-2025-001" />
+          <Input required value={number} readOnly disabled className="bg-muted font-mono" placeholder={numberLoading ? 'Génération...' : 'FA-2026-0001'} />
         </div>
         <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
         <div><Label>Date d'échéance</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
