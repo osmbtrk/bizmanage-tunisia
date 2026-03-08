@@ -202,13 +202,17 @@ export default function PosPage() {
 
   // ── Product filtering ──
   const filteredProducts = useMemo(() => {
-    if (!productSearch.trim()) return products;
+    let result = products;
+    if (posCategoryFilter !== 'all') {
+      result = result.filter(p => p.category_id === posCategoryFilter);
+    }
+    if (!productSearch.trim()) return result;
     const q = productSearch.toLowerCase();
-    return products.filter(p =>
+    return result.filter(p =>
       p.name.toLowerCase().includes(q) ||
       p.description?.toLowerCase().includes(q)
     );
-  }, [products, productSearch]);
+  }, [products, productSearch, posCategoryFilter]);
 
   // ── Client filtering ──
   const filteredClients = useMemo(() => {
