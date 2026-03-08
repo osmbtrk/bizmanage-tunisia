@@ -38,6 +38,7 @@ export default function ClientsPage() {
   const [viewId, setViewId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ ...emptyForm });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const filtered = clients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
