@@ -459,8 +459,51 @@ export type Database = {
           },
         ]
       }
+      product_categories: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
+          category_id: string | null
           category_type: Database["public"]["Enums"]["category_type"]
           company_id: string
           created_at: string
@@ -478,6 +521,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category_id?: string | null
           category_type?: Database["public"]["Enums"]["category_type"]
           company_id: string
           created_at?: string
@@ -495,6 +539,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category_id?: string | null
           category_type?: Database["public"]["Enums"]["category_type"]
           company_id?: string
           created_at?: string
@@ -512,6 +557,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_company_id_fkey"
             columns: ["company_id"]

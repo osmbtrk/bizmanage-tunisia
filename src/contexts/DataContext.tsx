@@ -13,6 +13,7 @@ type DbExpense = Database['public']['Tables']['expenses']['Row'];
 type DbSupplier = Database['public']['Tables']['suppliers']['Row'];
 type DbStockMovement = Database['public']['Tables']['stock_movements']['Row'];
 type DbCompany = Database['public']['Tables']['companies']['Row'];
+type DbProductCategory = Database['public']['Tables']['product_categories']['Row'];
 
 export type DocumentType = 'facture' | 'devis' | 'bon_livraison' | 'bon_commande';
 
@@ -29,6 +30,11 @@ interface DataContextType {
   addProduct: (data: Omit<DbProduct, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => Promise<DbProduct | null>;
   updateProduct: (id: string, data: Partial<DbProduct>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+
+  categories: DbProductCategory[];
+  addCategory: (data: { name: string; parent_id?: string | null }) => Promise<DbProductCategory | null>;
+  updateCategory: (id: string, data: { name?: string; parent_id?: string | null }) => Promise<void>;
+  deleteCategory: (id: string) => Promise<boolean>;
 
   invoices: (DbInvoice & { items: DbInvoiceItem[] })[];
   addInvoice: (data: {
@@ -67,6 +73,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [company, setCompany] = useState<DbCompany | null>(null);
   const [clients, setClients] = useState<DbClient[]>([]);
   const [products, setProducts] = useState<DbProduct[]>([]);
+  const [categories, setCategories] = useState<DbProductCategory[]>([]);
   const [invoices, setInvoices] = useState<(DbInvoice & { items: DbInvoiceItem[] })[]>([]);
   const [expenses, setExpenses] = useState<DbExpense[]>([]);
   const [suppliers, setSuppliers] = useState<DbSupplier[]>([]);
@@ -81,10 +88,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     const load = async () => {
       setLoading(true);
-      const [companyRes, clientsRes, productsRes, invoicesRes, itemsRes, expensesRes, suppliersRes, movementsRes] = await Promise.all([
+      const [companyRes, clientsRes, productsRes, categoriesRes, invoicesRes, itemsRes, expensesRes, suppliersRes, movementsRes] = await Promise.all([
         supabase.from('companies').select('*').eq('id', companyId).single(),
         supabase.from('clients').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
         supabase.from('products').select('*').eq('company_id', companyId).order('name'),
+        supabase.from('product_categories').select('*').eq('company_id', companyId).order('name'),
         supabase.from('invoices').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
         supabase.from('invoice_items').select('*, invoices!inner(company_id)').eq('invoices.company_id', companyId),
         supabase.from('expenses').select('*').eq('company_id', companyId).order('date', { ascending: false }),
@@ -95,6 +103,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setCompany(companyRes.data);
       setClients(clientsRes.data ?? []);
       setProducts(productsRes.data ?? []);
+      setCategories(categoriesRes.data ?? []);
       setExpenses(expensesRes.data ?? []);
       setSuppliers(suppliersRes.data ?? []);
       setStockMovements(movementsRes.data ?? []);
@@ -157,6 +166,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) { toast({ title: 'Erreur suppression produit', description: error.message, variant: 'destructive' }); return; }
     refresh();
+  }, [refresh]);
+
+  const addCategory = useCallback(async (data: { name: string; parent_id?: string | null }) => {
+    if (!companyId) return null;
+    const { data: result, error } = await supabase.from('product_categories').insert({ ...data, company_id: companyId }).select().single();
+    if (error) { toast({ title: 'Erreur ajout catégorie', description: error.message, variant: 'destructive' }); return null; }
+    refresh();
+    return result;
+  }, [companyId, refresh]);
+
+  const updateCategory = useCallback(async (id: string, data: { name?: string; parent_id?: string | null }) => {
+    const { error } = await supabase.from('product_categories').update(data).eq('id', id);
+    if (error) { toast({ title: 'Erreur mise à jour catégorie', description: error.message, variant: 'destructive' }); return; }
+    refresh();
+  }, [refresh]);
+
+  const deleteCategory = useCallback(async (id: string): Promise<boolean> => {
+    const { count } = await supabase.from('products').select('id', { count: 'exact', head: true }).eq('category_id', id);
+    if (count && count > 0) {
+      toast({ title: 'Impossible de supprimer', description: `${count} produit(s) utilisent cette catégorie. Réassignez-les d'abord.`, variant: 'destructive' });
+      return false;
+    }
+    const { error } = await supabase.from('product_categories').delete().eq('id', id);
+    if (error) { toast({ title: 'Erreur suppression catégorie', description: error.message, variant: 'destructive' }); return false; }
+    refresh();
+    return true;
   }, [refresh]);
 
   const getNextDocNumber = useCallback(async (type: DocumentType): Promise<string> => {
@@ -421,6 +456,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       company, updateCompany,
       clients: clients.filter(c => !c.is_archived), addClient, updateClient, deleteClient,
       products, addProduct, updateProduct, deleteProduct,
+      categories, addCategory, updateCategory, deleteCategory,
       invoices, addInvoice, updateInvoiceStatus, deleteInvoice,
       expenses, addExpense, deleteExpense,
       suppliers, addSupplier, deleteSupplier,

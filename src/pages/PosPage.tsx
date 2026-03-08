@@ -33,7 +33,7 @@ type DiscountType = 'percent' | 'fixed';
 
 // ── Main POS Component ──
 export default function PosPage() {
-  const { clients, products, addInvoice, addClient, addProduct, refresh } = useData();
+  const { clients, products, addInvoice, addClient, addProduct, categories, refresh } = useData();
   const { role, companyId } = useAuth();
   const { toast } = useToast();
   const isAdmin = role === 'admin';
@@ -43,6 +43,7 @@ export default function PosPage() {
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [clientSearch, setClientSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [posCategoryFilter, setPosCategoryFilter] = useState<string>('all');
   const [discountType, setDiscountType] = useState<DiscountType>('percent');
   const [discountValue, setDiscountValue] = useState(0);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -63,10 +64,12 @@ export default function PosPage() {
   const [productForm, setProductForm] = useState({
     name: '', description: '', selling_price: 0, purchase_price: 0, stock: 0, min_stock: 5, unit: 'pièce', tva_rate: 19,
     product_type: 'finished_product' as string, category_type: 'normal' as string, supplier_id: null as string | null,
+    category_id: null as string | null,
   });
   const emptyProductForm = {
     name: '', description: '', selling_price: 0, purchase_price: 0, stock: 0, min_stock: 5, unit: 'pièce', tva_rate: 19,
     product_type: 'finished_product' as string, category_type: 'normal' as string, supplier_id: null as string | null,
+    category_id: null as string | null,
   };
 
   const GOVERNORATES = [
@@ -129,6 +132,7 @@ export default function PosPage() {
       product_type: productForm.product_type as any,
       category_type: productForm.category_type as any,
       supplier_id: productForm.supplier_id,
+      category_id: productForm.category_id,
     });
     if (result) {
       addProductToOrder(result.id);
@@ -198,13 +202,17 @@ export default function PosPage() {
 
   // ── Product filtering ──
   const filteredProducts = useMemo(() => {
-    if (!productSearch.trim()) return products;
+    let result = products;
+    if (posCategoryFilter !== 'all') {
+      result = result.filter(p => p.category_id === posCategoryFilter);
+    }
+    if (!productSearch.trim()) return result;
     const q = productSearch.toLowerCase();
-    return products.filter(p =>
+    return result.filter(p =>
       p.name.toLowerCase().includes(q) ||
       p.description?.toLowerCase().includes(q)
     );
-  }, [products, productSearch]);
+  }, [products, productSearch, posCategoryFilter]);
 
   // ── Client filtering ──
   const filteredClients = useMemo(() => {
@@ -516,7 +524,7 @@ export default function PosPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Product search */}
+        {/* Product search + category filter */}
         <div className="relative mb-3 shrink-0 flex items-center gap-1">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -528,6 +536,19 @@ export default function PosPage() {
               onChange={e => setProductSearch(e.target.value)}
             />
           </div>
+          {categories.length > 0 && (
+            <Select value={posCategoryFilter} onValueChange={setPosCategoryFilter}>
+              <SelectTrigger className="h-10 w-40 text-xs shrink-0">
+                <SelectValue placeholder="Catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes</SelectItem>
+                {categories.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button
             variant="outline"
             size="icon"
