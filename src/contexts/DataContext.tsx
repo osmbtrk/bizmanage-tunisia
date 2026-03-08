@@ -114,7 +114,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateCompany = useCallback(async (data: Partial<DbCompany>) => {
     if (!companyId) return;
-    await supabase.from('companies').update(data).eq('id', companyId);
+    const { error } = await supabase.from('companies').update(data).eq('id', companyId);
+    if (error) { toast({ title: 'Erreur mise à jour entreprise', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [companyId, refresh]);
 
