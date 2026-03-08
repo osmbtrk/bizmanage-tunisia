@@ -12,6 +12,7 @@ export default function SuppliersPage() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ name: '', address: '', phone: '', email: '', tax_id: '' });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const filtered = suppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
 
