@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, Pencil, Eye, FileText } from 'lucide-react';
+import { Plus, Trash2, Pencil, Eye, FileText, Download } from 'lucide-react';
+import { buildPurchaseInvoiceHtml } from '@/lib/generatePurchasePdfHtml';
 
 interface PurchaseInvoice {
   id: string;
@@ -53,7 +54,7 @@ const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondar
 
 export default function PurchaseInvoicesPage() {
   const { companyId } = useAuth();
-  const { suppliers, products, refresh: refreshData } = useData();
+  const { suppliers, products, company, refresh: refreshData } = useData();
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -136,6 +137,30 @@ export default function PurchaseInvoicesPage() {
     setDialogOpen(true);
   };
 
+  const exportPdf = (inv: PurchaseInvoice) => {
+    const html = buildPurchaseInvoiceHtml(
+      {
+        number: inv.number,
+        date: inv.date,
+        dueDate: inv.due_date,
+        supplierName: inv.supplier_name,
+        items: inv.items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
+        subtotal: inv.subtotal,
+        tvaTotal: inv.tva_total,
+        total: inv.total,
+        paidAmount: inv.paid_amount,
+        status: inv.status,
+        notes: inv.notes,
+      },
+      company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
+    );
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => printWindow.print();
+  };
+
   const totalUnpaid = invoices.filter(i => i.status !== 'paid').reduce((s, i) => s + i.total - i.paid_amount, 0);
   const totalPaid = invoices.reduce((s, i) => s + i.paid_amount, 0);
 
@@ -194,6 +219,7 @@ export default function PurchaseInvoicesPage() {
                     <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => setViewDialog(inv)}><Eye className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => exportPdf(inv)}><Download className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(inv)}><Pencil className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => setDeleteId(inv.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
@@ -229,7 +255,12 @@ export default function PurchaseInvoicesPage() {
       {/* View Dialog */}
       <Dialog open={!!viewDialog} onOpenChange={o => { if (!o) setViewDialog(null); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Détails — {viewDialog?.number}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Détails — {viewDialog?.number}</DialogTitle>
+              {viewDialog && <Button variant="outline" size="sm" onClick={() => exportPdf(viewDialog)}><Download className="mr-2 h-4 w-4" />Exporter PDF</Button>}
+            </div>
+          </DialogHeader>
           {viewDialog && <PurchaseInvoiceView invoice={viewDialog} />}
         </DialogContent>
       </Dialog>
