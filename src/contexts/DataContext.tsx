@@ -134,7 +134,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const deleteClient = useCallback(async (id: string) => {
-    await supabase.from('clients').update({ is_archived: true }).eq('id', id);
+    const { error } = await supabase.from('clients').update({ is_archived: true }).eq('id', id);
+    if (error) { toast({ title: 'Erreur archivage client', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
