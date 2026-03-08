@@ -49,41 +49,46 @@ export default function ClientsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editId) {
-      await updateClient(editId, {
-        name: form.name,
-        legal_form: form.legal_form as any,
-        matricule_fiscal: form.matricule_fiscal || null,
-        code_tva: form.code_tva || null,
-        rne: form.rne || null,
-        address: form.address || null,
-        governorate: form.governorate || null,
-        phone: form.phone || null,
-        email: form.email || null,
-        contact_person: form.contact_person || null,
-        payment_terms: form.payment_terms || null,
-        status: form.status as any,
-      });
-    } else {
-      await addClient({
-        name: form.name,
-        legal_form: form.legal_form as any,
-        matricule_fiscal: form.matricule_fiscal || null,
-        code_tva: form.code_tva || null,
-        rne: form.rne || null,
-        address: form.address || null,
-        governorate: form.governorate || null,
-        phone: form.phone || null,
-        email: form.email || null,
-        contact_person: form.contact_person || null,
-        payment_terms: form.payment_terms || null,
-        status: form.status as any,
-        is_archived: false,
-      });
+    setSubmitting(true);
+    try {
+      if (editId) {
+        await updateClient(editId, {
+          name: form.name,
+          legal_form: form.legal_form as any,
+          matricule_fiscal: form.matricule_fiscal || null,
+          code_tva: form.code_tva || null,
+          rne: form.rne || null,
+          address: form.address || null,
+          governorate: form.governorate || null,
+          phone: form.phone || null,
+          email: form.email || null,
+          contact_person: form.contact_person || null,
+          payment_terms: form.payment_terms || null,
+          status: form.status as any,
+        });
+      } else {
+        await addClient({
+          name: form.name,
+          legal_form: form.legal_form as any,
+          matricule_fiscal: form.matricule_fiscal || null,
+          code_tva: form.code_tva || null,
+          rne: form.rne || null,
+          address: form.address || null,
+          governorate: form.governorate || null,
+          phone: form.phone || null,
+          email: form.email || null,
+          contact_person: form.contact_person || null,
+          payment_terms: form.payment_terms || null,
+          status: form.status as any,
+          is_archived: false,
+        });
+      }
+      setForm({ ...emptyForm });
+      setEditId(null);
+      setOpen(false);
+    } finally {
+      setSubmitting(false);
     }
-    setForm({ ...emptyForm });
-    setEditId(null);
-    setOpen(false);
   };
 
   const openEdit = (client: typeof clients[0]) => {
