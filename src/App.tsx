@@ -17,6 +17,7 @@ import ExpensesPage from "@/pages/ExpensesPage";
 import PosPage from "@/pages/PosPage";
 import SettingsPage from "@/pages/SettingsPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
+import ArchivePage from "@/pages/ArchivePage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
