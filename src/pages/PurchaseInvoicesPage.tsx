@@ -137,6 +137,30 @@ export default function PurchaseInvoicesPage() {
     setDialogOpen(true);
   };
 
+  const exportPdf = (inv: PurchaseInvoice) => {
+    const html = buildPurchaseInvoiceHtml(
+      {
+        number: inv.number,
+        date: inv.date,
+        dueDate: inv.due_date,
+        supplierName: inv.supplier_name,
+        items: inv.items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
+        subtotal: inv.subtotal,
+        tvaTotal: inv.tva_total,
+        total: inv.total,
+        paidAmount: inv.paid_amount,
+        status: inv.status,
+        notes: inv.notes,
+      },
+      company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
+    );
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => printWindow.print();
+  };
+
   const totalUnpaid = invoices.filter(i => i.status !== 'paid').reduce((s, i) => s + i.total - i.paid_amount, 0);
   const totalPaid = invoices.reduce((s, i) => s + i.paid_amount, 0);
 
