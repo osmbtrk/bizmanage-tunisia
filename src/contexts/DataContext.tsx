@@ -154,7 +154,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const deleteProduct = useCallback(async (id: string) => {
-    await supabase.from('products').delete().eq('id', id);
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) { toast({ title: 'Erreur suppression produit', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
