@@ -706,7 +706,7 @@ export default function PosPage() {
             {isAdmin && profitMargin > 0 && (
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Marge brute</span>
-                <span className="text-[hsl(var(--success))]">{formatDT(profitMargin)}</span>
+                <span className="text-success">{formatDT(profitMargin)}</span>
               </div>
             )}
           </div>
