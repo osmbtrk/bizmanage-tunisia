@@ -618,6 +618,126 @@ export type Database = {
           },
         ]
       }
+      purchase_invoice_items: {
+        Row: {
+          id: string
+          product_id: string | null
+          product_name: string
+          purchase_invoice_id: string
+          quantity: number
+          sort_order: number
+          total: number
+          tva_rate: number
+          unit_price: number
+        }
+        Insert: {
+          id?: string
+          product_id?: string | null
+          product_name: string
+          purchase_invoice_id: string
+          quantity?: number
+          sort_order?: number
+          total?: number
+          tva_rate?: number
+          unit_price?: number
+        }
+        Update: {
+          id?: string
+          product_id?: string | null
+          product_name?: string
+          purchase_invoice_id?: string
+          quantity?: number
+          sort_order?: number
+          total?: number
+          tva_rate?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoice_items_purchase_invoice_id_fkey"
+            columns: ["purchase_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_invoices: {
+        Row: {
+          company_id: string
+          created_at: string
+          date: string
+          due_date: string | null
+          id: string
+          notes: string | null
+          number: string
+          paid_amount: number
+          status: string
+          subtotal: number
+          supplier_id: string | null
+          supplier_name: string
+          total: number
+          tva_total: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          date?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          number: string
+          paid_amount?: number
+          status?: string
+          subtotal?: number
+          supplier_id?: string | null
+          supplier_name: string
+          total?: number
+          tva_total?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          date?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          number?: string
+          paid_amount?: number
+          status?: string
+          subtotal?: number
+          supplier_id?: string | null
+          supplier_name?: string
+          total?: number
+          tva_total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_movements: {
         Row: {
           company_id: string
