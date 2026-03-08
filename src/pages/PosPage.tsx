@@ -43,6 +43,7 @@ export default function PosPage() {
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [clientSearch, setClientSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [posCategoryFilter, setPosCategoryFilter] = useState<string>('all');
   const [discountType, setDiscountType] = useState<DiscountType>('percent');
   const [discountValue, setDiscountValue] = useState(0);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
