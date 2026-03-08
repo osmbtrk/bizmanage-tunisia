@@ -88,10 +88,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     const load = async () => {
       setLoading(true);
-      const [companyRes, clientsRes, productsRes, invoicesRes, itemsRes, expensesRes, suppliersRes, movementsRes] = await Promise.all([
+      const [companyRes, clientsRes, productsRes, categoriesRes, invoicesRes, itemsRes, expensesRes, suppliersRes, movementsRes] = await Promise.all([
         supabase.from('companies').select('*').eq('id', companyId).single(),
         supabase.from('clients').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
         supabase.from('products').select('*').eq('company_id', companyId).order('name'),
+        supabase.from('product_categories').select('*').eq('company_id', companyId).order('name'),
         supabase.from('invoices').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
         supabase.from('invoice_items').select('*, invoices!inner(company_id)').eq('invoices.company_id', companyId),
         supabase.from('expenses').select('*').eq('company_id', companyId).order('date', { ascending: false }),
@@ -102,6 +103,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setCompany(companyRes.data);
       setClients(clientsRes.data ?? []);
       setProducts(productsRes.data ?? []);
+      setCategories(categoriesRes.data ?? []);
       setExpenses(expensesRes.data ?? []);
       setSuppliers(suppliersRes.data ?? []);
       setStockMovements(movementsRes.data ?? []);
