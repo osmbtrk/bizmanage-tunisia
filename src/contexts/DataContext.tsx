@@ -13,6 +13,7 @@ type DbExpense = Database['public']['Tables']['expenses']['Row'];
 type DbSupplier = Database['public']['Tables']['suppliers']['Row'];
 type DbStockMovement = Database['public']['Tables']['stock_movements']['Row'];
 type DbCompany = Database['public']['Tables']['companies']['Row'];
+type DbProductCategory = Database['public']['Tables']['product_categories']['Row'];
 
 export type DocumentType = 'facture' | 'devis' | 'bon_livraison' | 'bon_commande';
 
@@ -29,6 +30,11 @@ interface DataContextType {
   addProduct: (data: Omit<DbProduct, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => Promise<DbProduct | null>;
   updateProduct: (id: string, data: Partial<DbProduct>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+
+  categories: DbProductCategory[];
+  addCategory: (data: { name: string; parent_id?: string | null }) => Promise<DbProductCategory | null>;
+  updateCategory: (id: string, data: { name?: string; parent_id?: string | null }) => Promise<void>;
+  deleteCategory: (id: string) => Promise<boolean>;
 
   invoices: (DbInvoice & { items: DbInvoiceItem[] })[];
   addInvoice: (data: {
