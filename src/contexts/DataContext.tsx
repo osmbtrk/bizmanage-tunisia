@@ -41,6 +41,7 @@ interface DataContextType {
     paid_amount: number;
     payment_terms?: string;
     notes?: string;
+    discount_amount?: number;
   }) => Promise<void>;
   updateInvoiceStatus: (id: string, status: string, paidAmount?: number) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
@@ -84,7 +85,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         supabase.from('clients').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
         supabase.from('products').select('*').eq('company_id', companyId).order('name'),
         supabase.from('invoices').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
-        supabase.from('invoice_items').select('*'),
+        supabase.from('invoice_items').select('*, invoices!inner(company_id)').eq('invoices.company_id', companyId),
         supabase.from('expenses').select('*').eq('company_id', companyId).order('date', { ascending: false }),
         supabase.from('suppliers').select('*').eq('company_id', companyId).order('name'),
         supabase.from('stock_movements').select('*').eq('company_id', companyId).order('date', { ascending: false }),
@@ -152,31 +153,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const getNextDocNumber = useCallback(async (type: DocumentType): Promise<string> => {
     if (!companyId) return '';
-    const year = new Date().getFullYear();
-    const prefixes: Record<DocumentType, string> = {
-      facture: 'FAC', devis: 'DEV', bon_livraison: 'BL', bon_commande: 'BC',
-    };
-
-    // Fetch and increment counter
-    const { data: counter } = await supabase
-      .from('document_counters')
-      .select('*')
-      .eq('company_id', companyId)
-      .eq('doc_type', type)
-      .eq('year', year)
-      .single();
-
-    const next = (counter?.counter ?? 0) + 1;
-
-    if (counter) {
-      await supabase.from('document_counters').update({ counter: next }).eq('id', counter.id);
-    } else {
-      await supabase.from('document_counters').insert({
-        company_id: companyId, doc_type: type, year, counter: next,
-      });
-    }
-
-    return `${prefixes[type]}-${year}-${String(next).padStart(4, '0')}`;
+    const { data, error } = await supabase.rpc('next_document_number', {
+      _company_id: companyId,
+      _doc_type: type,
+    });
+    if (error) throw error;
+    return data as string;
   }, [companyId]);
 
   const addInvoice = useCallback(async (data: {
@@ -190,13 +172,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     paid_amount: number;
     payment_terms?: string;
     notes?: string;
+    discount_amount?: number;
   }) => {
     if (!companyId) return;
 
     const number = await getNextDocNumber(data.type);
     const subtotal = data.items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
     const tvaTotal = data.items.reduce((s, i) => s + (i.quantity * i.unit_price * i.tva_rate) / 100, 0);
-    const total = subtotal + tvaTotal;
+    const discount = data.discount_amount ?? 0;
+    const total = Math.max(0, subtotal + tvaTotal - discount);
 
     const { data: invoice } = await supabase.from('invoices').insert({
       company_id: companyId,
@@ -258,13 +242,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // Update stock for factures/BL
+      // Update stock for factures/BL — fetch fresh product data to avoid stale state
       if (data.type === 'facture' || data.type === 'bon_livraison') {
+        const productIds = data.items.filter(i => i.product_id).map(i => i.product_id!);
+        const { data: freshProducts } = await supabase
+          .from('products')
+          .select('*')
+          .in('id', productIds);
+        const freshMap = new Map((freshProducts ?? []).map(p => [p.id, p]));
+
         for (const item of data.items) {
           if (item.product_id) {
-            const product = products.find(p => p.id === item.product_id);
+            const product = freshMap.get(item.product_id);
             if (product) {
               await supabase.from('products').update({ stock: product.stock - item.quantity }).eq('id', item.product_id);
+              // Update map for subsequent items referencing same product
+              freshMap.set(item.product_id, { ...product, stock: product.stock - item.quantity });
 
               // BOM: if finished product, deduct raw materials
               if (product.product_type === 'finished_product') {
@@ -274,16 +267,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                   .eq('finished_product_id', product.id);
 
                 if (bomItems && bomItems.length > 0) {
+                  // Fetch fresh raw material data
+                  const rawMatIds = bomItems.map(b => b.raw_material_id);
+                  const { data: freshRawMats } = await supabase
+                    .from('products')
+                    .select('*')
+                    .in('id', rawMatIds);
+                  const rawMap = new Map((freshRawMats ?? []).map(p => [p.id, p]));
+
                   for (const bom of bomItems) {
-                    const rawMat = products.find(p => p.id === bom.raw_material_id);
+                    const rawMat = rawMap.get(bom.raw_material_id);
                     const deductQty = bom.unit_type === 'percentage'
                       ? Math.ceil((bom.quantity / 100) * item.quantity)
                       : bom.quantity * item.quantity;
 
                     if (rawMat) {
-                      await supabase.from('products').update({
-                        stock: Math.max(0, rawMat.stock - deductQty),
-                      }).eq('id', rawMat.id);
+                      const newStock = Math.max(0, rawMat.stock - deductQty);
+                      await supabase.from('products').update({ stock: newStock }).eq('id', rawMat.id);
+                      rawMap.set(rawMat.id, { ...rawMat, stock: newStock });
 
                       await supabase.from('stock_movements').insert({
                         company_id: companyId,
@@ -311,7 +312,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     }
     refresh();
-  }, [companyId, getNextDocNumber, products, refresh]);
+  }, [companyId, getNextDocNumber, refresh]);
 
   const updateInvoiceStatus = useCallback(async (id: string, status: string, paidAmount?: number) => {
     const inv = invoices.find(i => i.id === id);
@@ -323,9 +324,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [invoices, refresh]);
 
   const deleteInvoice = useCallback(async (id: string) => {
+    // Restore stock before deleting
+    const inv = invoices.find(i => i.id === id);
+    if (inv && (inv.type === 'facture' || inv.type === 'bon_livraison')) {
+      for (const item of inv.items) {
+        if (item.product_id) {
+          const { data: product } = await supabase
+            .from('products')
+            .select('stock')
+            .eq('id', item.product_id)
+            .single();
+          if (product) {
+            await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
+            if (companyId) {
+              await supabase.from('stock_movements').insert({
+                company_id: companyId,
+                product_id: item.product_id,
+                product_name: item.product_name,
+                type: 'in',
+                quantity: item.quantity,
+                reason: `Annulation ${inv.type === 'facture' ? 'Facture' : 'BL'} ${inv.number}`,
+              });
+            }
+          }
+        }
+      }
+    }
     await supabase.from('invoices').delete().eq('id', id);
     refresh();
-  }, [refresh]);
+  }, [invoices, companyId, refresh]);
 
   const addExpense = useCallback(async (
     data: Omit<DbExpense, 'id' | 'company_id' | 'created_at' | 'updated_at'>,

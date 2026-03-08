@@ -686,6 +686,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_document_number: {
+        Args: { _company_id: string; _doc_type: string }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "employee"
