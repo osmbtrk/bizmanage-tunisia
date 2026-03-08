@@ -220,14 +220,12 @@ export default function ArchivePage() {
                     <td className="p-3 text-muted-foreground">{new Date(arc.created_at).toLocaleDateString('fr-TN')}</td>
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => setDetail(arc)} title="Voir">
+                        <Button variant="ghost" size="icon" onClick={() => handleView(arc)} title="Voir">
                           <Eye className="h-4 w-4" />
                         </Button>
                         {arc.pdf_file_url && (
-                          <Button variant="ghost" size="icon" asChild title="Télécharger">
-                            <a href={arc.pdf_file_url} target="_blank" rel="noopener noreferrer" download>
-                              <Download className="h-4 w-4" />
-                            </a>
+                          <Button variant="ghost" size="icon" onClick={() => handleDownloadPdf(arc)} title="Télécharger PDF">
+                            <Download className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
