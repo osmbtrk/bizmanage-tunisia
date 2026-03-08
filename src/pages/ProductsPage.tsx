@@ -6,20 +6,20 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Check, X, Settings2, Layers } from 'lucide-react';
+import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Check, X, Layers } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProductsPage() {
-  const { products, addProduct, deleteProduct, updateProduct, suppliers } = useData();
+  const { products, addProduct, deleteProduct, updateProduct, suppliers, categories } = useData();
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStock, setEditStock] = useState(0);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [bomOpen, setBomOpen] = useState(false);
   const [bomProductId, setBomProductId] = useState<string | null>(null);
   const [bomItems, setBomItems] = useState<{ raw_material_id: string; quantity: number; unit_type: string }[]>([]);
@@ -27,14 +27,22 @@ export default function ProductsPage() {
   const [form, setForm] = useState({
     name: '', description: '', purchase_price: 0, selling_price: 0,
     tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
-    product_type: 'finished_product' as string, category_type: 'normal' as string, supplier_id: '' as string,
+    product_type: 'finished_product' as string, category_type: 'normal' as string,
+    supplier_id: '' as string, category_id: '' as string,
   });
 
   const filtered = products
     .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
-    .filter(p => typeFilter === 'all' || p.product_type === typeFilter);
+    .filter(p => typeFilter === 'all' || p.product_type === typeFilter)
+    .filter(p => categoryFilter === 'all' || p.category_id === categoryFilter);
 
   const rawMaterials = products.filter(p => p.product_type === 'raw_material');
+
+  const getCategoryName = (catId: string | null) => {
+    if (!catId) return null;
+    const cat = categories.find(c => c.id === catId);
+    return cat?.name || null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,10 +50,11 @@ export default function ProductsPage() {
       ...form,
       description: form.description || null,
       supplier_id: form.supplier_id || null,
+      category_id: form.category_id || null,
       product_type: form.product_type as any,
       category_type: form.category_type as any,
     } as any);
-    setForm({ name: '', description: '', purchase_price: 0, selling_price: 0, tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce', product_type: 'finished_product', category_type: 'normal', supplier_id: '' });
+    setForm({ name: '', description: '', purchase_price: 0, selling_price: 0, tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce', product_type: 'finished_product', category_type: 'normal', supplier_id: '', category_id: '' });
     setOpen(false);
   };
 
@@ -95,11 +104,15 @@ export default function ProductsPage() {
                 </div>
                 <div>
                   <Label>Catégorie</Label>
-                  <Select value={form.category_type} onValueChange={v => setForm(f => ({ ...f, category_type: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select value={form.category_id} onValueChange={v => setForm(f => ({ ...f, category_id: v === '_none' ? '' : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Aucune" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="matiere_premiere">Matière première</SelectItem>
+                      <SelectItem value="_none">Aucune</SelectItem>
+                      {categories.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.parent_id ? '  └ ' : ''}{c.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -156,6 +169,17 @@ export default function ProductsPage() {
             <SelectItem value="service">Service</SelectItem>
           </SelectContent>
         </Select>
+        {categories.length > 0 && (
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Catégorie" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes catégories</SelectItem>
+              {categories.map(c => (
+                <SelectItem key={c.id} value={c.id}>{c.parent_id ? '  └ ' : ''}{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {filtered.length === 0 ? (
@@ -170,6 +194,7 @@ export default function ProductsPage() {
               <tr className="border-b border-border text-left text-muted-foreground">
                 <th className="pb-3 font-medium">Produit</th>
                 <th className="pb-3 font-medium">Type</th>
+                <th className="pb-3 font-medium">Catégorie</th>
                 <th className="pb-3 font-medium">Prix vente</th>
                 <th className="pb-3 font-medium">TVA</th>
                 <th className="pb-3 font-medium">Stock</th>
@@ -179,6 +204,7 @@ export default function ProductsPage() {
             <tbody>
               {filtered.map(p => {
                 const typeLabels: Record<string, string> = { finished_product: 'Produit fini', raw_material: 'Matière 1ère', service: 'Service' };
+                const catName = getCategoryName(p.category_id);
                 return (
                 <tr key={p.id} className="border-b border-border last:border-0 transition-colors duration-200 hover:bg-muted/50">
                   <td className="py-3">
@@ -188,13 +214,20 @@ export default function ProductsPage() {
                   <td className="py-3">
                     <Badge variant="outline" className="text-xs">{typeLabels[p.product_type] || p.product_type}</Badge>
                   </td>
+                  <td className="py-3">
+                    {catName ? (
+                      <Badge variant="secondary" className="text-xs">{catName}</Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
                   <td className="py-3">{Number(p.selling_price).toFixed(3)} TND</td>
                   <td className="py-3">{p.tva_rate}%</td>
                   <td className="py-3">
                     {editingId === p.id ? (
                       <div className="flex items-center gap-1">
                         <Input type="number" min={0} className="h-8 w-20 text-xs" value={editStock} onChange={e => setEditStock(+e.target.value)} />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-[hsl(var(--success))]" onClick={() => { updateProduct(p.id, { stock: editStock }); setEditingId(null); }}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => { updateProduct(p.id, { stock: editStock }); setEditingId(null); }}>
                           <Check className="h-3.5 w-3.5" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingId(null)}>
@@ -202,7 +235,7 @@ export default function ProductsPage() {
                         </Button>
                       </div>
                     ) : (
-                      <span className={`flex items-center gap-1 cursor-pointer ${p.stock <= p.min_stock ? 'text-[hsl(var(--warning))] font-semibold' : ''}`} onClick={() => { setEditingId(p.id); setEditStock(p.stock); }}>
+                      <span className={`flex items-center gap-1 cursor-pointer ${p.stock <= p.min_stock ? 'text-warning font-semibold' : ''}`} onClick={() => { setEditingId(p.id); setEditStock(p.stock); }}>
                         {p.stock <= p.min_stock && <AlertTriangle className="h-3.5 w-3.5" />}
                         {p.stock} {p.unit}
                         <Pencil className="h-3 w-3 ml-1 opacity-40" />

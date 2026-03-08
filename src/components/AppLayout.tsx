@@ -21,6 +21,7 @@ const navItems = [
   { to: '/devis', icon: FileText, label: 'Devis' },
   { to: '/clients', icon: Users, label: 'Gestion clients' },
   { to: '/produits', icon: Package, label: 'Produits & Stock' },
+  { to: '/categories', icon: FolderTree, label: 'Catégories' },
   { to: '/stock', icon: Warehouse, label: 'Gestion Stock' },
   { to: '/fournisseurs', icon: Truck, label: 'Fournisseurs' },
   { to: '/depenses', icon: Receipt, label: 'Dépenses' },

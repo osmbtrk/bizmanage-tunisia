@@ -524,7 +524,7 @@ export default function PosPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Product search */}
+        {/* Product search + category filter */}
         <div className="relative mb-3 shrink-0 flex items-center gap-1">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -536,6 +536,19 @@ export default function PosPage() {
               onChange={e => setProductSearch(e.target.value)}
             />
           </div>
+          {categories.length > 0 && (
+            <Select value={posCategoryFilter} onValueChange={setPosCategoryFilter}>
+              <SelectTrigger className="h-10 w-40 text-xs shrink-0">
+                <SelectValue placeholder="Catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes</SelectItem>
+                {categories.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button
             variant="outline"
             size="icon"

@@ -48,6 +48,7 @@ function ProtectedRoutes() {
           <Route path="/devis" element={<InvoicesPage docType="devis" title="Devis" />} />
           <Route path="/clients" element={<ClientsPage />} />
           <Route path="/produits" element={<ProductsPage />} />
+          <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/fournisseurs" element={<SuppliersPage />} />
           <Route path="/depenses" element={<ExpensesPage />} />

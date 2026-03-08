@@ -307,6 +307,18 @@ function ProductFormGlobal({ onClose }: { onClose: () => void }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div><Label>Nom *</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
       <div><Label>Description</Label><Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+      {categories.length > 0 && (
+        <div>
+          <Label>Catégorie</Label>
+          <Select value={form.category_id || '_none'} onValueChange={v => setForm(f => ({ ...f, category_id: v === '_none' ? null : v }))}>
+            <SelectTrigger><SelectValue placeholder="Aucune" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_none">Aucune</SelectItem>
+              {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div><Label>Prix d'achat (TND)</Label><Input type="number" step="0.001" min={0} value={form.purchase_price} onChange={e => setForm(f => ({ ...f, purchase_price: +e.target.value }))} /></div>
         <div><Label>Prix de vente (TND)</Label><Input type="number" step="0.001" min={0} value={form.selling_price} onChange={e => setForm(f => ({ ...f, selling_price: +e.target.value }))} /></div>
