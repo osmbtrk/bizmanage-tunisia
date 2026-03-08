@@ -296,12 +296,25 @@ export default function PosPage() {
   const handleCheckout = async () => {
     if (items.length === 0 || !selectedClientId) return;
 
-    // Stock validation
-    const insufficientItems = items.filter(i => i.quantity > i.stock);
+    // Fetch fresh stock from DB before validating
+    const productIds = items.filter(i => i.product_id).map(i => i.product_id);
+    const { data: freshProducts } = await supabase
+      .from('products')
+      .select('id, stock, name')
+      .in('id', productIds);
+    const freshMap = new Map((freshProducts ?? []).map(p => [p.id, p]));
+
+    const insufficientItems = items.filter(i => {
+      const fresh = freshMap.get(i.product_id);
+      return fresh ? i.quantity > fresh.stock : false;
+    });
     if (insufficientItems.length > 0) {
       toast({
         title: 'Stock insuffisant',
-        description: insufficientItems.map(i => `${i.product_name}: ${i.stock} dispo`).join(', '),
+        description: insufficientItems.map(i => {
+          const fresh = freshMap.get(i.product_id);
+          return `${i.product_name}: ${fresh?.stock ?? 0} dispo`;
+        }).join(', '),
         variant: 'destructive',
       });
       return;

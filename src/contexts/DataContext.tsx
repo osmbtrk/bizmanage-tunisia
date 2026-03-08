@@ -211,6 +211,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       paid_amount: data.paid_amount,
       payment_terms: data.payment_terms || null,
       notes: data.notes || null,
+      discount_amount: discount,
     }).select().single();
 
     if (invoice) {

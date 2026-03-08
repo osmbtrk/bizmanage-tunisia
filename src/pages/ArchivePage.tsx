@@ -122,7 +122,9 @@ export default function ArchivePage() {
       for (const arc of filtered) {
         if (!arc.pdf_file_url) continue;
         try {
-          const res = await fetch(arc.pdf_file_url);
+          const signedUrl = await getSignedUrl(arc.pdf_file_url);
+          if (!signedUrl) continue;
+          const res = await fetch(signedUrl);
           const blob = await res.blob();
           zip.file(`${arc.document_number}.html`, blob);
         } catch { /* skip failed downloads */ }
