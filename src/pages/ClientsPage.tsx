@@ -163,7 +163,7 @@ export default function ClientsPage() {
                 <div><Label>Personne de contact</Label><Input value={form.contact_person} onChange={e => setForm(f => ({ ...f, contact_person: e.target.value }))} /></div>
                 <div className="col-span-2"><Label>Conditions de paiement</Label><Input value={form.payment_terms} onChange={e => setForm(f => ({ ...f, payment_terms: e.target.value }))} /></div>
               </div>
-              <Button type="submit" className="w-full">{editId ? 'Mettre à jour' : 'Enregistrer'}</Button>
+              <Button type="submit" className="w-full" disabled={submitting}>{submitting ? 'Enregistrement...' : editId ? 'Mettre à jour' : 'Enregistrer'}</Button>
             </form>
           </DialogContent>
         </Dialog>
