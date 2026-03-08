@@ -53,7 +53,7 @@ export default function SuppliersPage() {
                 <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
               </div>
               <div><Label>Matricule fiscal</Label><Input value={form.tax_id} onChange={e => setForm(f => ({ ...f, tax_id: e.target.value }))} /></div>
-              <Button type="submit" className="w-full">Enregistrer</Button>
+              <Button type="submit" className="w-full" disabled={submitting}>{submitting ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </form>
           </DialogContent>
         </Dialog>
