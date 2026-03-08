@@ -63,6 +63,7 @@ export default function PosPage() {
   const [productForm, setProductForm] = useState({
     name: '', description: '', selling_price: 0, purchase_price: 0, stock: 0, min_stock: 5, unit: 'pièce', tva_rate: 19,
     product_type: 'finished_product' as string, category_type: 'normal' as string, supplier_id: null as string | null,
+    category_id: null as string | null,
   });
   const emptyProductForm = {
     name: '', description: '', selling_price: 0, purchase_price: 0, stock: 0, min_stock: 5, unit: 'pièce', tva_rate: 19,
