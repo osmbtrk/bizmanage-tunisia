@@ -272,23 +272,22 @@ export default function ArchivePage() {
                   </div>
                 </div>
 
-                {/* PDF Preview */}
-                {detail.pdf_file_url && (
+                {/* Document Preview */}
+                {detailHtml && (
                   <div className="border rounded-lg overflow-hidden bg-muted/30">
                     <iframe
-                      src={detail.pdf_file_url}
+                      srcDoc={detailHtml}
                       className="w-full h-[500px]"
                       title="Aperçu du document"
+                      sandbox="allow-same-origin"
                     />
                   </div>
                 )}
 
                 <div className="flex gap-2">
                   {detail.pdf_file_url && (
-                    <Button variant="outline" className="flex-1" asChild>
-                      <a href={detail.pdf_file_url} target="_blank" rel="noopener noreferrer" download>
-                        <Download className="h-4 w-4 mr-2" /> Télécharger le document
-                      </a>
+                    <Button variant="outline" className="flex-1" onClick={() => handleDownloadPdf(detail)}>
+                      <Download className="h-4 w-4 mr-2" /> Télécharger en PDF
                     </Button>
                   )}
                 </div>
