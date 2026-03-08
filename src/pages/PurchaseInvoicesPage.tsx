@@ -286,7 +286,7 @@ function PurchaseInvoiceView({ invoice }: { invoice: PurchaseInvoice }) {
         <div className="flex justify-between"><span className="text-muted-foreground">Sous-total HT</span><span>{formatTND(invoice.subtotal)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span>{formatTND(invoice.tva_total)}</span></div>
         <div className="flex justify-between font-bold text-base"><span>Total TTC</span><span>{formatTND(invoice.total)}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Payé</span><span className="text-green-600">{formatTND(invoice.paid_amount)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Payé</span><span className="text-primary">{formatTND(invoice.paid_amount)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Reste</span><span className="text-destructive">{formatTND(invoice.total - invoice.paid_amount)}</span></div>
       </div>
 
