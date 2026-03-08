@@ -131,6 +131,7 @@ export default function PosPage() {
       product_type: productForm.product_type as any,
       category_type: productForm.category_type as any,
       supplier_id: productForm.supplier_id,
+      category_id: productForm.category_id,
     });
     if (result) {
       addProductToOrder(result.id);
