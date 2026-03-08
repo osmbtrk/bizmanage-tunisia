@@ -329,7 +329,8 @@ export default function PosPage() {
         })),
         status,
         paid_amount: paidAmount,
-        notes: `POS - ${paymentMethod === 'cash' ? 'Espèces' : paymentMethod === 'card' ? 'Carte' : 'Virement'}`,
+        discount_amount: discountAmount,
+        notes: `POS - ${paymentMethod === 'cash' ? 'Espèces' : paymentMethod === 'card' ? 'Carte' : 'Virement'}${discountAmount > 0 ? ` | Remise: ${discountAmount.toFixed(3)} TND` : ''}`,
       });
 
       toast({
