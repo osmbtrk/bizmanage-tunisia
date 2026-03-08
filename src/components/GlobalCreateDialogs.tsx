@@ -284,11 +284,12 @@ function ClientFormGlobal({ onClose }: { onClose: () => void }) {
 
 /* ── Product Form ── */
 function ProductFormGlobal({ onClose }: { onClose: () => void }) {
-  const { addProduct } = useData();
+  const { addProduct, categories } = useData();
   const [form, setForm] = useState({
     name: '', description: '', purchase_price: 0, selling_price: 0,
     tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
-    product_type: 'finished_product' as string, category_type: 'normal' as string, supplier_id: null as string | null,
+    product_type: 'finished_product' as string, category_type: 'normal' as string,
+    supplier_id: null as string | null, category_id: null as string | null,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
