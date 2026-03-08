@@ -13,12 +13,16 @@ import ClientsPage from "@/pages/ClientsPage";
 import ProductsPage from "@/pages/ProductsPage";
 import CategoriesPage from "@/pages/CategoriesPage";
 import StockPage from "@/pages/StockPage";
+import StockMovementsPage from "@/pages/StockMovementsPage";
 import SuppliersPage from "@/pages/SuppliersPage";
+import PurchaseInvoicesPage from "@/pages/PurchaseInvoicesPage";
 import ExpensesPage from "@/pages/ExpensesPage";
+import TaxesPage from "@/pages/TaxesPage";
 import PosPage from "@/pages/PosPage";
 import SettingsPage from "@/pages/SettingsPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import ArchivePage from "@/pages/ArchivePage";
+import PaymentsPage from "@/pages/PaymentsPage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -46,12 +50,16 @@ function ProtectedRoutes() {
           <Route path="/pos" element={<PosPage />} />
           <Route path="/factures" element={<InvoicesPage docType="facture" title="Factures" />} />
           <Route path="/devis" element={<InvoicesPage docType="devis" title="Devis" />} />
+          <Route path="/paiements" element={<PaymentsPage />} />
           <Route path="/clients" element={<ClientsPage />} />
           <Route path="/produits" element={<ProductsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/stock" element={<StockPage />} />
+          <Route path="/mouvements" element={<StockMovementsPage />} />
           <Route path="/fournisseurs" element={<SuppliersPage />} />
+          <Route path="/factures-fournisseurs" element={<PurchaseInvoicesPage />} />
           <Route path="/depenses" element={<ExpensesPage />} />
+          <Route path="/taxes" element={<TaxesPage />} />
           <Route path="/archives" element={<ArchivePage />} />
           <Route path="/analytiques" element={<AnalyticsPage />} />
           <Route path="/parametres" element={<SettingsPage />} />
