@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, Pencil, Eye, FileText } from 'lucide-react';
+import { Plus, Trash2, Pencil, Eye, FileText, Download } from 'lucide-react';
+import { buildPurchaseInvoiceHtml } from '@/lib/generatePurchasePdfHtml';
 
 interface PurchaseInvoice {
   id: string;
