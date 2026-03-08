@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 export type GlobalDialogType = 'facture' | 'devis' | 'client' | 'product' | null;
 
@@ -124,10 +125,13 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
         .filter(Boolean);
 
       if (insufficientItems.length > 0) {
-        const message = insufficientItems
-          .map((i: any) => `• ${i.name} : stock disponible ${i.stock}, demandé ${i.requested}`)
-          .join('\n');
-        alert(`⚠️ Stock insuffisant !\n\nVeuillez réapprovisionner les produits suivants :\n${message}`);
+        toast({
+          title: 'Stock insuffisant',
+          description: insufficientItems
+            .map((i: any) => `${i.name}: ${i.stock} dispo, ${i.requested} demandé`)
+            .join(' — '),
+          variant: 'destructive',
+        });
         return;
       }
     }

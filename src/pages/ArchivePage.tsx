@@ -42,9 +42,21 @@ export default function ArchivePage() {
   const [detailHtml, setDetailHtml] = useState<string>('');
   const [exporting, setExporting] = useState(false);
 
+  const getSignedUrl = async (storagePath: string) => {
+    // Extract the path after /object/public/archives/
+    const marker = '/object/public/archives/';
+    const idx = storagePath.indexOf(marker);
+    const filePath = idx >= 0 ? storagePath.substring(idx + marker.length) : storagePath;
+    const { data, error } = await supabase.storage.from('archives').createSignedUrl(filePath, 300);
+    if (error || !data?.signedUrl) return null;
+    return data.signedUrl;
+  };
+
   const fetchHtmlContent = async (url: string) => {
     try {
-      const res = await fetch(url);
+      const signedUrl = await getSignedUrl(url);
+      if (!signedUrl) return '';
+      const res = await fetch(signedUrl);
       return await res.text();
     } catch { return ''; }
   };
@@ -110,7 +122,9 @@ export default function ArchivePage() {
       for (const arc of filtered) {
         if (!arc.pdf_file_url) continue;
         try {
-          const res = await fetch(arc.pdf_file_url);
+          const signedUrl = await getSignedUrl(arc.pdf_file_url);
+          if (!signedUrl) continue;
+          const res = await fetch(signedUrl);
           const blob = await res.blob();
           zip.file(`${arc.document_number}.html`, blob);
         } catch { /* skip failed downloads */ }

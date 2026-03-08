@@ -184,7 +184,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }) => {
     if (!companyId) return;
 
-    const number = await getNextDocNumber(data.type);
+    let number: string;
+    try {
+      number = await getNextDocNumber(data.type);
+    } catch (err: any) {
+      toast({ title: 'Erreur de numérotation', description: err?.message || 'Impossible de générer le numéro de document', variant: 'destructive' });
+      return;
+    }
     const subtotal = data.items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
     const tvaTotal = data.items.reduce((s, i) => s + (i.quantity * i.unit_price * i.tva_rate) / 100, 0);
     const discount = data.discount_amount ?? 0;
@@ -205,6 +211,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       paid_amount: data.paid_amount,
       payment_terms: data.payment_terms || null,
       notes: data.notes || null,
+      discount_amount: discount,
     }).select().single();
 
     if (invoice) {
