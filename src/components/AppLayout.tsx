@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Users, Package, Truck,
-  Receipt, Building2, Menu, X, Settings, LogOut, User, ChevronDown, Plus, ShoppingCart, BarChart3, Warehouse, Archive
+  Receipt, Building2, Menu, X, Settings, LogOut, User, ChevronDown, Plus, ShoppingCart, BarChart3, Warehouse, Archive, FolderTree
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
