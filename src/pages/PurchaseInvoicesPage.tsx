@@ -516,7 +516,7 @@ function PurchaseInvoiceForm({
         </div>
         <div>
           <Label>Numéro de facture *</Label>
-          <Input required value={number} onChange={e => setNumber(e.target.value)} placeholder="FA-2025-001" />
+          <Input required value={number} readOnly disabled className="bg-muted font-mono" placeholder={numberLoading ? 'Génération...' : 'FA-2026-0001'} />
         </div>
         <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
         <div><Label>Date d'échéance</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
