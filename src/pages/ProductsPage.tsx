@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,13 +10,140 @@ import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Check, X, Layers 
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
+
+type DbProduct = Database['public']['Tables']['products']['Row'];
+type DbProductCategory = Database['public']['Tables']['product_categories']['Row'];
+
+const emptyForm = {
+  name: '', description: '', purchase_price: 0, selling_price: 0,
+  tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
+  product_type: 'finished_product' as string, category_type: 'normal' as string,
+  supplier_id: '' as string, category_id: '' as string,
+};
+
+function HierarchicalCategorySelect({
+  categories,
+  value,
+  onChange,
+}: {
+  categories: DbProductCategory[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const topLevel = categories.filter(c => !c.parent_id);
+  const getChildren = (parentId: string) => categories.filter(c => c.parent_id === parentId);
+
+  const renderItems = (): React.ReactNode[] => {
+    const items: React.ReactNode[] = [];
+    items.push(<SelectItem key="_none" value="_none">Aucune</SelectItem>);
+    for (const cat of topLevel) {
+      items.push(<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>);
+      const children = getChildren(cat.id);
+      for (const child of children) {
+        items.push(
+          <SelectItem key={child.id} value={child.id}>
+            <span className="ml-3">└ {child.name}</span>
+          </SelectItem>
+        );
+        const grandChildren = getChildren(child.id);
+        for (const gc of grandChildren) {
+          items.push(
+            <SelectItem key={gc.id} value={gc.id}>
+              <span className="ml-6">└ {gc.name}</span>
+            </SelectItem>
+          );
+        }
+      }
+    }
+    return items;
+  };
+
+  return (
+    <Select value={value || '_none'} onValueChange={v => onChange(v === '_none' ? '' : v)}>
+      <SelectTrigger><SelectValue placeholder="Aucune" /></SelectTrigger>
+      <SelectContent>{renderItems()}</SelectContent>
+    </Select>
+  );
+}
+
+function ProductFormFields({
+  form,
+  setForm,
+  categories,
+  suppliers,
+}: {
+  form: typeof emptyForm;
+  setForm: (fn: (f: typeof emptyForm) => typeof emptyForm) => void;
+  categories: DbProductCategory[];
+  suppliers: { id: string; name: string }[];
+}) {
+  return (
+    <>
+      <div><Label>Nom *</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+      <div><Label>Description</Label><Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Type</Label>
+          <Select value={form.product_type} onValueChange={v => setForm(f => ({ ...f, product_type: v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="finished_product">Produit fini</SelectItem>
+              <SelectItem value="raw_material">Matière première</SelectItem>
+              <SelectItem value="service">Service</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Catégorie</Label>
+          <HierarchicalCategorySelect categories={categories} value={form.category_id} onChange={v => setForm(f => ({ ...f, category_id: v }))} />
+        </div>
+      </div>
+      {form.product_type === 'raw_material' && (
+        <div>
+          <Label>Fournisseur</Label>
+          <Select value={form.supplier_id || '_none'} onValueChange={v => setForm(f => ({ ...f, supplier_id: v === '_none' ? '' : v }))}>
+            <SelectTrigger><SelectValue placeholder="Sélectionner un fournisseur" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_none">Aucun</SelectItem>
+              {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label>Prix d'achat (TND)</Label><Input type="number" step="0.001" min={0} value={form.purchase_price} onChange={e => setForm(f => ({ ...f, purchase_price: +e.target.value }))} /></div>
+        <div><Label>Prix de vente (TND)</Label><Input type="number" step="0.001" min={0} value={form.selling_price} onChange={e => setForm(f => ({ ...f, selling_price: +e.target.value }))} /></div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <Label>TVA %</Label>
+          <Select value={String(form.tva_rate)} onValueChange={v => setForm(f => ({ ...f, tva_rate: +v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">0%</SelectItem>
+              <SelectItem value="7">7%</SelectItem>
+              <SelectItem value="13">13%</SelectItem>
+              <SelectItem value="19">19%</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label>Stock</Label><Input type="number" min={0} value={form.stock} onChange={e => setForm(f => ({ ...f, stock: +e.target.value }))} /></div>
+        <div><Label>Stock min</Label><Input type="number" min={0} value={form.min_stock} onChange={e => setForm(f => ({ ...f, min_stock: +e.target.value }))} /></div>
+      </div>
+      <div><Label>Unité</Label><Input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} /></div>
+    </>
+  );
+}
 
 export default function ProductsPage() {
   const { products, addProduct, deleteProduct, updateProduct, suppliers, categories } = useData();
   const { toast } = useToast();
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editStock, setEditStock] = useState(0);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<DbProduct | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -24,12 +151,8 @@ export default function ProductsPage() {
   const [bomProductId, setBomProductId] = useState<string | null>(null);
   const [bomItems, setBomItems] = useState<{ raw_material_id: string; quantity: number; unit_type: string }[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: '', description: '', purchase_price: 0, selling_price: 0,
-    tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
-    product_type: 'finished_product' as string, category_type: 'normal' as string,
-    supplier_id: '' as string, category_id: '' as string,
-  });
+  const [form, setForm] = useState({ ...emptyForm });
+  const [editForm, setEditForm] = useState({ ...emptyForm });
 
   const filtered = products
     .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
@@ -38,10 +161,15 @@ export default function ProductsPage() {
 
   const rawMaterials = products.filter(p => p.product_type === 'raw_material');
 
-  const getCategoryName = (catId: string | null) => {
+  const getCategoryPath = (catId: string | null): string | null => {
     if (!catId) return null;
     const cat = categories.find(c => c.id === catId);
-    return cat?.name || null;
+    if (!cat) return null;
+    if (cat.parent_id) {
+      const parent = getCategoryPath(cat.parent_id);
+      return parent ? `${parent} › ${cat.name}` : cat.name;
+    }
+    return cat.name;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,8 +182,49 @@ export default function ProductsPage() {
       product_type: form.product_type as any,
       category_type: form.category_type as any,
     } as any);
-    setForm({ name: '', description: '', purchase_price: 0, selling_price: 0, tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce', product_type: 'finished_product', category_type: 'normal', supplier_id: '', category_id: '' });
+    setForm({ ...emptyForm });
     setOpen(false);
+  };
+
+  const openEditDialog = (p: DbProduct) => {
+    setEditProduct(p);
+    setEditForm({
+      name: p.name,
+      description: p.description || '',
+      purchase_price: Number(p.purchase_price),
+      selling_price: Number(p.selling_price),
+      tva_rate: p.tva_rate,
+      stock: p.stock,
+      min_stock: p.min_stock,
+      unit: p.unit,
+      product_type: p.product_type,
+      category_type: p.category_type,
+      supplier_id: p.supplier_id || '',
+      category_id: p.category_id || '',
+    });
+    setEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editProduct) return;
+    await updateProduct(editProduct.id, {
+      name: editForm.name,
+      description: editForm.description || null,
+      purchase_price: editForm.purchase_price,
+      selling_price: editForm.selling_price,
+      tva_rate: editForm.tva_rate,
+      stock: editForm.stock,
+      min_stock: editForm.min_stock,
+      unit: editForm.unit,
+      product_type: editForm.product_type as any,
+      category_type: editForm.category_type as any,
+      supplier_id: editForm.supplier_id || null,
+      category_id: editForm.category_id || null,
+    } as any);
+    toast({ title: 'Produit mis à jour' });
+    setEditOpen(false);
+    setEditProduct(null);
   };
 
   const openBom = async (productId: string) => {
@@ -85,70 +254,10 @@ export default function ProductsPage() {
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" /> Nouveau produit</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Ajouter un produit</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div><Label>Nom *</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-              <div><Label>Description</Label><Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Type</Label>
-                  <Select value={form.product_type} onValueChange={v => setForm(f => ({ ...f, product_type: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="finished_product">Produit fini</SelectItem>
-                      <SelectItem value="raw_material">Matière première</SelectItem>
-                      <SelectItem value="service">Service</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Catégorie</Label>
-                  <Select value={form.category_id} onValueChange={v => setForm(f => ({ ...f, category_id: v === '_none' ? '' : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Aucune" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="_none">Aucune</SelectItem>
-                      {categories.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.parent_id ? '  └ ' : ''}{c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              {form.product_type === 'raw_material' && (
-                <div>
-                  <Label>Fournisseur</Label>
-                  <Select value={form.supplier_id} onValueChange={v => setForm(f => ({ ...f, supplier_id: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Sélectionner un fournisseur" /></SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>Prix d'achat (TND)</Label><Input type="number" step="0.001" min={0} value={form.purchase_price} onChange={e => setForm(f => ({ ...f, purchase_price: +e.target.value }))} /></div>
-                <div><Label>Prix de vente (TND)</Label><Input type="number" step="0.001" min={0} value={form.selling_price} onChange={e => setForm(f => ({ ...f, selling_price: +e.target.value }))} /></div>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label>TVA %</Label>
-                  <Select value={String(form.tva_rate)} onValueChange={v => setForm(f => ({ ...f, tva_rate: +v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0%</SelectItem>
-                      <SelectItem value="7">7%</SelectItem>
-                      <SelectItem value="13">13%</SelectItem>
-                      <SelectItem value="19">19%</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Stock initial</Label><Input type="number" min={0} value={form.stock} onChange={e => setForm(f => ({ ...f, stock: +e.target.value }))} /></div>
-                <div><Label>Stock min</Label><Input type="number" min={0} value={form.min_stock} onChange={e => setForm(f => ({ ...f, min_stock: +e.target.value }))} /></div>
-              </div>
-              <div><Label>Unité</Label><Input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} /></div>
+              <ProductFormFields form={form} setForm={setForm} categories={categories} suppliers={suppliers} />
               <Button type="submit" className="w-full">Enregistrer</Button>
             </form>
           </DialogContent>
@@ -170,15 +279,11 @@ export default function ProductsPage() {
           </SelectContent>
         </Select>
         {categories.length > 0 && (
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Catégorie" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Toutes catégories</SelectItem>
-              {categories.map(c => (
-                <SelectItem key={c.id} value={c.id}>{c.parent_id ? '  └ ' : ''}{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <HierarchicalCategorySelect
+            categories={categories}
+            value={categoryFilter === 'all' ? '' : categoryFilter}
+            onChange={v => setCategoryFilter(v || 'all')}
+          />
         )}
       </div>
 
@@ -204,7 +309,7 @@ export default function ProductsPage() {
             <tbody>
               {filtered.map(p => {
                 const typeLabels: Record<string, string> = { finished_product: 'Produit fini', raw_material: 'Matière 1ère', service: 'Service' };
-                const catName = getCategoryName(p.category_id);
+                const catPath = getCategoryPath(p.category_id);
                 return (
                 <tr key={p.id} className="border-b border-border last:border-0 transition-colors duration-200 hover:bg-muted/50">
                   <td className="py-3">
@@ -215,8 +320,8 @@ export default function ProductsPage() {
                     <Badge variant="outline" className="text-xs">{typeLabels[p.product_type] || p.product_type}</Badge>
                   </td>
                   <td className="py-3">
-                    {catName ? (
-                      <Badge variant="secondary" className="text-xs">{catName}</Badge>
+                    {catPath ? (
+                      <Badge variant="secondary" className="text-xs">{catPath}</Badge>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
@@ -224,26 +329,28 @@ export default function ProductsPage() {
                   <td className="py-3">{Number(p.selling_price).toFixed(3)} TND</td>
                   <td className="py-3">{p.tva_rate}%</td>
                   <td className="py-3">
-                    {editingId === p.id ? (
+                    {editingStockId === p.id ? (
                       <div className="flex items-center gap-1">
                         <Input type="number" min={0} className="h-8 w-20 text-xs" value={editStock} onChange={e => setEditStock(+e.target.value)} />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => { updateProduct(p.id, { stock: editStock }); setEditingId(null); }}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={() => { updateProduct(p.id, { stock: editStock }); setEditingStockId(null); }}>
                           <Check className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingId(null)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingStockId(null)}>
                           <X className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ) : (
-                      <span className={`flex items-center gap-1 cursor-pointer ${p.stock <= p.min_stock ? 'text-warning font-semibold' : ''}`} onClick={() => { setEditingId(p.id); setEditStock(p.stock); }}>
+                      <span className={`flex items-center gap-1 cursor-pointer ${p.stock <= p.min_stock ? 'text-amber-600 font-semibold' : ''}`} onClick={() => { setEditingStockId(p.id); setEditStock(p.stock); }}>
                         {p.stock <= p.min_stock && <AlertTriangle className="h-3.5 w-3.5" />}
                         {p.stock} {p.unit}
-                        <Pencil className="h-3 w-3 ml-1 opacity-40" />
                       </span>
                     )}
                   </td>
                   <td className="py-3">
                     <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(p)} className="text-muted-foreground hover:text-primary" title="Modifier le produit">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       {p.product_type === 'finished_product' && (
                         <Button variant="ghost" size="icon" onClick={() => openBom(p.id)} className="text-muted-foreground hover:text-primary" title="Nomenclature (BOM)">
                           <Layers className="h-4 w-4" />
@@ -261,6 +368,17 @@ export default function ProductsPage() {
           </table>
         </div>
       )}
+
+      {/* Edit Product Dialog */}
+      <Dialog open={editOpen} onOpenChange={o => { if (!o) { setEditOpen(false); setEditProduct(null); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Modifier le produit</DialogTitle></DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <ProductFormFields form={editForm} setForm={setEditForm} categories={categories} suppliers={suppliers} />
+            <Button type="submit" className="w-full">Enregistrer les modifications</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* BOM Dialog */}
       <Dialog open={bomOpen} onOpenChange={setBomOpen}>
