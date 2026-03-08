@@ -128,7 +128,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [companyId, refresh]);
 
   const updateClient = useCallback(async (id: string, data: Partial<DbClient>) => {
-    await supabase.from('clients').update(data).eq('id', id);
+    const { error } = await supabase.from('clients').update(data).eq('id', id);
+    if (error) { toast({ title: 'Erreur mise à jour client', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
