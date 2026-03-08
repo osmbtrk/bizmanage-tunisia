@@ -153,7 +153,7 @@ export default function PurchaseInvoicesPage() {
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">Total payé</p>
-          <p className="text-2xl font-bold text-green-600">{formatTND(totalPaid)}</p>
+          <p className="text-2xl font-bold text-primary">{formatTND(totalPaid)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">Reste à payer</p>
