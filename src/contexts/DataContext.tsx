@@ -73,6 +73,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [company, setCompany] = useState<DbCompany | null>(null);
   const [clients, setClients] = useState<DbClient[]>([]);
   const [products, setProducts] = useState<DbProduct[]>([]);
+  const [categories, setCategories] = useState<DbProductCategory[]>([]);
   const [invoices, setInvoices] = useState<(DbInvoice & { items: DbInvoiceItem[] })[]>([]);
   const [expenses, setExpenses] = useState<DbExpense[]>([]);
   const [suppliers, setSuppliers] = useState<DbSupplier[]>([]);
