@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Trash2, Search, Truck } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function SuppliersPage() {
   const { suppliers, addSupplier, deleteSupplier } = useData();
