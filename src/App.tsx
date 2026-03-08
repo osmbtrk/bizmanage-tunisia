@@ -11,6 +11,7 @@ import Dashboard from "@/pages/Dashboard";
 import InvoicesPage from "@/pages/InvoicesPage";
 import ClientsPage from "@/pages/ClientsPage";
 import ProductsPage from "@/pages/ProductsPage";
+import CategoriesPage from "@/pages/CategoriesPage";
 import StockPage from "@/pages/StockPage";
 import SuppliersPage from "@/pages/SuppliersPage";
 import ExpensesPage from "@/pages/ExpensesPage";
