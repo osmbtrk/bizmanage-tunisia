@@ -172,13 +172,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     paid_amount: number;
     payment_terms?: string;
     notes?: string;
+    discount_amount?: number;
   }) => {
     if (!companyId) return;
 
     const number = await getNextDocNumber(data.type);
     const subtotal = data.items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
     const tvaTotal = data.items.reduce((s, i) => s + (i.quantity * i.unit_price * i.tva_rate) / 100, 0);
-    const total = subtotal + tvaTotal;
+    const discount = data.discount_amount ?? 0;
+    const total = Math.max(0, subtotal + tvaTotal - discount);
 
     const { data: invoice } = await supabase.from('invoices').insert({
       company_id: companyId,
