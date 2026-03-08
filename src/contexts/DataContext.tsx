@@ -239,13 +239,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // Update stock for factures/BL
+      // Update stock for factures/BL — fetch fresh product data to avoid stale state
       if (data.type === 'facture' || data.type === 'bon_livraison') {
+        const productIds = data.items.filter(i => i.product_id).map(i => i.product_id!);
+        const { data: freshProducts } = await supabase
+          .from('products')
+          .select('*')
+          .in('id', productIds);
+        const freshMap = new Map((freshProducts ?? []).map(p => [p.id, p]));
+
         for (const item of data.items) {
           if (item.product_id) {
-            const product = products.find(p => p.id === item.product_id);
+            const product = freshMap.get(item.product_id);
             if (product) {
               await supabase.from('products').update({ stock: product.stock - item.quantity }).eq('id', item.product_id);
+              // Update map for subsequent items referencing same product
+              freshMap.set(item.product_id, { ...product, stock: product.stock - item.quantity });
 
               // BOM: if finished product, deduct raw materials
               if (product.product_type === 'finished_product') {
@@ -255,16 +264,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                   .eq('finished_product_id', product.id);
 
                 if (bomItems && bomItems.length > 0) {
+                  // Fetch fresh raw material data
+                  const rawMatIds = bomItems.map(b => b.raw_material_id);
+                  const { data: freshRawMats } = await supabase
+                    .from('products')
+                    .select('*')
+                    .in('id', rawMatIds);
+                  const rawMap = new Map((freshRawMats ?? []).map(p => [p.id, p]));
+
                   for (const bom of bomItems) {
-                    const rawMat = products.find(p => p.id === bom.raw_material_id);
+                    const rawMat = rawMap.get(bom.raw_material_id);
                     const deductQty = bom.unit_type === 'percentage'
                       ? Math.ceil((bom.quantity / 100) * item.quantity)
                       : bom.quantity * item.quantity;
 
                     if (rawMat) {
-                      await supabase.from('products').update({
-                        stock: Math.max(0, rawMat.stock - deductQty),
-                      }).eq('id', rawMat.id);
+                      const newStock = Math.max(0, rawMat.stock - deductQty);
+                      await supabase.from('products').update({ stock: newStock }).eq('id', rawMat.id);
+                      rawMap.set(rawMat.id, { ...rawMat, stock: newStock });
 
                       await supabase.from('stock_movements').insert({
                         company_id: companyId,
