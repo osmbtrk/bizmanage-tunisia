@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import CheckoutDialog from '@/components/pos/CheckoutDialog';
 
 // ── Types ──
 interface PosItem {
@@ -692,8 +693,8 @@ export default function PosPage() {
               <span>TVA</span>
               <span>{formatDT(tvaTotal)}</span>
             </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-[hsl(var(--success))]">
+              {discountAmount > 0 && (
+              <div className="flex justify-between text-success">
                 <span>Remise</span>
                 <span>-{formatDT(discountAmount)}</span>
               </div>
@@ -705,7 +706,7 @@ export default function PosPage() {
             {isAdmin && profitMargin > 0 && (
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Marge brute</span>
-                <span className="text-[hsl(var(--success))]">{formatDT(profitMargin)}</span>
+                <span className="text-success">{formatDT(profitMargin)}</span>
               </div>
             )}
           </div>
@@ -729,111 +730,20 @@ export default function PosPage() {
       </Card>
 
       {/* ═══ Checkout Dialog ═══ */}
-      <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Encaissement
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="text-center p-4 rounded-lg bg-secondary">
-              <p className="text-sm text-muted-foreground">Total à payer</p>
-              <p className="text-3xl font-bold text-primary">{formatDT(total)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {items.reduce((s, i) => s + i.quantity, 0)} article(s) — TVA: {formatDT(tvaTotal)}
-              </p>
-            </div>
-
-            {/* Payment method */}
-            <div>
-              <Label className="text-sm mb-2 block">Mode de paiement</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { value: 'cash' as const, label: 'Espèces', icon: Banknote },
-                  { value: 'card' as const, label: 'Carte', icon: CreditCard },
-                  { value: 'virement' as const, label: 'Virement', icon: Building2 },
-                ]).map(pm => (
-                  <button
-                    key={pm.value}
-                    type="button"
-                    onClick={() => setPaymentMethod(pm.value)}
-                    className={`
-                      flex flex-col items-center gap-1.5 rounded-lg border p-3 transition-all text-sm font-medium
-                      ${paymentMethod === pm.value
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-border text-muted-foreground hover:border-primary/50'
-                      }
-                    `}
-                  >
-                    <pm.icon className="h-5 w-5" />
-                    {pm.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Cash: Amount received */}
-            {paymentMethod === 'cash' && (
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-sm">Montant reçu (TND)</Label>
-                  <Input
-                    type="number"
-                    step="0.001"
-                    min={0}
-                    value={amountReceived || ''}
-                    onChange={e => setAmountReceived(+e.target.value)}
-                    className="h-12 text-xl text-center font-bold"
-                    autoFocus
-                  />
-                </div>
-                {/* Quick amount buttons */}
-                <div className="flex gap-2">
-                  {[5, 10, 20, 50].map(v => (
-                    <Button key={v} variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setAmountReceived(v)}>
-                      {v} TND
-                    </Button>
-                  ))}
-                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setAmountReceived(Math.ceil(total))}>
-                    Exact
-                  </Button>
-                </div>
-                {amountReceived >= total && (
-                  <div className="text-center p-3 rounded-lg bg-[hsl(var(--success))]/10 border border-[hsl(var(--success))]/20">
-                    <p className="text-sm text-muted-foreground">Monnaie à rendre</p>
-                    <p className="text-2xl font-bold text-[hsl(var(--success))]">{formatDT(change)}</p>
-                  </div>
-                )}
-                {isPartial && (
-                  <div className="text-center p-2 rounded-lg bg-[hsl(var(--warning))]/10 border border-[hsl(var(--warning))]/20">
-                    <p className="text-xs text-[hsl(var(--warning))]">
-                      ⚠ Paiement partiel — Reste: {formatDT(total - amountReceived)}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <Button
-              className="w-full h-12 text-base font-semibold gap-2"
-              disabled={submitting || (paymentMethod === 'cash' && amountReceived <= 0)}
-              onClick={handleCheckout}
-            >
-              {submitting ? (
-                'Validation...'
-              ) : (
-                <>
-                  <Check className="h-5 w-5" />
-                  Valider la vente
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        total={total}
+        tvaTotal={tvaTotal}
+        itemCount={items.reduce((s, i) => s + i.quantity, 0)}
+        paymentMethod={paymentMethod}
+        setPaymentMethod={setPaymentMethod}
+        amountReceived={amountReceived}
+        setAmountReceived={setAmountReceived}
+        submitting={submitting}
+        onCheckout={handleCheckout}
+        formatDT={formatDT}
+      />
     </div>
   );
 }

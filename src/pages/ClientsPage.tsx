@@ -39,6 +39,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ ...emptyForm });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const filtered = clients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -48,41 +49,46 @@ export default function ClientsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editId) {
-      await updateClient(editId, {
-        name: form.name,
-        legal_form: form.legal_form as any,
-        matricule_fiscal: form.matricule_fiscal || null,
-        code_tva: form.code_tva || null,
-        rne: form.rne || null,
-        address: form.address || null,
-        governorate: form.governorate || null,
-        phone: form.phone || null,
-        email: form.email || null,
-        contact_person: form.contact_person || null,
-        payment_terms: form.payment_terms || null,
-        status: form.status as any,
-      });
-    } else {
-      await addClient({
-        name: form.name,
-        legal_form: form.legal_form as any,
-        matricule_fiscal: form.matricule_fiscal || null,
-        code_tva: form.code_tva || null,
-        rne: form.rne || null,
-        address: form.address || null,
-        governorate: form.governorate || null,
-        phone: form.phone || null,
-        email: form.email || null,
-        contact_person: form.contact_person || null,
-        payment_terms: form.payment_terms || null,
-        status: form.status as any,
-        is_archived: false,
-      });
+    setSubmitting(true);
+    try {
+      if (editId) {
+        await updateClient(editId, {
+          name: form.name,
+          legal_form: form.legal_form as any,
+          matricule_fiscal: form.matricule_fiscal || null,
+          code_tva: form.code_tva || null,
+          rne: form.rne || null,
+          address: form.address || null,
+          governorate: form.governorate || null,
+          phone: form.phone || null,
+          email: form.email || null,
+          contact_person: form.contact_person || null,
+          payment_terms: form.payment_terms || null,
+          status: form.status as any,
+        });
+      } else {
+        await addClient({
+          name: form.name,
+          legal_form: form.legal_form as any,
+          matricule_fiscal: form.matricule_fiscal || null,
+          code_tva: form.code_tva || null,
+          rne: form.rne || null,
+          address: form.address || null,
+          governorate: form.governorate || null,
+          phone: form.phone || null,
+          email: form.email || null,
+          contact_person: form.contact_person || null,
+          payment_terms: form.payment_terms || null,
+          status: form.status as any,
+          is_archived: false,
+        });
+      }
+      setForm({ ...emptyForm });
+      setEditId(null);
+      setOpen(false);
+    } finally {
+      setSubmitting(false);
     }
-    setForm({ ...emptyForm });
-    setEditId(null);
-    setOpen(false);
   };
 
   const openEdit = (client: typeof clients[0]) => {
@@ -157,7 +163,7 @@ export default function ClientsPage() {
                 <div><Label>Personne de contact</Label><Input value={form.contact_person} onChange={e => setForm(f => ({ ...f, contact_person: e.target.value }))} /></div>
                 <div className="col-span-2"><Label>Conditions de paiement</Label><Input value={form.payment_terms} onChange={e => setForm(f => ({ ...f, payment_terms: e.target.value }))} /></div>
               </div>
-              <Button type="submit" className="w-full">{editId ? 'Mettre à jour' : 'Enregistrer'}</Button>
+              <Button type="submit" className="w-full" disabled={submitting}>{submitting ? 'Enregistrement...' : editId ? 'Mettre à jour' : 'Enregistrer'}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -234,7 +240,7 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold truncate">{client.name}</h3>
                     <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      client.status === 'active' ? 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]' : 'bg-muted text-muted-foreground'
+                      client.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
                     }`}>{client.status === 'active' ? 'Actif' : 'Inactif'}</span>
                   </div>
                   {client.matricule_fiscal && <p className="text-xs text-muted-foreground mt-0.5">MF: {client.matricule_fiscal}</p>}

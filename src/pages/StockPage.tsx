@@ -4,7 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Search, Package, AlertTriangle, ArrowDown, ArrowUp, TrendingUp } from 'lucide-react';
+
+const MOVEMENTS_PER_PAGE = 25;
 
 export default function StockPage() {
   const { products, stockMovements } = useData();
@@ -13,6 +16,7 @@ export default function StockPage() {
   const [movementFilter, setMovementFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [visibleCount, setVisibleCount] = useState(MOVEMENTS_PER_PAGE);
 
   const filteredProducts = useMemo(() => {
     let list = products;
@@ -30,6 +34,9 @@ export default function StockPage() {
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [stockMovements, movementFilter, search, dateFrom, dateTo]);
 
+  // Reset visible count when filters change
+  useMemo(() => { setVisibleCount(MOVEMENTS_PER_PAGE); }, [movementFilter, search, dateFrom, dateTo]);
+
   const totalValuation = useMemo(() => 
     products.reduce((s, p) => s + p.stock * Number(p.purchase_price), 0), [products]);
   const totalSellingValue = useMemo(() => 
@@ -37,6 +44,8 @@ export default function StockPage() {
   const lowStockCount = products.filter(p => p.stock <= p.min_stock).length;
 
   const formatDT = (n: number) => n.toLocaleString('fr-TN', { style: 'currency', currency: 'TND' });
+
+  const hasMore = visibleCount < filteredMovements.length;
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -61,7 +70,7 @@ export default function StockPage() {
         <Card className="transition-all duration-200 hover:shadow-md">
           <CardContent className="p-4">
             <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Marge potentielle</p>
-            <p className="text-xl font-bold mt-1 tabular-nums text-[hsl(var(--success))]">{formatDT(totalSellingValue - totalValuation)}</p>
+            <p className="text-xl font-bold mt-1 tabular-nums text-success">{formatDT(totalSellingValue - totalValuation)}</p>
           </CardContent>
         </Card>
         <Card className={`transition-all duration-200 hover:shadow-md ${lowStockCount > 0 ? 'border-l-4 border-l-destructive' : ''}`}>
@@ -173,7 +182,7 @@ export default function StockPage() {
                         ) : isLow ? (
                           <Badge className="text-xs bg-warning/15 text-warning border-warning/30">Bas</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-xs text-[hsl(var(--success))]">OK</Badge>
+                          <Badge variant="outline" className="text-xs text-success">OK</Badge>
                         )}
                       </td>
                     </tr>
@@ -196,35 +205,48 @@ export default function StockPage() {
           {filteredMovements.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">Aucun mouvement trouvé</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-muted-foreground">
-                    <th className="pb-3 font-medium">Date</th>
-                    <th className="pb-3 font-medium">Produit</th>
-                    <th className="pb-3 font-medium">Type</th>
-                    <th className="pb-3 font-medium text-right">Quantité</th>
-                    <th className="pb-3 font-medium">Raison</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMovements.slice(0, 50).map(m => (
-                    <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-200">
-                      <td className="py-2.5 text-muted-foreground">{new Date(m.date).toLocaleDateString('fr-TN')}</td>
-                      <td className="py-2.5 font-medium">{m.product_name}</td>
-                      <td className="py-2.5">
-                        <Badge variant={m.type === 'in' ? 'outline' : 'secondary'} className={`text-xs ${m.type === 'in' ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
-                          {m.type === 'in' ? <ArrowDown className="h-3 w-3 mr-1" /> : <ArrowUp className="h-3 w-3 mr-1" />}
-                          {m.type === 'in' ? 'Entrée' : 'Sortie'}
-                        </Badge>
-                      </td>
-                      <td className="py-2.5 text-right tabular-nums font-semibold">{m.quantity}</td>
-                      <td className="py-2.5 text-muted-foreground text-xs">{m.reason || '-'}</td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-muted-foreground">
+                      <th className="pb-3 font-medium">Date</th>
+                      <th className="pb-3 font-medium">Produit</th>
+                      <th className="pb-3 font-medium">Type</th>
+                      <th className="pb-3 font-medium text-right">Quantité</th>
+                      <th className="pb-3 font-medium">Raison</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredMovements.slice(0, visibleCount).map(m => (
+                      <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-200">
+                        <td className="py-2.5 text-muted-foreground">{new Date(m.date).toLocaleDateString('fr-TN')}</td>
+                        <td className="py-2.5 font-medium">{m.product_name}</td>
+                        <td className="py-2.5">
+                          <Badge variant={m.type === 'in' ? 'outline' : 'secondary'} className={`text-xs ${m.type === 'in' ? 'text-success' : 'text-destructive'}`}>
+                            {m.type === 'in' ? <ArrowDown className="h-3 w-3 mr-1" /> : <ArrowUp className="h-3 w-3 mr-1" />}
+                            {m.type === 'in' ? 'Entrée' : 'Sortie'}
+                          </Badge>
+                        </td>
+                        <td className="py-2.5 text-right tabular-nums font-semibold">{m.quantity}</td>
+                        <td className="py-2.5 text-muted-foreground text-xs">{m.reason || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {hasMore && (
+                <div className="text-center pt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVisibleCount(c => c + MOVEMENTS_PER_PAGE)}
+                  >
+                    Charger plus ({filteredMovements.length - visibleCount} restants)
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
