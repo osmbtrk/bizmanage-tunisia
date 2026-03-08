@@ -33,7 +33,7 @@ type DiscountType = 'percent' | 'fixed';
 
 // ── Main POS Component ──
 export default function PosPage() {
-  const { clients, products, addInvoice, addClient, addProduct, refresh } = useData();
+  const { clients, products, addInvoice, addClient, addProduct, categories, refresh } = useData();
   const { role, companyId } = useAuth();
   const { toast } = useToast();
   const isAdmin = role === 'admin';
