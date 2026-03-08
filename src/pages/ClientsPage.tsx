@@ -240,7 +240,7 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold truncate">{client.name}</h3>
                     <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      client.status === 'active' ? 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]' : 'bg-muted text-muted-foreground'
+                      client.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
                     }`}>{client.status === 'active' ? 'Actif' : 'Inactif'}</span>
                   </div>
                   {client.matricule_fiscal && <p className="text-xs text-muted-foreground mt-0.5">MF: {client.matricule_fiscal}</p>}
