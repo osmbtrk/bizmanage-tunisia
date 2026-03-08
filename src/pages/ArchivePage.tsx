@@ -39,7 +39,36 @@ export default function ArchivePage() {
   const [yearFilter, setYearFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState('all');
   const [detail, setDetail] = useState<ArchiveRow | null>(null);
+  const [detailHtml, setDetailHtml] = useState<string>('');
   const [exporting, setExporting] = useState(false);
+
+  const fetchHtmlContent = async (url: string) => {
+    try {
+      const res = await fetch(url);
+      return await res.text();
+    } catch { return ''; }
+  };
+
+  const handleView = async (arc: ArchiveRow) => {
+    setDetail(arc);
+    if (arc.pdf_file_url) {
+      const html = await fetchHtmlContent(arc.pdf_file_url);
+      setDetailHtml(html);
+    } else {
+      setDetailHtml('');
+    }
+  };
+
+  const handleDownloadPdf = async (arc: ArchiveRow) => {
+    if (!arc.pdf_file_url) return;
+    const html = await fetchHtmlContent(arc.pdf_file_url);
+    if (!html) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => { printWindow.print(); };
+  };
 
   const fetchArchives = useCallback(async () => {
     if (!companyId) return;
