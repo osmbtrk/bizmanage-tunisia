@@ -239,7 +239,7 @@ export default function ArchivePage() {
       )}
 
       {/* Detail Dialog */}
-      <Dialog open={!!detail} onOpenChange={o => { if (!o) setDetail(null); }}>
+      <Dialog open={!!detail} onOpenChange={o => { if (!o) { setDetail(null); setDetailHtml(''); } }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           {detail && (
             <>
