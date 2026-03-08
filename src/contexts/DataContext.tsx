@@ -148,7 +148,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [companyId, refresh]);
 
   const updateProduct = useCallback(async (id: string, data: Partial<DbProduct>) => {
-    await supabase.from('products').update(data).eq('id', id);
+    const { error } = await supabase.from('products').update(data).eq('id', id);
+    if (error) { toast({ title: 'Erreur mise à jour produit', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
