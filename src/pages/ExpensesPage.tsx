@@ -321,6 +321,14 @@ export default function ExpensesPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Supprimer cette dépense ?"
+        description="La dépense sera supprimée définitivement."
+        onConfirm={() => { if (deleteTarget) { deleteExpense(deleteTarget); setDeleteTarget(null); } }}
+      />
     </div>
   );
 }

@@ -257,6 +257,15 @@ export default function ClientsPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Archiver ce client ?"
+        description="Le client sera archivé et n'apparaîtra plus dans la liste."
+        confirmLabel="Archiver"
+        onConfirm={() => { if (deleteTarget) { deleteClient(deleteTarget); setDeleteTarget(null); } }}
+      />
     </div>
   );
 }

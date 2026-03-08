@@ -81,6 +81,14 @@ export default function SuppliersPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Supprimer ce fournisseur ?"
+        description="Le fournisseur sera supprimé définitivement."
+        onConfirm={() => { if (deleteTarget) { deleteSupplier(deleteTarget); setDeleteTarget(null); } }}
+      />
     </div>
   );
 }

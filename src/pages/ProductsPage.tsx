@@ -273,6 +273,14 @@ export default function ProductsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Supprimer ce produit ?"
+        description="Le produit sera supprimé définitivement. Cette action est irréversible."
+        onConfirm={() => { if (deleteTarget) { deleteProduct(deleteTarget); setDeleteTarget(null); } }}
+      />
     </div>
   );
 }
