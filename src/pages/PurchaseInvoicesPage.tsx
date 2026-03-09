@@ -390,9 +390,21 @@ function PurchaseInvoiceForm({
   const updateItem = (idx: number, updates: Partial<PurchaseInvoiceItem>) => {
     setItems(items.map((item, i) => {
       if (i !== idx) return item;
-      const updated = { ...item, ...updates };
-      updated.total = updated.quantity * updated.unit_price;
-      return updated;
+
+      const next: PurchaseInvoiceItem = { ...item, ...updates };
+
+      // Avoid native form validation blocking submit (e.g. quantity=0 while typing)
+      if (updates.quantity !== undefined) {
+        const q = Number(updates.quantity);
+        next.quantity = Number.isFinite(q) ? Math.max(1, Math.trunc(q)) : 1;
+      }
+      if (updates.unit_price !== undefined) {
+        const p = Number(updates.unit_price);
+        next.unit_price = Number.isFinite(p) ? Math.max(0, p) : 0;
+      }
+
+      next.total = next.quantity * next.unit_price;
+      return next;
     }));
   };
 
