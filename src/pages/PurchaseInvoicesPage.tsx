@@ -583,7 +583,7 @@ function PurchaseInvoiceForm({
               total_amount: total,
               pdf_file_url: urlData.publicUrl,
               created_by_user: userId,
-              invoice_id: invData.id,
+              invoice_id: null,
             });
             if (insertError) throw insertError;
           }
