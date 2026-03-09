@@ -42,7 +42,7 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'PRODUITS & INVENTAIRE',
+    label: 'PRODUITS & STOCK',
     icon: Package,
     items: [
       { to: '/produits', icon: Package, label: 'Produits' },
@@ -82,9 +82,9 @@ function SidebarNavGroup({ group, currentPath, onNavigate }: { group: NavGroup; 
   const GroupIcon = group.icon;
 
   return (
-    <div className="pt-3 first:pt-0">
+    <div className="pt-1 first:pt-0">
       <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-sidebar-accent group">
+        <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-sidebar-accent group whitespace-nowrap">
           <GroupIcon className={cn(
             "h-4 w-4 shrink-0 transition-colors",
             isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground"
