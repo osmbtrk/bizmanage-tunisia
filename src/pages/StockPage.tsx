@@ -35,7 +35,7 @@ export default function StockPage() {
   }, [stockMovements, movementFilter, search, dateFrom, dateTo]);
 
   // Reset visible count when filters change
-  useMemo(() => { setVisibleCount(MOVEMENTS_PER_PAGE); }, [movementFilter, search, dateFrom, dateTo]);
+  useEffect(() => { setVisibleCount(MOVEMENTS_PER_PAGE); }, [movementFilter, search, dateFrom, dateTo]);
 
   const totalValuation = useMemo(() => 
     products.reduce((s, p) => s + p.stock * Number(p.purchase_price), 0), [products]);
