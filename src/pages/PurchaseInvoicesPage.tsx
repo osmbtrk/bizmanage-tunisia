@@ -334,12 +334,16 @@ function PurchaseInvoiceForm({
   suppliers,
   products,
   companyId,
+  company,
+  userId,
   editingInvoice,
   onDone,
 }: {
   suppliers: any[];
   products: any[];
   companyId: string | null;
+  company: any;
+  userId: string;
   editingInvoice: PurchaseInvoice | null;
   onDone: () => void;
 }) {
