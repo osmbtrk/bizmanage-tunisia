@@ -44,11 +44,10 @@ export default function ArchivePage() {
   const [exporting, setExporting] = useState(false);
 
   const getSignedUrl = async (storagePath: string) => {
-    // Extract the path after /object/public/archives/
     const marker = '/object/public/archives/';
     const idx = storagePath.indexOf(marker);
     const filePath = idx >= 0 ? storagePath.substring(idx + marker.length) : storagePath;
-    const { data, error } = await supabase.storage.from('archives').createSignedUrl(filePath, 300);
+    const { data, error } = await archivesApi.createArchiveSignedUrl(filePath, 300);
     if (error || !data?.signedUrl) return null;
     return data.signedUrl;
   };
@@ -83,19 +82,15 @@ export default function ArchivePage() {
     printWindow.onload = () => { printWindow.print(); };
   };
 
-  const fetchArchives = useCallback(async () => {
+  const loadArchives = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
-    const { data } = await supabase
-      .from('archives')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('created_at', { ascending: false });
+    const { data } = await archivesApi.fetchArchives(companyId);
     setArchives((data as ArchiveRow[]) ?? []);
     setLoading(false);
   }, [companyId]);
 
-  useEffect(() => { fetchArchives(); }, [fetchArchives]);
+  useEffect(() => { loadArchives(); }, [loadArchives]);
 
   const years = useMemo(() => {
     const ySet = new Set(archives.map(a => new Date(a.created_at).getFullYear()));
