@@ -16,6 +16,7 @@ const DOC_LABELS: Record<string, string> = {
   devis: 'Devis',
   bon_livraison: 'Bon de livraison',
   bon_commande: 'Bon de commande',
+  facture_achat: 'Facture fournisseur',
 };
 
 interface ArchiveRow {

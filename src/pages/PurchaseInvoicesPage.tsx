@@ -351,22 +351,34 @@ function PurchaseInvoiceForm({
   const [numberLoading, setNumberLoading] = useState(false);
   const [date, setDate] = useState(editingInvoice?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
 
-  // Auto-generate number for new invoices
-  useEffect(() => {
-    if (editingInvoice || !companyId) return;
-    const generate = async () => {
-      setNumberLoading(true);
-      try {
-        const { data, error } = await supabase.rpc('next_document_number', {
-          _company_id: companyId,
-          _doc_type: 'facture_achat',
-        });
-        if (!error && data) setNumber(data as string);
-      } catch {}
+  const generateNumber = useCallback(async () => {
+    if (!companyId) return;
+    setNumberLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('next_document_number', {
+        _company_id: companyId,
+        _doc_type: 'facture_achat',
+      });
+      if (error) throw error;
+      setNumber((data as string) || '');
+    } catch (err: any) {
+      console.error('Number generation error:', err);
+      toast({
+        title: 'Erreur de numérotation',
+        description: "Impossible de générer le numéro automatiquement.",
+        variant: 'destructive',
+      });
+      setNumber('');
+    } finally {
       setNumberLoading(false);
-    };
-    generate();
-  }, [editingInvoice, companyId]);
+    }
+  }, [companyId]);
+
+  // Auto-generate number for new invoices (non modifiable)
+  useEffect(() => {
+    if (editingInvoice) return;
+    generateNumber();
+  }, [editingInvoice, generateNumber]);
   const [dueDate, setDueDate] = useState(editingInvoice?.due_date?.split('T')[0] || '');
   const [status, setStatus] = useState(editingInvoice?.status || 'unpaid');
   const [paidAmount, setPaidAmount] = useState(editingInvoice?.paid_amount || 0);
