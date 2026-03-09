@@ -19,12 +19,14 @@ import { cn } from '@/lib/utils';
 
 interface NavGroup {
   label: string;
+  icon: React.ElementType;
   items: { to: string; icon: React.ElementType; label: string }[];
 }
 
 const navGroups: NavGroup[] = [
   {
     label: 'VENTES',
+    icon: ShoppingCart,
     items: [
       { to: '/pos', icon: ShoppingCart, label: 'Point de Vente' },
       { to: '/factures', icon: FileText, label: 'Factures' },
@@ -34,12 +36,14 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'CLIENTS',
+    icon: Users,
     items: [
       { to: '/clients', icon: Users, label: 'Gestion clients' },
     ],
   },
   {
     label: 'PRODUITS & INVENTAIRE',
+    icon: Package,
     items: [
       { to: '/produits', icon: Package, label: 'Produits' },
       { to: '/categories', icon: FolderTree, label: 'Catégories' },
@@ -49,6 +53,7 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'ACHATS',
+    icon: Truck,
     items: [
       { to: '/fournisseurs', icon: Truck, label: 'Fournisseurs' },
       { to: '/factures-fournisseurs', icon: FileText, label: 'Factures fournisseurs' },
@@ -56,6 +61,7 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'FINANCES',
+    icon: Receipt,
     items: [
       { to: '/depenses', icon: Receipt, label: 'Dépenses' },
       { to: '/taxes', icon: Calculator, label: 'Taxes' },
