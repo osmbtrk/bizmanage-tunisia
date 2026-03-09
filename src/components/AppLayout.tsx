@@ -84,7 +84,7 @@ function SidebarNavGroup({ group, currentPath, onNavigate }: { group: NavGroup; 
   return (
     <div className="pt-3 first:pt-0">
       <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-1.5 text-[10px] font-semibold tracking-widest uppercase transition-colors rounded-md hover:bg-sidebar-accent/50 group">
+        <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-1.5 text-xs font-semibold tracking-wider uppercase transition-colors rounded-md hover:bg-sidebar-accent/50 group">
           <GroupIcon className={cn(
             "h-3.5 w-3.5 shrink-0 transition-colors",
             isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground"
