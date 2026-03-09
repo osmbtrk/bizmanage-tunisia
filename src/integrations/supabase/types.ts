@@ -853,6 +853,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_stock: {
+        Args: { _delta: number; _product_id: string }
+        Returns: number
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -865,6 +869,7 @@ export type Database = {
         Args: { _company_id: string; _doc_type: string }
         Returns: string
       }
+      validate_stock_availability: { Args: { _items: Json }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "employee"
