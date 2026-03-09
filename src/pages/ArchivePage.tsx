@@ -176,6 +176,7 @@ export default function ArchivePage() {
             <SelectItem value="devis">Devis</SelectItem>
             <SelectItem value="bon_livraison">Bons de livraison</SelectItem>
             <SelectItem value="bon_commande">Bons de commande</SelectItem>
+            <SelectItem value="facture_achat">Factures fournisseurs</SelectItem>
           </SelectContent>
         </Select>
         <Select value={yearFilter} onValueChange={setYearFilter}>
