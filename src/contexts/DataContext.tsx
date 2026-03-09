@@ -360,19 +360,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (inv && (inv.type === 'facture' || inv.type === 'bon_livraison')) {
       for (const item of inv.items) {
         if (item.product_id) {
-          const { data: product } = await productsApi.fetchProductStock(item.product_id);
-          if (product) {
-            await productsApi.updateProduct(item.product_id, { stock: product.stock + item.quantity });
-            if (companyId) {
-              await stockMovementsApi.insertStockMovement({
-                company_id: companyId,
-                product_id: item.product_id,
-                product_name: item.product_name,
-                type: 'in',
-                quantity: item.quantity,
-                reason: `Annulation ${inv.type === 'facture' ? 'Facture' : 'BL'} ${inv.number}`,
-              });
-            }
+          // Atomic stock restoration
+          const { error: stockErr } = await productsApi.adjustStock(item.product_id, item.quantity);
+          if (!stockErr && companyId) {
+            await stockMovementsApi.insertStockMovement({
+              company_id: companyId,
+              product_id: item.product_id,
+              product_name: item.product_name,
+              type: 'in',
+              quantity: item.quantity,
+              reason: `Annulation ${inv.type === 'facture' ? 'Facture' : 'BL'} ${inv.number}`,
+            });
           }
         }
       }
