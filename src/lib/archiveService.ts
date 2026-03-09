@@ -1,6 +1,11 @@
 import { archivesApi } from '@/services/api';
 import { buildInvoiceHtml, type PdfInvoiceData, type PdfCompanyData } from './generatePdfHtml';
 
+interface ArchiveResult {
+  success: boolean;
+  error?: string;
+}
+
 export async function archiveDocument(
   invoiceData: PdfInvoiceData,
   company: PdfCompanyData | null | undefined,
@@ -13,7 +18,7 @@ export async function archiveDocument(
     clientName: string;
     totalAmount: number;
   }
-) {
+): Promise<ArchiveResult> {
   try {
     // Generate HTML content
     const html = buildInvoiceHtml(invoiceData, company);
@@ -25,18 +30,18 @@ export async function archiveDocument(
 
     if (uploadError) {
       console.error('Archive upload error:', uploadError);
-      return;
+      return { success: false, error: `Erreur téléchargement: ${uploadError.message}` };
     }
 
-    // Get signed URL (bucket is private)
+    // Get signed URL (bucket is private) — used to validate upload works
     const { data: urlData, error: urlError } = await archivesApi.getArchiveAccessUrl(filePath);
     if (urlError || !urlData?.signedUrl) {
       console.error('Archive signed URL error:', urlError);
-      return;
+      return { success: false, error: 'Erreur génération URL signée' };
     }
 
     // Insert archive record — store the file path, not the signed URL (signed URLs expire)
-    await archivesApi.insertArchive({
+    const { error: insertError } = await archivesApi.insertArchive({
       company_id: meta.companyId,
       document_type: meta.documentType,
       document_number: meta.documentNumber,
@@ -46,7 +51,15 @@ export async function archiveDocument(
       created_by_user: meta.userId,
       invoice_id: meta.invoiceId,
     });
-  } catch (err) {
+
+    if (insertError) {
+      console.error('Archive insert error:', insertError);
+      return { success: false, error: `Erreur enregistrement: ${insertError.message}` };
+    }
+
+    return { success: true };
+  } catch (err: any) {
     console.error('Archive error:', err);
+    return { success: false, error: err?.message || 'Erreur inconnue' };
   }
 }

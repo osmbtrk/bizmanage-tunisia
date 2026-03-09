@@ -495,9 +495,8 @@ function PurchaseInvoiceForm({
         if (invErr) throw invErr;
         if (!inv) throw new Error('Création facture: réponse vide');
 
-        const invData = inv as any;
         const itemsToInsert = items.map((item, idx) => ({
-          purchase_invoice_id: invData.id,
+          purchase_invoice_id: inv.id,
           product_id: item.product_id,
           product_name: item.product_name || 'Article',
           quantity: item.quantity,
