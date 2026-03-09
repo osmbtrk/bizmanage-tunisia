@@ -242,6 +242,8 @@ export default function PurchaseInvoicesPage() {
             suppliers={suppliers}
             products={products}
             companyId={companyId}
+            company={company}
+            userId={user?.id || ''}
             editingInvoice={editingInvoice}
             onDone={() => {
               setDialogOpen(false);
