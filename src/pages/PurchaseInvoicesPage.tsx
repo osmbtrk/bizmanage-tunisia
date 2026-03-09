@@ -13,7 +13,6 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
 import { Plus, Trash2, Pencil, Eye, FileText, Download } from 'lucide-react';
 import { buildPurchaseInvoiceHtml } from '@/lib/generatePurchasePdfHtml';
-import { archiveDocument } from '@/lib/archiveService';
 
 interface PurchaseInvoice {
   id: string;
@@ -391,9 +390,21 @@ function PurchaseInvoiceForm({
   const updateItem = (idx: number, updates: Partial<PurchaseInvoiceItem>) => {
     setItems(items.map((item, i) => {
       if (i !== idx) return item;
-      const updated = { ...item, ...updates };
-      updated.total = updated.quantity * updated.unit_price;
-      return updated;
+
+      const next: PurchaseInvoiceItem = { ...item, ...updates };
+
+      // Avoid native form validation blocking submit (e.g. quantity=0 while typing)
+      if (updates.quantity !== undefined) {
+        const q = Number(updates.quantity);
+        next.quantity = Number.isFinite(q) ? Math.max(1, Math.trunc(q)) : 1;
+      }
+      if (updates.unit_price !== undefined) {
+        const p = Number(updates.unit_price);
+        next.unit_price = Number.isFinite(p) ? Math.max(0, p) : 0;
+      }
+
+      next.total = next.quantity * next.unit_price;
+      return next;
     }));
   };
 
@@ -413,8 +424,23 @@ function PurchaseInvoiceForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId || !number || items.length === 0) {
-      toast({ title: 'Champs requis', description: 'Numéro et au moins un article sont requis', variant: 'destructive' });
+
+    if (!companyId) return;
+
+    // If number generation failed, allow manual entry but keep it required for saving
+    if (!number) {
+      toast({ title: 'Numéro manquant', description: 'Le numéro de facture n\'a pas été généré — saisissez-le manuellement.', variant: 'destructive' });
+      return;
+    }
+
+    if (items.length === 0) {
+      toast({ title: 'Articles requis', description: 'Ajoutez au moins un article.', variant: 'destructive' });
+      return;
+    }
+
+    const invalid = items.find(it => !it.product_name?.trim() || !Number.isFinite(it.quantity) || it.quantity < 1);
+    if (invalid) {
+      toast({ title: 'Article invalide', description: 'Vérifiez le nom et la quantité (≥ 1) de chaque article.', variant: 'destructive' });
       return;
     }
 
@@ -531,38 +557,47 @@ function PurchaseInvoiceForm({
             }
           }
 
-          // Archive the invoice
-          if (companyId && userId) {
-            const archiveHtml = buildPurchaseInvoiceHtml(
-              {
-                number,
-                date,
-                dueDate: dueDate || null,
-                supplierName: selectedSupplier?.name || 'Inconnu',
-                items: items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
-                subtotal,
-                tvaTotal,
-                total,
-                paidAmount,
-                status,
-                notes: notes || null,
-              },
-              company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
-            );
-            const blob = new Blob([archiveHtml], { type: 'text/html' });
-            const filePath = `${companyId}/facture_achat/${number.replace(/\//g, '-')}.html`;
-            await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
-            const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
-            await supabase.from('archives').insert({
-              company_id: companyId,
-              document_type: 'facture_achat',
-              document_number: number,
-              client_name: selectedSupplier?.name || 'Inconnu',
-              total_amount: total,
-              pdf_file_url: urlData.publicUrl,
-              created_by_user: userId,
-              invoice_id: invData.id,
-            });
+          // Archive the invoice (should never block saving)
+          try {
+            if (companyId && userId) {
+              const archiveHtml = buildPurchaseInvoiceHtml(
+                {
+                  number,
+                  date,
+                  dueDate: dueDate || null,
+                  supplierName: selectedSupplier?.name || 'Inconnu',
+                  items: items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
+                  subtotal,
+                  tvaTotal,
+                  total,
+                  paidAmount,
+                  status,
+                  notes: notes || null,
+                },
+                company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
+              );
+
+              const blob = new Blob([archiveHtml], { type: 'text/html' });
+              const filePath = `${companyId}/facture_achat/${number.replace(/\//g, '-')}.html`;
+              const { error: uploadError } = await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
+              if (uploadError) throw uploadError;
+
+              const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
+              const { error: insertError } = await supabase.from('archives').insert({
+                company_id: companyId,
+                document_type: 'facture_achat',
+                document_number: number,
+                client_name: selectedSupplier?.name || 'Inconnu',
+                total_amount: total,
+                pdf_file_url: urlData.publicUrl,
+                created_by_user: userId,
+                invoice_id: invData.id,
+              });
+              if (insertError) throw insertError;
+            }
+          } catch (archiveErr: any) {
+            console.error('Archive error:', archiveErr);
+            toast({ title: 'Archive', description: "La facture a été créée mais l'archivage a échoué.", variant: 'destructive' });
           }
 
           toast({ title: 'Facture créée avec succès' });
@@ -587,8 +622,17 @@ function PurchaseInvoiceForm({
           </Select>
         </div>
         <div>
-          <Label>Numéro de facture</Label>
-          <Input value={number} readOnly className="bg-muted font-mono cursor-not-allowed" placeholder={numberLoading ? 'Génération...' : 'FA-2026-0001'} />
+          <Label>Numéro de facture *</Label>
+          <Input
+            value={number}
+            readOnly={!!number && !numberLoading}
+            onChange={(e) => setNumber(e.target.value)}
+            className="font-mono"
+            placeholder={numberLoading ? 'Génération...' : 'FA-2026-0001'}
+          />
+          {!number && !numberLoading && (
+            <p className="mt-1 text-xs text-muted-foreground">Si la génération automatique échoue, vous pouvez saisir le numéro ici.</p>
+          )}
         </div>
         <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
         <div><Label>Date d'échéance</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
@@ -645,7 +689,14 @@ function PurchaseInvoiceForm({
               {item.product_id && <span className="text-xs text-muted-foreground truncate block pt-2">{item.product_name}</span>}
             </div>
             <div className="col-span-1">
-              <Input type="number" min={1} className="h-9 text-xs text-center" value={item.quantity} onChange={e => updateItem(idx, { quantity: +e.target.value })} />
+              <Input
+                type="number"
+                inputMode="numeric"
+                step="1"
+                className="h-9 text-xs text-center"
+                value={item.quantity}
+                onChange={e => updateItem(idx, { quantity: e.target.value === '' ? 1 : Number(e.target.value) })}
+              />
             </div>
             <div className="col-span-2">
               <Input type="number" step="0.001" className="h-9 text-xs" value={item.unit_price} onChange={e => updateItem(idx, { unit_price: +e.target.value })} />
