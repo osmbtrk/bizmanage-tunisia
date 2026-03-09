@@ -142,6 +142,7 @@ export default function ArchivePage() {
   const docTypeBadgeColor = (t: string) => {
     switch (t) {
       case 'facture': return 'default';
+      case 'facture_achat': return 'secondary';
       case 'devis': return 'secondary';
       case 'bon_livraison': return 'outline';
       case 'bon_commande': return 'outline';
