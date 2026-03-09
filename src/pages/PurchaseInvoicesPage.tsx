@@ -583,6 +583,16 @@ function PurchaseInvoiceForm({
           </Button>
         </div>
         {items.length === 0 && <p className="text-sm text-muted-foreground">Ajoutez au moins un article</p>}
+        {items.length > 0 && (
+          <div className="grid grid-cols-12 gap-2 mb-1 text-xs text-muted-foreground font-medium">
+            <div className="col-span-4">Produit</div>
+            <div className="col-span-2">Nom</div>
+            <div className="col-span-1">Qté</div>
+            <div className="col-span-2">P.U. HT</div>
+            <div className="col-span-2 text-right">Total HT</div>
+            <div className="col-span-1"></div>
+          </div>
+        )}
         {items.map((item, idx) => (
           <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
             <div className="col-span-4">
@@ -601,7 +611,7 @@ function PurchaseInvoiceForm({
               {item.product_id && <span className="text-xs text-muted-foreground truncate block pt-2">{item.product_name}</span>}
             </div>
             <div className="col-span-1">
-              <Input type="number" min={1} className="h-9 text-xs" value={item.quantity} onChange={e => updateItem(idx, { quantity: +e.target.value })} />
+              <Input type="number" min={1} className="h-9 text-xs text-center" value={item.quantity} onChange={e => updateItem(idx, { quantity: +e.target.value })} />
             </div>
             <div className="col-span-2">
               <Input type="number" step="0.001" className="h-9 text-xs" value={item.unit_price} onChange={e => updateItem(idx, { unit_price: +e.target.value })} />
