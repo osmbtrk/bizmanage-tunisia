@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Check, X, Layers } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import { supabase } from '@/integrations/supabase/client';
+import { bomApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
