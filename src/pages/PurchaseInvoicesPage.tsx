@@ -557,38 +557,47 @@ function PurchaseInvoiceForm({
             }
           }
 
-          // Archive the invoice
-          if (companyId && userId) {
-            const archiveHtml = buildPurchaseInvoiceHtml(
-              {
-                number,
-                date,
-                dueDate: dueDate || null,
-                supplierName: selectedSupplier?.name || 'Inconnu',
-                items: items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
-                subtotal,
-                tvaTotal,
-                total,
-                paidAmount,
-                status,
-                notes: notes || null,
-              },
-              company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
-            );
-            const blob = new Blob([archiveHtml], { type: 'text/html' });
-            const filePath = `${companyId}/facture_achat/${number.replace(/\//g, '-')}.html`;
-            await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
-            const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
-            await supabase.from('archives').insert({
-              company_id: companyId,
-              document_type: 'facture_achat',
-              document_number: number,
-              client_name: selectedSupplier?.name || 'Inconnu',
-              total_amount: total,
-              pdf_file_url: urlData.publicUrl,
-              created_by_user: userId,
-              invoice_id: invData.id,
-            });
+          // Archive the invoice (should never block saving)
+          try {
+            if (companyId && userId) {
+              const archiveHtml = buildPurchaseInvoiceHtml(
+                {
+                  number,
+                  date,
+                  dueDate: dueDate || null,
+                  supplierName: selectedSupplier?.name || 'Inconnu',
+                  items: items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
+                  subtotal,
+                  tvaTotal,
+                  total,
+                  paidAmount,
+                  status,
+                  notes: notes || null,
+                },
+                company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
+              );
+
+              const blob = new Blob([archiveHtml], { type: 'text/html' });
+              const filePath = `${companyId}/facture_achat/${number.replace(/\//g, '-')}.html`;
+              const { error: uploadError } = await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
+              if (uploadError) throw uploadError;
+
+              const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
+              const { error: insertError } = await supabase.from('archives').insert({
+                company_id: companyId,
+                document_type: 'facture_achat',
+                document_number: number,
+                client_name: selectedSupplier?.name || 'Inconnu',
+                total_amount: total,
+                pdf_file_url: urlData.publicUrl,
+                created_by_user: userId,
+                invoice_id: invData.id,
+              });
+              if (insertError) throw insertError;
+            }
+          } catch (archiveErr: any) {
+            console.error('Archive error:', archiveErr);
+            toast({ title: 'Archive', description: "La facture a été créée mais l'archivage a échoué.", variant: 'destructive' });
           }
 
           toast({ title: 'Facture créée avec succès' });
