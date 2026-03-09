@@ -147,14 +147,8 @@ export default function PosPage() {
     const ensurePassager = async () => {
       if (!companyId) return;
 
-      // Query DB directly to find existing Passager client
-      const { data: existingRows } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('company_id', companyId)
-        .eq('name', 'Passager')
-        .eq('is_archived', false)
-        .limit(1);
+      // Query DB via API layer to find existing Passager client
+      const { data: existingRows } = await clientsApi.findPassagerClient(companyId);
 
       if (existingRows && existingRows.length > 0) {
         setPassagerId(existingRows[0].id);
