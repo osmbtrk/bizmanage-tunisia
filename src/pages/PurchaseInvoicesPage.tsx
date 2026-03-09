@@ -622,8 +622,6 @@ function PurchaseInvoiceForm({
             </div>
           </div>
         )}
-          <p className="mt-1 text-xs text-muted-foreground">Le numéro est généré automatiquement et ne peut pas être modifié.</p>
-        </div>
         <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
         <div><Label>Date d'échéance</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
         <div>
