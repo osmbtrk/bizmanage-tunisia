@@ -12,7 +12,7 @@ import {
   Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote,
   Building2, AlertTriangle, Check, Percent, Hash, ScanBarcode, X
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { clientsApi, productsApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import CheckoutDialog from '@/components/pos/CheckoutDialog';
 
@@ -147,14 +147,8 @@ export default function PosPage() {
     const ensurePassager = async () => {
       if (!companyId) return;
 
-      // Query DB directly to find existing Passager client
-      const { data: existingRows } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('company_id', companyId)
-        .eq('name', 'Passager')
-        .eq('is_archived', false)
-        .limit(1);
+      // Query DB via API layer to find existing Passager client
+      const { data: existingRows } = await clientsApi.findPassagerClient(companyId);
 
       if (existingRows && existingRows.length > 0) {
         setPassagerId(existingRows[0].id);
@@ -304,12 +298,9 @@ export default function PosPage() {
   const handleCheckout = async () => {
     if (items.length === 0 || !selectedClientId) return;
 
-    // Fetch fresh stock from DB before validating
+    // Fetch fresh stock from DB via API layer before validating
     const productIds = items.filter(i => i.product_id).map(i => i.product_id);
-    const { data: freshProducts } = await supabase
-      .from('products')
-      .select('id, stock, name')
-      .in('id', productIds);
+    const { data: freshProducts } = await productsApi.fetchProductsByIds(productIds);
     const freshMap = new Map((freshProducts ?? []).map(p => [p.id, p]));
 
     const insufficientItems = items.filter(i => {

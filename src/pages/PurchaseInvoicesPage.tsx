@@ -92,19 +92,17 @@ export default function PurchaseInvoicesPage() {
     const inv = invoices.find(i => i.id === deleteId);
     if (inv) {
       for (const item of inv.items) {
-        if (item.product_id) {
-          const { data: product } = await productsApi.fetchProductStock(item.product_id);
-          if (product && companyId) {
-            await productsApi.updateProduct(item.product_id, { stock: product.stock - item.quantity });
-            await stockMovementsApi.insertStockMovement({
-              company_id: companyId,
-              product_id: item.product_id,
-              product_name: item.product_name,
-              type: 'out',
-              quantity: item.quantity,
-              reason: `Annulation facture fournisseur ${inv.number}`,
-            });
-          }
+        if (item.product_id && companyId) {
+          // Atomic stock reversal
+          await productsApi.adjustStock(item.product_id, -item.quantity);
+          await stockMovementsApi.insertStockMovement({
+            company_id: companyId,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            type: 'out',
+            quantity: item.quantity,
+            reason: `Annulation facture fournisseur ${inv.number}`,
+          });
         }
       }
     }
@@ -430,10 +428,8 @@ function PurchaseInvoiceForm({
         // Reverse old stock
         for (const oldItem of editingInvoice.items) {
           if (oldItem.product_id) {
-            const { data: product } = await productsApi.fetchProductStock(oldItem.product_id);
-            if (product) {
-              await productsApi.updateProduct(oldItem.product_id, { stock: Math.max(0, product.stock - oldItem.quantity) });
-            }
+            // Atomic stock reversal for old items
+            await productsApi.adjustStock(oldItem.product_id, -oldItem.quantity);
           }
         }
 
@@ -455,19 +451,17 @@ function PurchaseInvoiceForm({
 
         // Apply new stock
         for (const item of items) {
-          if (item.product_id) {
-            const { data: product } = await productsApi.fetchProductStock(item.product_id);
-            if (product && companyId) {
-              await productsApi.updateProduct(item.product_id, { stock: product.stock + item.quantity });
-              await stockMovementsApi.insertStockMovement({
-                company_id: companyId,
-                product_id: item.product_id,
-                product_name: item.product_name,
-                type: 'in',
-                quantity: item.quantity,
-                reason: `Facture fournisseur ${docNumber} (modification)`,
-              });
-            }
+          if (item.product_id && companyId) {
+            // Atomic stock increase for new items
+            await productsApi.adjustStock(item.product_id, item.quantity);
+            await stockMovementsApi.insertStockMovement({
+              company_id: companyId,
+              product_id: item.product_id,
+              product_name: item.product_name,
+              type: 'in',
+              quantity: item.quantity,
+              reason: `Facture fournisseur ${docNumber} (modification)`,
+            });
           }
         }
 
@@ -515,21 +509,18 @@ function PurchaseInvoiceForm({
         const { error: itemsErr } = await purchaseInvoicesApi.insertPurchaseInvoiceItems(itemsToInsert);
         if (itemsErr) throw itemsErr;
 
-        // Increase stock for products
+        // Increase stock for products using atomic operation
         for (const item of items) {
           if (item.product_id && companyId) {
-            const { data: product } = await productsApi.fetchProductStock(item.product_id);
-            if (product) {
-              await productsApi.updateProduct(item.product_id, { stock: product.stock + item.quantity });
-              await stockMovementsApi.insertStockMovement({
-                company_id: companyId,
-                product_id: item.product_id,
-                product_name: item.product_name,
-                type: 'in',
-                quantity: item.quantity,
-                reason: `Facture fournisseur ${generatedNumber}`,
-              });
-            }
+            await productsApi.adjustStock(item.product_id, item.quantity);
+            await stockMovementsApi.insertStockMovement({
+              company_id: companyId,
+              product_id: item.product_id,
+              product_name: item.product_name,
+              type: 'in',
+              quantity: item.quantity,
+              reason: `Facture fournisseur ${generatedNumber}`,
+            });
           }
         }
 
@@ -558,14 +549,15 @@ function PurchaseInvoiceForm({
             const { error: uploadError } = await archivesApi.uploadArchiveFile(filePath, blob);
             if (uploadError) throw uploadError;
 
-            const { data: urlData } = archivesApi.getArchivePublicUrl(filePath);
+            const { data: urlData, error: urlErr } = await archivesApi.getArchiveAccessUrl(filePath);
+            if (urlErr || !urlData?.signedUrl) throw urlErr || new Error('Failed to get signed URL');
             const { error: insertError } = await archivesApi.insertArchive({
               company_id: companyId,
               document_type: 'facture_achat',
               document_number: generatedNumber,
               client_name: selectedSupplier?.name || 'Inconnu',
               total_amount: total,
-              pdf_file_url: urlData.publicUrl,
+              pdf_file_url: filePath,
               created_by_user: userId,
               invoice_id: null,
             });

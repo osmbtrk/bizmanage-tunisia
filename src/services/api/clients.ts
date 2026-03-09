@@ -18,3 +18,8 @@ export async function updateClient(id: string, data: Partial<DbClient>) {
 export async function archiveClient(id: string) {
   return supabase.from('clients').update({ is_archived: true }).eq('id', id);
 }
+
+/** Find Passager client for POS */
+export async function findPassagerClient(companyId: string) {
+  return supabase.from('clients').select('id').eq('company_id', companyId).eq('name', 'Passager').eq('is_archived', false).limit(1);
+}

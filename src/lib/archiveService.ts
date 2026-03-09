@@ -28,17 +28,21 @@ export async function archiveDocument(
       return;
     }
 
-    // Get public URL
-    const { data: urlData } = archivesApi.getArchivePublicUrl(filePath);
+    // Get signed URL (bucket is private)
+    const { data: urlData, error: urlError } = await archivesApi.getArchiveAccessUrl(filePath);
+    if (urlError || !urlData?.signedUrl) {
+      console.error('Archive signed URL error:', urlError);
+      return;
+    }
 
-    // Insert archive record
+    // Insert archive record — store the file path, not the signed URL (signed URLs expire)
     await archivesApi.insertArchive({
       company_id: meta.companyId,
       document_type: meta.documentType,
       document_number: meta.documentNumber,
       client_name: meta.clientName,
       total_amount: meta.totalAmount,
-      pdf_file_url: urlData.publicUrl,
+      pdf_file_url: filePath,
       created_by_user: meta.userId,
       invoice_id: meta.invoiceId,
     });

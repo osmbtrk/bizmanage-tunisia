@@ -25,8 +25,14 @@ export async function uploadArchiveFile(filePath: string, blob: Blob) {
   return supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
 }
 
+/** @deprecated Use createArchiveSignedUrl instead — bucket is private */
 export function getArchivePublicUrl(filePath: string) {
   return supabase.storage.from('archives').getPublicUrl(filePath);
+}
+
+/** Get a working URL for a private archive file */
+export async function getArchiveAccessUrl(filePath: string, expiresIn = 3600) {
+  return supabase.storage.from('archives').createSignedUrl(filePath, expiresIn);
 }
 
 export async function createArchiveSignedUrl(filePath: string, expiresIn = 300) {

@@ -291,52 +291,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // Update stock for factures/BL
+      // Update stock for factures/BL using atomic DB operations
       if (data.type === 'facture' || data.type === 'bon_livraison') {
-        const productIds = data.items.filter(i => i.product_id).map(i => i.product_id!);
-        const { data: freshProducts } = await productsApi.fetchProductsByIds(productIds);
-        const freshMap = new Map((freshProducts ?? []).map(p => [p.id, p]));
-
         for (const item of data.items) {
           if (item.product_id) {
-            const product = freshMap.get(item.product_id);
-            if (product) {
-              await productsApi.updateProduct(item.product_id, { stock: product.stock - item.quantity });
-              freshMap.set(item.product_id, { ...product, stock: product.stock - item.quantity });
+            // Atomic stock deduction
+            const { error: stockErr } = await productsApi.adjustStock(item.product_id, -item.quantity);
+            if (stockErr) {
+              console.error('Stock adjustment error:', stockErr);
+            }
 
-              // BOM: if finished product, deduct raw materials
-              if (product.product_type === 'finished_product') {
-                const { data: bomItems } = await bomApi.fetchBomItems(product.id);
+            // BOM: if finished product, deduct raw materials
+            const { data: bomItems } = await bomApi.fetchBomItems(item.product_id);
 
-                if (bomItems && bomItems.length > 0) {
-                  const rawMatIds = bomItems.map(b => b.raw_material_id);
-                  const { data: freshRawMats } = await productsApi.fetchProductsByIds(rawMatIds);
-                  const rawMap = new Map((freshRawMats ?? []).map(p => [p.id, p]));
+            if (bomItems && bomItems.length > 0) {
+              for (const bom of bomItems) {
+                const deductQty = bom.unit_type === 'percentage'
+                  ? Math.ceil((Number(bom.quantity) / 100) * item.quantity)
+                  : Number(bom.quantity) * item.quantity;
 
-                  for (const bom of bomItems) {
-                    const rawMat = rawMap.get(bom.raw_material_id);
-                    const deductQty = bom.unit_type === 'percentage'
-                      ? Math.ceil((Number(bom.quantity) / 100) * item.quantity)
-                      : Number(bom.quantity) * item.quantity;
-
-                    if (rawMat) {
-                      const newStock = Math.max(0, rawMat.stock - deductQty);
-                      await productsApi.updateProduct(rawMat.id, { stock: newStock });
-                      rawMap.set(rawMat.id, { ...rawMat, stock: newStock });
-
-                      await stockMovementsApi.insertStockMovement({
-                        company_id: companyId,
-                        product_id: rawMat.id,
-                        product_name: rawMat.name,
-                        type: 'out',
-                        quantity: deductQty,
-                        reason: `BOM - ${product.name} (${data.type === 'facture' ? 'Facture' : 'BL'} ${number})`,
-                      });
-                    }
-                  }
+                const { error: rawStockErr } = await productsApi.adjustStock(bom.raw_material_id, -deductQty);
+                if (rawStockErr) {
+                  console.error('BOM stock adjustment error:', rawStockErr);
                 }
+
+                // Fetch raw material name for movement record
+                const { data: rawProducts } = await productsApi.fetchProductsByIds([bom.raw_material_id]);
+                const rawMat = rawProducts?.[0];
+
+                await stockMovementsApi.insertStockMovement({
+                  company_id: companyId,
+                  product_id: bom.raw_material_id,
+                  product_name: rawMat?.name || 'Matière première',
+                  type: 'out',
+                  quantity: deductQty,
+                  reason: `BOM - ${item.product_name} (${data.type === 'facture' ? 'Facture' : 'BL'} ${number})`,
+                });
               }
             }
+
             await stockMovementsApi.insertStockMovement({
               company_id: companyId,
               product_id: item.product_id,
@@ -367,19 +360,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (inv && (inv.type === 'facture' || inv.type === 'bon_livraison')) {
       for (const item of inv.items) {
         if (item.product_id) {
-          const { data: product } = await productsApi.fetchProductStock(item.product_id);
-          if (product) {
-            await productsApi.updateProduct(item.product_id, { stock: product.stock + item.quantity });
-            if (companyId) {
-              await stockMovementsApi.insertStockMovement({
-                company_id: companyId,
-                product_id: item.product_id,
-                product_name: item.product_name,
-                type: 'in',
-                quantity: item.quantity,
-                reason: `Annulation ${inv.type === 'facture' ? 'Facture' : 'BL'} ${inv.number}`,
-              });
-            }
+          // Atomic stock restoration
+          const { error: stockErr } = await productsApi.adjustStock(item.product_id, item.quantity);
+          if (!stockErr && companyId) {
+            await stockMovementsApi.insertStockMovement({
+              company_id: companyId,
+              product_id: item.product_id,
+              product_name: item.product_name,
+              type: 'in',
+              quantity: item.quantity,
+              reason: `Annulation ${inv.type === 'facture' ? 'Facture' : 'BL'} ${inv.number}`,
+            });
           }
         }
       }
@@ -397,18 +388,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (stockItems && stockItems.length > 0) {
       for (const si of stockItems) {
-        const product = products.find(p => p.id === si.product_id);
-        if (product) {
-          await productsApi.updateProduct(si.product_id, { stock: product.stock + si.quantity });
-          await stockMovementsApi.insertStockMovement({
-            company_id: companyId,
-            product_id: si.product_id,
-            product_name: si.product_name,
-            type: 'in',
-            quantity: si.quantity,
-            reason: `Achat fournisseur - ${data.description}`,
-          });
-        }
+        // Atomic stock increase
+        await productsApi.adjustStock(si.product_id, si.quantity);
+        await stockMovementsApi.insertStockMovement({
+          company_id: companyId,
+          product_id: si.product_id,
+          product_name: si.product_name,
+          type: 'in',
+          quantity: si.quantity,
+          reason: `Achat fournisseur - ${data.description}`,
+        });
       }
     }
 
