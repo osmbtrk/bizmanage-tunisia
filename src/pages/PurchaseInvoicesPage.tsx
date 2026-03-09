@@ -424,8 +424,23 @@ function PurchaseInvoiceForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyId || !number || items.length === 0) {
-      toast({ title: 'Champs requis', description: 'Numéro et au moins un article sont requis', variant: 'destructive' });
+
+    if (!companyId) return;
+
+    // If number generation failed, allow manual entry but keep it required for saving
+    if (!number) {
+      toast({ title: 'Numéro manquant', description: 'Le numéro de facture n\'a pas été généré — saisissez-le manuellement.', variant: 'destructive' });
+      return;
+    }
+
+    if (items.length === 0) {
+      toast({ title: 'Articles requis', description: 'Ajoutez au moins un article.', variant: 'destructive' });
+      return;
+    }
+
+    const invalid = items.find(it => !it.product_name?.trim() || !Number.isFinite(it.quantity) || it.quantity < 1);
+    if (invalid) {
+      toast({ title: 'Article invalide', description: 'Vérifiez le nom et la quantité (≥ 1) de chaque article.', variant: 'destructive' });
       return;
     }
 
