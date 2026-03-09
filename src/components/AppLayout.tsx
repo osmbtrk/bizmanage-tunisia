@@ -87,17 +87,17 @@ function SidebarNavGroup({ group, currentPath, onNavigate }: { group: NavGroup; 
         <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-1.5 text-[10px] font-semibold tracking-widest uppercase transition-colors rounded-md hover:bg-sidebar-accent/50 group">
           <GroupIcon className={cn(
             "h-3.5 w-3.5 shrink-0 transition-colors",
-            isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted/60 group-hover:text-sidebar-muted"
+            isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground"
           )} />
           <span className={cn(
             "flex-1 text-left transition-colors",
-            isGroupActive ? "text-sidebar-primary/80" : "text-sidebar-muted/60 group-hover:text-sidebar-muted"
+            isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground"
           )}>
             {group.label}
           </span>
           <ChevronRight className={cn(
             "h-3 w-3 transition-transform duration-200",
-            isGroupActive ? "text-sidebar-primary/60" : "text-sidebar-muted/40",
+            isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted",
             open && "rotate-90"
           )} />
         </CollapsibleTrigger>
