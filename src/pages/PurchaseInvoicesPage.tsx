@@ -439,9 +439,8 @@ function PurchaseInvoiceForm({
 
     if (!companyId) return;
 
-    // If number generation failed, allow manual entry but keep it required for saving
     if (!number) {
-      toast({ title: 'Numéro manquant', description: 'Le numéro de facture n\'a pas été généré — saisissez-le manuellement.', variant: 'destructive' });
+      toast({ title: 'Numéro en cours', description: 'Veuillez attendre la génération du numéro.', variant: 'destructive' });
       return;
     }
 
@@ -457,14 +456,14 @@ function PurchaseInvoiceForm({
     }
 
     setSubmitting(true);
+    let success = false;
 
     try {
       if (editingInvoice) {
         // Update existing
-        await supabase.from('purchase_invoices' as any).update({
+        const { error: updateErr } = await supabase.from('purchase_invoices' as any).update({
           supplier_id: supplierId || null,
           supplier_name: selectedSupplier?.name || supplierId || 'Inconnu',
-          number,
           date,
           due_date: dueDate || null,
           subtotal,
@@ -474,6 +473,7 @@ function PurchaseInvoiceForm({
           paid_amount: paidAmount,
           notes: notes || null,
         } as any).eq('id', editingInvoice.id);
+        if (updateErr) throw updateErr;
 
         // Reverse old stock
         for (const oldItem of editingInvoice.items) {
@@ -520,9 +520,10 @@ function PurchaseInvoiceForm({
         }
 
         toast({ title: 'Facture modifiée avec succès' });
+        success = true;
       } else {
         // Create new
-        const { data: inv } = await supabase.from('purchase_invoices' as any).insert({
+        const { data: inv, error: invErr } = await supabase.from('purchase_invoices' as any).insert({
           company_id: companyId,
           supplier_id: supplierId || null,
           supplier_name: selectedSupplier?.name || 'Inconnu',
@@ -536,91 +537,94 @@ function PurchaseInvoiceForm({
           paid_amount: paidAmount,
           notes: notes || null,
         } as any).select().single();
+        if (invErr) throw invErr;
+        if (!inv) throw new Error('Création facture: réponse vide');
 
-        if (inv) {
-          const invData = inv as any;
-          const itemsToInsert = items.map((item, idx) => ({
-            purchase_invoice_id: invData.id,
-            product_id: item.product_id,
-            product_name: item.product_name || 'Article',
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            tva_rate: item.tva_rate,
-            total: item.quantity * item.unit_price,
-            sort_order: idx,
-          }));
-          await supabase.from('purchase_invoice_items' as any).insert(itemsToInsert as any);
+        const invData = inv as any;
+        const itemsToInsert = items.map((item, idx) => ({
+          purchase_invoice_id: invData.id,
+          product_id: item.product_id,
+          product_name: item.product_name || 'Article',
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          tva_rate: item.tva_rate,
+          total: item.quantity * item.unit_price,
+          sort_order: idx,
+        }));
+        const { error: itemsErr } = await supabase.from('purchase_invoice_items' as any).insert(itemsToInsert as any);
+        if (itemsErr) throw itemsErr;
 
-          // Increase stock for products
-          for (const item of items) {
-            if (item.product_id) {
-              const { data: product } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
-              if (product) {
-                await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
-                await supabase.from('stock_movements').insert({
-                  company_id: companyId,
-                  product_id: item.product_id,
-                  product_name: item.product_name,
-                  type: 'in',
-                  quantity: item.quantity,
-                  reason: `Facture fournisseur ${number}`,
-                });
-              }
-            }
-          }
-
-          // Archive the invoice (should never block saving)
-          try {
-            if (companyId && userId) {
-              const archiveHtml = buildPurchaseInvoiceHtml(
-                {
-                  number,
-                  date,
-                  dueDate: dueDate || null,
-                  supplierName: selectedSupplier?.name || 'Inconnu',
-                  items: items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
-                  subtotal,
-                  tvaTotal,
-                  total,
-                  paidAmount,
-                  status,
-                  notes: notes || null,
-                },
-                company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
-              );
-
-              const blob = new Blob([archiveHtml], { type: 'text/html' });
-              const filePath = `${companyId}/facture_achat/${number.replace(/\//g, '-')}.html`;
-              const { error: uploadError } = await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
-              if (uploadError) throw uploadError;
-
-              const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
-              const { error: insertError } = await supabase.from('archives').insert({
+        // Increase stock for products
+        for (const item of items) {
+          if (item.product_id) {
+            const { data: product } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
+            if (product) {
+              await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
+              await supabase.from('stock_movements').insert({
                 company_id: companyId,
-                document_type: 'facture_achat',
-                document_number: number,
-                client_name: selectedSupplier?.name || 'Inconnu',
-                total_amount: total,
-                pdf_file_url: urlData.publicUrl,
-                created_by_user: userId,
-                invoice_id: invData.id,
+                product_id: item.product_id,
+                product_name: item.product_name,
+                type: 'in',
+                quantity: item.quantity,
+                reason: `Facture fournisseur ${number}`,
               });
-              if (insertError) throw insertError;
             }
-          } catch (archiveErr: any) {
-            console.error('Archive error:', archiveErr);
-            toast({ title: 'Archive', description: "La facture a été créée mais l'archivage a échoué.", variant: 'destructive' });
           }
-
-          toast({ title: 'Facture créée avec succès' });
         }
+
+        // Archive the invoice (should never block saving)
+        try {
+          if (companyId && userId) {
+            const archiveHtml = buildPurchaseInvoiceHtml(
+              {
+                number,
+                date,
+                dueDate: dueDate || null,
+                supplierName: selectedSupplier?.name || 'Inconnu',
+                items: items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
+                subtotal,
+                tvaTotal,
+                total,
+                paidAmount,
+                status,
+                notes: notes || null,
+              },
+              company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
+            );
+
+            const blob = new Blob([archiveHtml], { type: 'text/html' });
+            const filePath = `${companyId}/facture_achat/${number.replace(/\//g, '-')}.html`;
+            const { error: uploadError } = await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
+            const { error: insertError } = await supabase.from('archives').insert({
+              company_id: companyId,
+              document_type: 'facture_achat',
+              document_number: number,
+              client_name: selectedSupplier?.name || 'Inconnu',
+              total_amount: total,
+              pdf_file_url: urlData.publicUrl,
+              created_by_user: userId,
+              invoice_id: invData.id,
+            });
+            if (insertError) throw insertError;
+          }
+        } catch (archiveErr: any) {
+          console.error('Archive error:', archiveErr);
+          toast({ title: 'Archive', description: "La facture a été créée mais l'archivage a échoué.", variant: 'destructive' });
+        }
+
+        toast({ title: 'Facture créée avec succès' });
+        success = true;
       }
     } catch (err: any) {
-      toast({ title: 'Erreur', description: err?.message, variant: 'destructive' });
+      console.error('Purchase invoice submit error:', err);
+      toast({ title: 'Erreur', description: err?.message || 'Une erreur est survenue', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+      if (success) onDone();
     }
-
-    setSubmitting(false);
-    onDone();
   };
 
   return (
