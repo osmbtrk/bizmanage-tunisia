@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { archivesApi } from '@/services/api';
 import { buildInvoiceHtml, type PdfInvoiceData, type PdfCompanyData } from './generatePdfHtml';
 
 export async function archiveDocument(
@@ -21,9 +21,7 @@ export async function archiveDocument(
 
     // Upload to storage
     const filePath = `${meta.companyId}/${meta.documentType}/${meta.documentNumber.replace(/\//g, '-')}.html`;
-    const { error: uploadError } = await supabase.storage
-      .from('archives')
-      .upload(filePath, blob, { upsert: true, contentType: 'text/html' });
+    const { error: uploadError } = await archivesApi.uploadArchiveFile(filePath, blob);
 
     if (uploadError) {
       console.error('Archive upload error:', uploadError);
@@ -31,10 +29,10 @@ export async function archiveDocument(
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
+    const { data: urlData } = archivesApi.getArchivePublicUrl(filePath);
 
     // Insert archive record
-    await supabase.from('archives').insert({
+    await archivesApi.insertArchive({
       company_id: meta.companyId,
       document_type: meta.documentType,
       document_number: meta.documentNumber,

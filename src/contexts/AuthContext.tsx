@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { authApi } from '@/services/api';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -27,28 +27,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const companyId = profile?.company_id ?? null;
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('full_name, email, company_id')
-      .eq('user_id', userId)
-      .single();
+  const loadProfile = useCallback(async (userId: string) => {
+    const { data } = await authApi.fetchProfile(userId);
     setProfile(data);
 
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
+    const { data: roleData } = await authApi.fetchUserRole(userId);
     setRole((roleData?.role as 'admin' | 'employee') ?? 'employee');
   }, []);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = authApi.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        setTimeout(() => fetchProfile(session.user.id), 0);
+        setTimeout(() => loadProfile(session.user.id), 0);
       } else {
         setProfile(null);
         setRole(null);
@@ -56,17 +48,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    authApi.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        loadProfile(session.user.id);
       }
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+  }, [loadProfile]);
 
   // Inactivity timeout
   useEffect(() => {
@@ -76,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const resetTimer = () => {
       clearTimeout(timer);
       timer = setTimeout(() => {
-        supabase.auth.signOut();
+        authApi.signOut();
       }, INACTIVITY_TIMEOUT);
     };
 
@@ -90,29 +82,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: window.location.origin,
-      },
-    });
+  const handleSignUp = async (email: string, password: string, fullName: string) => {
+    const { error } = await authApi.signUp(email, password, fullName);
     return { error: error?.message ?? null };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const handleSignIn = async (email: string, password: string) => {
+    const { error } = await authApi.signIn(email, password);
     return { error: error?.message ?? null };
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const handleSignOut = async () => {
+    await authApi.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, companyId, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, profile, role, companyId, loading, signUp: handleSignUp, signIn: handleSignIn, signOut: handleSignOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
 import { archiveDocument } from '@/lib/archiveService';
 import { toast } from '@/hooks/use-toast';
+
+import { companiesApi, clientsApi, productsApi, categoriesApi, invoicesApi, expensesApi, suppliersApi, stockMovementsApi, documentsApi, bomApi } from '@/services/api';
+import { authApi } from '@/services/api';
 
 type DbClient = Database['public']['Tables']['clients']['Row'];
 type DbProduct = Database['public']['Tables']['products']['Row'];
@@ -89,15 +91,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const load = async () => {
       setLoading(true);
       const [companyRes, clientsRes, productsRes, categoriesRes, invoicesRes, itemsRes, expensesRes, suppliersRes, movementsRes] = await Promise.all([
-        supabase.from('companies').select('*').eq('id', companyId).single(),
-        supabase.from('clients').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
-        supabase.from('products').select('*').eq('company_id', companyId).order('name'),
-        supabase.from('product_categories').select('*').eq('company_id', companyId).order('name'),
-        supabase.from('invoices').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
-        supabase.from('invoice_items').select('*, invoices!inner(company_id)').eq('invoices.company_id', companyId),
-        supabase.from('expenses').select('*').eq('company_id', companyId).order('date', { ascending: false }),
-        supabase.from('suppliers').select('*').eq('company_id', companyId).order('name'),
-        supabase.from('stock_movements').select('*').eq('company_id', companyId).order('date', { ascending: false }),
+        companiesApi.fetchCompany(companyId),
+        clientsApi.fetchClients(companyId),
+        productsApi.fetchProducts(companyId),
+        categoriesApi.fetchCategories(companyId),
+        invoicesApi.fetchInvoices(companyId),
+        invoicesApi.fetchInvoiceItems(companyId),
+        expensesApi.fetchExpenses(companyId),
+        suppliersApi.fetchSuppliers(companyId),
+        stockMovementsApi.fetchStockMovements(companyId),
       ]);
 
       setCompany(companyRes.data);
@@ -121,74 +123,74 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     load();
   }, [companyId, refreshKey]);
 
-  const updateCompany = useCallback(async (data: Partial<DbCompany>) => {
+  const handleUpdateCompany = useCallback(async (data: Partial<DbCompany>) => {
     if (!companyId) return;
-    const { error } = await supabase.from('companies').update(data).eq('id', companyId);
+    const { error } = await companiesApi.updateCompany(companyId, data);
     if (error) { toast({ title: 'Erreur mise à jour entreprise', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [companyId, refresh]);
 
   const addClient = useCallback(async (data: Omit<DbClient, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
     if (!companyId) return null;
-    const { data: result, error } = await supabase.from('clients').insert({ ...data, company_id: companyId }).select().single();
+    const { data: result, error } = await clientsApi.insertClient(companyId, data);
     if (error) { toast({ title: 'Erreur ajout client', description: error.message, variant: 'destructive' }); return null; }
     refresh();
     return result;
   }, [companyId, refresh]);
 
-  const updateClient = useCallback(async (id: string, data: Partial<DbClient>) => {
-    const { error } = await supabase.from('clients').update(data).eq('id', id);
+  const handleUpdateClient = useCallback(async (id: string, data: Partial<DbClient>) => {
+    const { error } = await clientsApi.updateClient(id, data);
     if (error) { toast({ title: 'Erreur mise à jour client', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
-  const deleteClient = useCallback(async (id: string) => {
-    const { error } = await supabase.from('clients').update({ is_archived: true }).eq('id', id);
+  const handleDeleteClient = useCallback(async (id: string) => {
+    const { error } = await clientsApi.archiveClient(id);
     if (error) { toast({ title: 'Erreur archivage client', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
   const addProduct = useCallback(async (data: Omit<DbProduct, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
     if (!companyId) return null;
-    const { data: result, error } = await supabase.from('products').insert({ ...data, company_id: companyId }).select().single();
+    const { data: result, error } = await productsApi.insertProduct(companyId, data);
     if (error) { toast({ title: 'Erreur ajout produit', description: error.message, variant: 'destructive' }); return null; }
     refresh();
     return result;
   }, [companyId, refresh]);
 
-  const updateProduct = useCallback(async (id: string, data: Partial<DbProduct>) => {
-    const { error } = await supabase.from('products').update(data).eq('id', id);
+  const handleUpdateProduct = useCallback(async (id: string, data: Partial<DbProduct>) => {
+    const { error } = await productsApi.updateProduct(id, data);
     if (error) { toast({ title: 'Erreur mise à jour produit', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
-  const deleteProduct = useCallback(async (id: string) => {
-    const { error } = await supabase.from('products').delete().eq('id', id);
+  const handleDeleteProduct = useCallback(async (id: string) => {
+    const { error } = await productsApi.deleteProduct(id);
     if (error) { toast({ title: 'Erreur suppression produit', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
   const addCategory = useCallback(async (data: { name: string; parent_id?: string | null }) => {
     if (!companyId) return null;
-    const { data: result, error } = await supabase.from('product_categories').insert({ ...data, company_id: companyId }).select().single();
+    const { data: result, error } = await categoriesApi.insertCategory(companyId, data);
     if (error) { toast({ title: 'Erreur ajout catégorie', description: error.message, variant: 'destructive' }); return null; }
     refresh();
     return result;
   }, [companyId, refresh]);
 
-  const updateCategory = useCallback(async (id: string, data: { name?: string; parent_id?: string | null }) => {
-    const { error } = await supabase.from('product_categories').update(data).eq('id', id);
+  const handleUpdateCategory = useCallback(async (id: string, data: { name?: string; parent_id?: string | null }) => {
+    const { error } = await categoriesApi.updateCategory(id, data);
     if (error) { toast({ title: 'Erreur mise à jour catégorie', description: error.message, variant: 'destructive' }); return; }
     refresh();
   }, [refresh]);
 
-  const deleteCategory = useCallback(async (id: string): Promise<boolean> => {
-    const { count } = await supabase.from('products').select('id', { count: 'exact', head: true }).eq('category_id', id);
+  const handleDeleteCategory = useCallback(async (id: string): Promise<boolean> => {
+    const { count } = await productsApi.countProductsByCategory(id);
     if (count && count > 0) {
       toast({ title: 'Impossible de supprimer', description: `${count} produit(s) utilisent cette catégorie. Réassignez-les d'abord.`, variant: 'destructive' });
       return false;
     }
-    const { error } = await supabase.from('product_categories').delete().eq('id', id);
+    const { error } = await categoriesApi.deleteCategory(id);
     if (error) { toast({ title: 'Erreur suppression catégorie', description: error.message, variant: 'destructive' }); return false; }
     refresh();
     return true;
@@ -196,10 +198,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const getNextDocNumber = useCallback(async (type: DocumentType): Promise<string> => {
     if (!companyId) return '';
-    const { data, error } = await supabase.rpc('next_document_number', {
-      _company_id: companyId,
-      _doc_type: type,
-    });
+    const { data, error } = await documentsApi.getNextDocumentNumber(companyId, type);
     if (error) throw error;
     return data as string;
   }, [companyId]);
@@ -231,7 +230,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const discount = data.discount_amount ?? 0;
     const total = Math.max(0, subtotal + tvaTotal - discount);
 
-    const { data: invoice } = await supabase.from('invoices').insert({
+    const { data: invoice } = await invoicesApi.insertInvoice({
       company_id: companyId,
       number,
       type: data.type,
@@ -247,7 +246,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       payment_terms: data.payment_terms || null,
       notes: data.notes || null,
       discount_amount: discount,
-    }).select().single();
+    });
 
     if (invoice) {
       const itemsToInsert = data.items.map((item, idx) => ({
@@ -260,10 +259,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         total: item.total,
         sort_order: idx,
       }));
-      await supabase.from('invoice_items').insert(itemsToInsert);
+      await invoicesApi.insertInvoiceItems(itemsToInsert);
 
       // Auto-archive the document
-      const { data: authData } = await supabase.auth.getUser();
+      const { data: authData } = await authApi.getUser();
       if (authData?.user && companyId) {
         archiveDocument(
           {
@@ -292,51 +291,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // Update stock for factures/BL — fetch fresh product data to avoid stale state
+      // Update stock for factures/BL
       if (data.type === 'facture' || data.type === 'bon_livraison') {
         const productIds = data.items.filter(i => i.product_id).map(i => i.product_id!);
-        const { data: freshProducts } = await supabase
-          .from('products')
-          .select('*')
-          .in('id', productIds);
+        const { data: freshProducts } = await productsApi.fetchProductsByIds(productIds);
         const freshMap = new Map((freshProducts ?? []).map(p => [p.id, p]));
 
         for (const item of data.items) {
           if (item.product_id) {
             const product = freshMap.get(item.product_id);
             if (product) {
-              await supabase.from('products').update({ stock: product.stock - item.quantity }).eq('id', item.product_id);
-              // Update map for subsequent items referencing same product
+              await productsApi.updateProduct(item.product_id, { stock: product.stock - item.quantity });
               freshMap.set(item.product_id, { ...product, stock: product.stock - item.quantity });
 
               // BOM: if finished product, deduct raw materials
               if (product.product_type === 'finished_product') {
-                const { data: bomItems } = await supabase
-                  .from('bom_items')
-                  .select('*')
-                  .eq('finished_product_id', product.id);
+                const { data: bomItems } = await bomApi.fetchBomItems(product.id);
 
                 if (bomItems && bomItems.length > 0) {
-                  // Fetch fresh raw material data
                   const rawMatIds = bomItems.map(b => b.raw_material_id);
-                  const { data: freshRawMats } = await supabase
-                    .from('products')
-                    .select('*')
-                    .in('id', rawMatIds);
+                  const { data: freshRawMats } = await productsApi.fetchProductsByIds(rawMatIds);
                   const rawMap = new Map((freshRawMats ?? []).map(p => [p.id, p]));
 
                   for (const bom of bomItems) {
                     const rawMat = rawMap.get(bom.raw_material_id);
                     const deductQty = bom.unit_type === 'percentage'
-                      ? Math.ceil((bom.quantity / 100) * item.quantity)
-                      : bom.quantity * item.quantity;
+                      ? Math.ceil((Number(bom.quantity) / 100) * item.quantity)
+                      : Number(bom.quantity) * item.quantity;
 
                     if (rawMat) {
                       const newStock = Math.max(0, rawMat.stock - deductQty);
-                      await supabase.from('products').update({ stock: newStock }).eq('id', rawMat.id);
+                      await productsApi.updateProduct(rawMat.id, { stock: newStock });
                       rawMap.set(rawMat.id, { ...rawMat, stock: newStock });
 
-                      await supabase.from('stock_movements').insert({
+                      await stockMovementsApi.insertStockMovement({
                         company_id: companyId,
                         product_id: rawMat.id,
                         product_name: rawMat.name,
@@ -349,7 +337,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 }
               }
             }
-            await supabase.from('stock_movements').insert({
+            await stockMovementsApi.insertStockMovement({
               company_id: companyId,
               product_id: item.product_id,
               product_name: item.product_name,
@@ -362,32 +350,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     }
     refresh();
-  }, [companyId, getNextDocNumber, refresh]);
+  }, [companyId, getNextDocNumber, refresh, company]);
 
-  const updateInvoiceStatus = useCallback(async (id: string, status: string, paidAmount?: number) => {
+  const handleUpdateInvoiceStatus = useCallback(async (id: string, status: string, paidAmount?: number) => {
     const inv = invoices.find(i => i.id === id);
-    await supabase.from('invoices').update({
+    await invoicesApi.updateInvoiceStatus(
+      id,
       status,
-      paid_amount: paidAmount ?? (status === 'paid' ? inv?.total ?? 0 : inv?.paid_amount ?? 0),
-    }).eq('id', id);
+      paidAmount ?? (status === 'paid' ? inv?.total ?? 0 : inv?.paid_amount ?? 0)
+    );
     refresh();
   }, [invoices, refresh]);
 
-  const deleteInvoice = useCallback(async (id: string) => {
-    // Restore stock before deleting
+  const handleDeleteInvoice = useCallback(async (id: string) => {
     const inv = invoices.find(i => i.id === id);
     if (inv && (inv.type === 'facture' || inv.type === 'bon_livraison')) {
       for (const item of inv.items) {
         if (item.product_id) {
-          const { data: product } = await supabase
-            .from('products')
-            .select('stock')
-            .eq('id', item.product_id)
-            .single();
+          const { data: product } = await productsApi.fetchProductStock(item.product_id);
           if (product) {
-            await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
+            await productsApi.updateProduct(item.product_id, { stock: product.stock + item.quantity });
             if (companyId) {
-              await supabase.from('stock_movements').insert({
+              await stockMovementsApi.insertStockMovement({
                 company_id: companyId,
                 product_id: item.product_id,
                 product_name: item.product_name,
@@ -400,7 +384,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
-    await supabase.from('invoices').delete().eq('id', id);
+    await invoicesApi.deleteInvoice(id);
     refresh();
   }, [invoices, companyId, refresh]);
 
@@ -409,18 +393,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     stockItems?: { product_id: string; product_name: string; quantity: number }[]
   ) => {
     if (!companyId) return;
-    await supabase.from('expenses').insert({ ...data, company_id: companyId });
+    await expensesApi.insertExpense(companyId, data);
 
-    // Auto-increase raw material stock when supplier expense has linked products
     if (stockItems && stockItems.length > 0) {
       for (const si of stockItems) {
         const product = products.find(p => p.id === si.product_id);
         if (product) {
-          await supabase.from('products').update({
-            stock: product.stock + si.quantity,
-          }).eq('id', si.product_id);
-
-          await supabase.from('stock_movements').insert({
+          await productsApi.updateProduct(si.product_id, { stock: product.stock + si.quantity });
+          await stockMovementsApi.insertStockMovement({
             company_id: companyId,
             product_id: si.product_id,
             product_name: si.product_name,
@@ -435,31 +415,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [companyId, products, refresh]);
 
-  const deleteExpense = useCallback(async (id: string) => {
-    await supabase.from('expenses').delete().eq('id', id);
+  const handleDeleteExpense = useCallback(async (id: string) => {
+    await expensesApi.deleteExpense(id);
     refresh();
   }, [refresh]);
 
   const addSupplier = useCallback(async (data: Omit<DbSupplier, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
     if (!companyId) return;
-    await supabase.from('suppliers').insert({ ...data, company_id: companyId });
+    await suppliersApi.insertSupplier(companyId, data);
     refresh();
   }, [companyId, refresh]);
 
-  const deleteSupplier = useCallback(async (id: string) => {
-    await supabase.from('suppliers').delete().eq('id', id);
+  const handleDeleteSupplier = useCallback(async (id: string) => {
+    await suppliersApi.deleteSupplier(id);
     refresh();
   }, [refresh]);
 
   return (
     <DataContext.Provider value={{
-      company, updateCompany,
-      clients: clients.filter(c => !c.is_archived), addClient, updateClient, deleteClient,
-      products, addProduct, updateProduct, deleteProduct,
-      categories, addCategory, updateCategory, deleteCategory,
-      invoices, addInvoice, updateInvoiceStatus, deleteInvoice,
-      expenses, addExpense, deleteExpense,
-      suppliers, addSupplier, deleteSupplier,
+      company, updateCompany: handleUpdateCompany,
+      clients: clients.filter(c => !c.is_archived), addClient, updateClient: handleUpdateClient, deleteClient: handleDeleteClient,
+      products, addProduct, updateProduct: handleUpdateProduct, deleteProduct: handleDeleteProduct,
+      categories, addCategory, updateCategory: handleUpdateCategory, deleteCategory: handleDeleteCategory,
+      invoices, addInvoice, updateInvoiceStatus: handleUpdateInvoiceStatus, deleteInvoice: handleDeleteInvoice,
+      expenses, addExpense, deleteExpense: handleDeleteExpense,
+      suppliers, addSupplier, deleteSupplier: handleDeleteSupplier,
       stockMovements, loading, refresh,
     }}>
       {children}
