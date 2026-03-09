@@ -413,8 +413,7 @@ function PurchaseInvoiceForm({
     try {
       if (editingInvoice) {
         const docNumber = editingInvoice.number;
-        // Update existing
-        const { error: updateErr } = await supabase.from('purchase_invoices' as any).update({
+        const { error: updateErr } = await purchaseInvoicesApi.updatePurchaseInvoice(editingInvoice.id, {
           supplier_id: supplierId || null,
           supplier_name: selectedSupplier?.name || supplierId || 'Inconnu',
           date,
@@ -425,21 +424,21 @@ function PurchaseInvoiceForm({
           status,
           paid_amount: paidAmount,
           notes: notes || null,
-        } as any).eq('id', editingInvoice.id);
+        });
         if (updateErr) throw updateErr;
 
         // Reverse old stock
         for (const oldItem of editingInvoice.items) {
           if (oldItem.product_id) {
-            const { data: product } = await supabase.from('products').select('stock').eq('id', oldItem.product_id).single();
+            const { data: product } = await productsApi.fetchProductStock(oldItem.product_id);
             if (product) {
-              await supabase.from('products').update({ stock: Math.max(0, product.stock - oldItem.quantity) }).eq('id', oldItem.product_id);
+              await productsApi.updateProduct(oldItem.product_id, { stock: Math.max(0, product.stock - oldItem.quantity) });
             }
           }
         }
 
         // Delete old items
-        await supabase.from('purchase_invoice_items' as any).delete().eq('purchase_invoice_id', editingInvoice.id);
+        await purchaseInvoicesApi.deletePurchaseInvoiceItems(editingInvoice.id);
 
         // Insert new items
         const itemsToInsert = items.map((item, idx) => ({
@@ -452,15 +451,15 @@ function PurchaseInvoiceForm({
           total: item.quantity * item.unit_price,
           sort_order: idx,
         }));
-        await supabase.from('purchase_invoice_items' as any).insert(itemsToInsert as any);
+        await purchaseInvoicesApi.insertPurchaseInvoiceItems(itemsToInsert);
 
         // Apply new stock
         for (const item of items) {
           if (item.product_id) {
-            const { data: product } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
-            if (product) {
-              await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
-              await supabase.from('stock_movements').insert({
+            const { data: product } = await productsApi.fetchProductStock(item.product_id);
+            if (product && companyId) {
+              await productsApi.updateProduct(item.product_id, { stock: product.stock + item.quantity });
+              await stockMovementsApi.insertStockMovement({
                 company_id: companyId,
                 product_id: item.product_id,
                 product_name: item.product_name,
@@ -475,11 +474,8 @@ function PurchaseInvoiceForm({
         toast({ title: 'Facture modifiée avec succès' });
         success = true;
       } else {
-        // Generate number at submit time (safe, sequential, no wasted numbers)
-        const { data: docNumber, error: numErr } = await supabase.rpc('next_document_number', {
-          _company_id: companyId,
-          _doc_type: 'facture_achat',
-        });
+        // Generate number at submit time
+        const { data: docNumber, error: numErr } = await documentsApi.getNextDocumentNumber(companyId!, 'facture_achat');
         if (numErr || !docNumber) {
           toast({ title: 'Erreur de numérotation', description: numErr?.message || 'Impossible de générer le numéro.', variant: 'destructive' });
           setSubmitting(false);
@@ -488,7 +484,7 @@ function PurchaseInvoiceForm({
         const generatedNumber = docNumber as string;
 
         // Create new
-        const { data: inv, error: invErr } = await supabase.from('purchase_invoices' as any).insert({
+        const { data: inv, error: invErr } = await purchaseInvoicesApi.insertPurchaseInvoice({
           company_id: companyId,
           supplier_id: supplierId || null,
           supplier_name: selectedSupplier?.name || 'Inconnu',
@@ -501,7 +497,7 @@ function PurchaseInvoiceForm({
           status,
           paid_amount: paidAmount,
           notes: notes || null,
-        } as any).select().single();
+        });
         if (invErr) throw invErr;
         if (!inv) throw new Error('Création facture: réponse vide');
 
@@ -516,16 +512,16 @@ function PurchaseInvoiceForm({
           total: item.quantity * item.unit_price,
           sort_order: idx,
         }));
-        const { error: itemsErr } = await supabase.from('purchase_invoice_items' as any).insert(itemsToInsert as any);
+        const { error: itemsErr } = await purchaseInvoicesApi.insertPurchaseInvoiceItems(itemsToInsert);
         if (itemsErr) throw itemsErr;
 
         // Increase stock for products
         for (const item of items) {
-          if (item.product_id) {
-            const { data: product } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
+          if (item.product_id && companyId) {
+            const { data: product } = await productsApi.fetchProductStock(item.product_id);
             if (product) {
-              await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
-              await supabase.from('stock_movements').insert({
+              await productsApi.updateProduct(item.product_id, { stock: product.stock + item.quantity });
+              await stockMovementsApi.insertStockMovement({
                 company_id: companyId,
                 product_id: item.product_id,
                 product_name: item.product_name,
@@ -559,11 +555,11 @@ function PurchaseInvoiceForm({
 
             const blob = new Blob([archiveHtml], { type: 'text/html' });
             const filePath = `${companyId}/facture_achat/${generatedNumber.replace(/\//g, '-')}.html`;
-            const { error: uploadError } = await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
+            const { error: uploadError } = await archivesApi.uploadArchiveFile(filePath, blob);
             if (uploadError) throw uploadError;
 
-            const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
-            const { error: insertError } = await supabase.from('archives').insert({
+            const { data: urlData } = archivesApi.getArchivePublicUrl(filePath);
+            const { error: insertError } = await archivesApi.insertArchive({
               company_id: companyId,
               document_type: 'facture_achat',
               document_number: generatedNumber,
