@@ -679,7 +679,14 @@ function PurchaseInvoiceForm({
               {item.product_id && <span className="text-xs text-muted-foreground truncate block pt-2">{item.product_name}</span>}
             </div>
             <div className="col-span-1">
-              <Input type="number" min={1} className="h-9 text-xs text-center" value={item.quantity} onChange={e => updateItem(idx, { quantity: +e.target.value })} />
+              <Input
+                type="number"
+                inputMode="numeric"
+                step="1"
+                className="h-9 text-xs text-center"
+                value={item.quantity}
+                onChange={e => updateItem(idx, { quantity: e.target.value === '' ? 1 : Number(e.target.value) })}
+              />
             </div>
             <div className="col-span-2">
               <Input type="number" step="0.001" className="h-9 text-xs" value={item.unit_price} onChange={e => updateItem(idx, { unit_price: +e.target.value })} />
