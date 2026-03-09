@@ -13,7 +13,6 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
 import { Plus, Trash2, Pencil, Eye, FileText, Download } from 'lucide-react';
 import { buildPurchaseInvoiceHtml } from '@/lib/generatePurchasePdfHtml';
-import { archiveDocument } from '@/lib/archiveService';
 
 interface PurchaseInvoice {
   id: string;
