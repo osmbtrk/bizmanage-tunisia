@@ -264,7 +264,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // Auto-archive the document
       const { data: authData } = await authApi.getUser();
       if (authData?.user && companyId) {
-        archiveDocument(
+        const archiveResult = await archiveDocument(
           {
             number,
             type: data.type,
@@ -289,6 +289,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             totalAmount: total,
           }
         );
+        if (!archiveResult.success) {
+          toast({ title: 'Archivage', description: archiveResult.error || "L'archivage a échoué", variant: 'destructive' });
+        }
       }
 
       // Update stock for factures/BL using atomic DB operations
