@@ -92,19 +92,17 @@ export default function PurchaseInvoicesPage() {
     const inv = invoices.find(i => i.id === deleteId);
     if (inv) {
       for (const item of inv.items) {
-        if (item.product_id) {
-          const { data: product } = await productsApi.fetchProductStock(item.product_id);
-          if (product && companyId) {
-            await productsApi.updateProduct(item.product_id, { stock: product.stock - item.quantity });
-            await stockMovementsApi.insertStockMovement({
-              company_id: companyId,
-              product_id: item.product_id,
-              product_name: item.product_name,
-              type: 'out',
-              quantity: item.quantity,
-              reason: `Annulation facture fournisseur ${inv.number}`,
-            });
-          }
+        if (item.product_id && companyId) {
+          // Atomic stock reversal
+          await productsApi.adjustStock(item.product_id, -item.quantity);
+          await stockMovementsApi.insertStockMovement({
+            company_id: companyId,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            type: 'out',
+            quantity: item.quantity,
+            reason: `Annulation facture fournisseur ${inv.number}`,
+          });
         }
       }
     }
