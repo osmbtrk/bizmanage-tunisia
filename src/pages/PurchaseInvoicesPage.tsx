@@ -351,22 +351,34 @@ function PurchaseInvoiceForm({
   const [numberLoading, setNumberLoading] = useState(false);
   const [date, setDate] = useState(editingInvoice?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
 
-  // Auto-generate number for new invoices
-  useEffect(() => {
-    if (editingInvoice || !companyId) return;
-    const generate = async () => {
-      setNumberLoading(true);
-      try {
-        const { data, error } = await supabase.rpc('next_document_number', {
-          _company_id: companyId,
-          _doc_type: 'facture_achat',
-        });
-        if (!error && data) setNumber(data as string);
-      } catch {}
+  const generateNumber = useCallback(async () => {
+    if (!companyId) return;
+    setNumberLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('next_document_number', {
+        _company_id: companyId,
+        _doc_type: 'facture_achat',
+      });
+      if (error) throw error;
+      setNumber((data as string) || '');
+    } catch (err: any) {
+      console.error('Number generation error:', err);
+      toast({
+        title: 'Erreur de numérotation',
+        description: "Impossible de générer le numéro automatiquement.",
+        variant: 'destructive',
+      });
+      setNumber('');
+    } finally {
       setNumberLoading(false);
-    };
-    generate();
-  }, [editingInvoice, companyId]);
+    }
+  }, [companyId]);
+
+  // Auto-generate number for new invoices (non modifiable)
+  useEffect(() => {
+    if (editingInvoice) return;
+    generateNumber();
+  }, [editingInvoice, generateNumber]);
   const [dueDate, setDueDate] = useState(editingInvoice?.due_date?.split('T')[0] || '');
   const [status, setStatus] = useState(editingInvoice?.status || 'unpaid');
   const [paidAmount, setPaidAmount] = useState(editingInvoice?.paid_amount || 0);
@@ -427,9 +439,8 @@ function PurchaseInvoiceForm({
 
     if (!companyId) return;
 
-    // If number generation failed, allow manual entry but keep it required for saving
     if (!number) {
-      toast({ title: 'Numéro manquant', description: 'Le numéro de facture n\'a pas été généré — saisissez-le manuellement.', variant: 'destructive' });
+      toast({ title: 'Numéro en cours', description: 'Veuillez attendre la génération du numéro.', variant: 'destructive' });
       return;
     }
 
@@ -445,14 +456,14 @@ function PurchaseInvoiceForm({
     }
 
     setSubmitting(true);
+    let success = false;
 
     try {
       if (editingInvoice) {
         // Update existing
-        await supabase.from('purchase_invoices' as any).update({
+        const { error: updateErr } = await supabase.from('purchase_invoices' as any).update({
           supplier_id: supplierId || null,
           supplier_name: selectedSupplier?.name || supplierId || 'Inconnu',
-          number,
           date,
           due_date: dueDate || null,
           subtotal,
@@ -462,6 +473,7 @@ function PurchaseInvoiceForm({
           paid_amount: paidAmount,
           notes: notes || null,
         } as any).eq('id', editingInvoice.id);
+        if (updateErr) throw updateErr;
 
         // Reverse old stock
         for (const oldItem of editingInvoice.items) {
@@ -508,9 +520,10 @@ function PurchaseInvoiceForm({
         }
 
         toast({ title: 'Facture modifiée avec succès' });
+        success = true;
       } else {
         // Create new
-        const { data: inv } = await supabase.from('purchase_invoices' as any).insert({
+        const { data: inv, error: invErr } = await supabase.from('purchase_invoices' as any).insert({
           company_id: companyId,
           supplier_id: supplierId || null,
           supplier_name: selectedSupplier?.name || 'Inconnu',
@@ -524,91 +537,94 @@ function PurchaseInvoiceForm({
           paid_amount: paidAmount,
           notes: notes || null,
         } as any).select().single();
+        if (invErr) throw invErr;
+        if (!inv) throw new Error('Création facture: réponse vide');
 
-        if (inv) {
-          const invData = inv as any;
-          const itemsToInsert = items.map((item, idx) => ({
-            purchase_invoice_id: invData.id,
-            product_id: item.product_id,
-            product_name: item.product_name || 'Article',
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            tva_rate: item.tva_rate,
-            total: item.quantity * item.unit_price,
-            sort_order: idx,
-          }));
-          await supabase.from('purchase_invoice_items' as any).insert(itemsToInsert as any);
+        const invData = inv as any;
+        const itemsToInsert = items.map((item, idx) => ({
+          purchase_invoice_id: invData.id,
+          product_id: item.product_id,
+          product_name: item.product_name || 'Article',
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          tva_rate: item.tva_rate,
+          total: item.quantity * item.unit_price,
+          sort_order: idx,
+        }));
+        const { error: itemsErr } = await supabase.from('purchase_invoice_items' as any).insert(itemsToInsert as any);
+        if (itemsErr) throw itemsErr;
 
-          // Increase stock for products
-          for (const item of items) {
-            if (item.product_id) {
-              const { data: product } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
-              if (product) {
-                await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
-                await supabase.from('stock_movements').insert({
-                  company_id: companyId,
-                  product_id: item.product_id,
-                  product_name: item.product_name,
-                  type: 'in',
-                  quantity: item.quantity,
-                  reason: `Facture fournisseur ${number}`,
-                });
-              }
-            }
-          }
-
-          // Archive the invoice (should never block saving)
-          try {
-            if (companyId && userId) {
-              const archiveHtml = buildPurchaseInvoiceHtml(
-                {
-                  number,
-                  date,
-                  dueDate: dueDate || null,
-                  supplierName: selectedSupplier?.name || 'Inconnu',
-                  items: items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
-                  subtotal,
-                  tvaTotal,
-                  total,
-                  paidAmount,
-                  status,
-                  notes: notes || null,
-                },
-                company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
-              );
-
-              const blob = new Blob([archiveHtml], { type: 'text/html' });
-              const filePath = `${companyId}/facture_achat/${number.replace(/\//g, '-')}.html`;
-              const { error: uploadError } = await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
-              if (uploadError) throw uploadError;
-
-              const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
-              const { error: insertError } = await supabase.from('archives').insert({
+        // Increase stock for products
+        for (const item of items) {
+          if (item.product_id) {
+            const { data: product } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
+            if (product) {
+              await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
+              await supabase.from('stock_movements').insert({
                 company_id: companyId,
-                document_type: 'facture_achat',
-                document_number: number,
-                client_name: selectedSupplier?.name || 'Inconnu',
-                total_amount: total,
-                pdf_file_url: urlData.publicUrl,
-                created_by_user: userId,
-                invoice_id: invData.id,
+                product_id: item.product_id,
+                product_name: item.product_name,
+                type: 'in',
+                quantity: item.quantity,
+                reason: `Facture fournisseur ${number}`,
               });
-              if (insertError) throw insertError;
             }
-          } catch (archiveErr: any) {
-            console.error('Archive error:', archiveErr);
-            toast({ title: 'Archive', description: "La facture a été créée mais l'archivage a échoué.", variant: 'destructive' });
           }
-
-          toast({ title: 'Facture créée avec succès' });
         }
+
+        // Archive the invoice (should never block saving)
+        try {
+          if (companyId && userId) {
+            const archiveHtml = buildPurchaseInvoiceHtml(
+              {
+                number,
+                date,
+                dueDate: dueDate || null,
+                supplierName: selectedSupplier?.name || 'Inconnu',
+                items: items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
+                subtotal,
+                tvaTotal,
+                total,
+                paidAmount,
+                status,
+                notes: notes || null,
+              },
+              company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
+            );
+
+            const blob = new Blob([archiveHtml], { type: 'text/html' });
+            const filePath = `${companyId}/facture_achat/${number.replace(/\//g, '-')}.html`;
+            const { error: uploadError } = await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
+            const { error: insertError } = await supabase.from('archives').insert({
+              company_id: companyId,
+              document_type: 'facture_achat',
+              document_number: number,
+              client_name: selectedSupplier?.name || 'Inconnu',
+              total_amount: total,
+              pdf_file_url: urlData.publicUrl,
+              created_by_user: userId,
+              invoice_id: invData.id,
+            });
+            if (insertError) throw insertError;
+          }
+        } catch (archiveErr: any) {
+          console.error('Archive error:', archiveErr);
+          toast({ title: 'Archive', description: "La facture a été créée mais l'archivage a échoué.", variant: 'destructive' });
+        }
+
+        toast({ title: 'Facture créée avec succès' });
+        success = true;
       }
     } catch (err: any) {
-      toast({ title: 'Erreur', description: err?.message, variant: 'destructive' });
+      console.error('Purchase invoice submit error:', err);
+      toast({ title: 'Erreur', description: err?.message || 'Une erreur est survenue', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+      if (success) onDone();
     }
-
-    setSubmitting(false);
-    onDone();
   };
 
   return (
@@ -622,17 +638,18 @@ function PurchaseInvoiceForm({
           </Select>
         </div>
         <div>
-          <Label>Numéro de facture *</Label>
-          <Input
-            value={number}
-            readOnly={!!number && !numberLoading}
-            onChange={(e) => setNumber(e.target.value)}
-            className="font-mono"
-            placeholder={numberLoading ? 'Génération...' : 'FA-2026-0001'}
-          />
-          {!number && !numberLoading && (
-            <p className="mt-1 text-xs text-muted-foreground">Si la génération automatique échoue, vous pouvez saisir le numéro ici.</p>
-          )}
+          <Label>Numéro (auto)</Label>
+          <div className="flex items-center justify-between gap-2 rounded-md border border-input bg-muted/30 px-3 py-2">
+            <span className="font-mono text-sm tabular-nums">
+              {numberLoading ? 'Génération…' : (number || '—')}
+            </span>
+            {!editingInvoice && !numberLoading && !number && (
+              <Button type="button" variant="outline" size="sm" onClick={generateNumber}>
+                Générer
+              </Button>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">Le numéro est généré automatiquement et ne peut pas être modifié.</p>
         </div>
         <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
         <div><Label>Date d'échéance</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
@@ -662,49 +679,69 @@ function PurchaseInvoiceForm({
         </div>
         {items.length === 0 && <p className="text-sm text-muted-foreground">Ajoutez au moins un article</p>}
         {items.length > 0 && (
-          <div className="grid grid-cols-12 gap-2 mb-1 text-xs text-muted-foreground font-medium">
+          <div className="hidden sm:grid sm:grid-cols-12 gap-2 mb-1 text-xs text-muted-foreground font-medium">
             <div className="col-span-4">Produit</div>
             <div className="col-span-2">Nom</div>
-            <div className="col-span-1">Qté</div>
-            <div className="col-span-2">P.U. HT</div>
-            <div className="col-span-2 text-right">Total HT</div>
+            <div className="col-span-2 text-right">Quantité</div>
+            <div className="col-span-2 text-right">P.U. HT</div>
+            <div className="col-span-1 text-right">Total</div>
             <div className="col-span-1"></div>
           </div>
         )}
         {items.map((item, idx) => (
-          <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-            <div className="col-span-4">
+          <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-3 items-end">
+            <div className="sm:col-span-4">
               <Select value={item.product_id || '_custom'} onValueChange={v => v === '_custom' ? updateItem(idx, { product_id: null }) : selectProduct(idx, v)}>
-                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Produit" /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm sm:h-9 sm:text-xs"><SelectValue placeholder="Produit" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_custom">Saisie libre</SelectItem>
                   {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2">
-              {!item.product_id && (
-                <Input className="h-9 text-xs" placeholder="Nom" value={item.product_name} onChange={e => updateItem(idx, { product_name: e.target.value })} />
+
+            <div className="sm:col-span-2">
+              <p className="sm:hidden text-xs text-muted-foreground mb-1">Nom</p>
+              {!item.product_id ? (
+                <Input className="h-10 text-sm sm:h-9 sm:text-xs" placeholder="Nom" value={item.product_name} onChange={e => updateItem(idx, { product_name: e.target.value })} />
+              ) : (
+                <span className="text-sm sm:text-xs text-muted-foreground truncate block pt-2">{item.product_name}</span>
               )}
-              {item.product_id && <span className="text-xs text-muted-foreground truncate block pt-2">{item.product_name}</span>}
             </div>
-            <div className="col-span-1">
+
+            <div className="sm:col-span-2">
+              <p className="sm:hidden text-xs text-muted-foreground mb-1">Quantité</p>
               <Input
                 type="number"
                 inputMode="numeric"
                 step="1"
-                className="h-9 text-xs text-center"
+                className="h-10 text-sm sm:h-9 sm:text-xs text-right font-mono tabular-nums"
                 value={item.quantity}
                 onChange={e => updateItem(idx, { quantity: e.target.value === '' ? 1 : Number(e.target.value) })}
               />
             </div>
-            <div className="col-span-2">
-              <Input type="number" step="0.001" className="h-9 text-xs" value={item.unit_price} onChange={e => updateItem(idx, { unit_price: +e.target.value })} />
+
+            <div className="sm:col-span-2">
+              <p className="sm:hidden text-xs text-muted-foreground mb-1">P.U. HT</p>
+              <Input
+                type="number"
+                step="0.001"
+                className="h-10 text-sm sm:h-9 sm:text-xs text-right font-mono tabular-nums"
+                value={item.unit_price}
+                onChange={e => updateItem(idx, { unit_price: +e.target.value })}
+              />
             </div>
-            <div className="col-span-2 text-xs text-right font-medium pt-2">{formatTND(item.quantity * item.unit_price)}</div>
-            <div className="col-span-1">
-              <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeItem(idx)}>
-                <Trash2 className="h-3 w-3" />
+
+            <div className="sm:col-span-1">
+              <p className="sm:hidden text-xs text-muted-foreground mb-1">Total</p>
+              <div className="h-10 sm:h-9 flex items-center justify-end text-sm sm:text-xs font-medium tabular-nums">
+                {formatTND(item.quantity * item.unit_price)}
+              </div>
+            </div>
+
+            <div className="sm:col-span-1 flex justify-end">
+              <Button type="button" variant="ghost" size="icon" className="h-10 w-10 sm:h-9 sm:w-9" onClick={() => removeItem(idx)}>
+                <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
               </Button>
             </div>
           </div>
@@ -721,7 +758,7 @@ function PurchaseInvoiceForm({
 
       <div><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
 
-      <Button type="submit" className="w-full" disabled={submitting || !number || items.length === 0}>
+      <Button type="submit" className="w-full" disabled={submitting || numberLoading || !number || items.length === 0}>
         {submitting ? 'Enregistrement...' : editingInvoice ? 'Modifier' : 'Créer la facture'}
       </Button>
     </form>

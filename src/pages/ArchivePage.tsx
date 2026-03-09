@@ -16,6 +16,7 @@ const DOC_LABELS: Record<string, string> = {
   devis: 'Devis',
   bon_livraison: 'Bon de livraison',
   bon_commande: 'Bon de commande',
+  facture_achat: 'Facture fournisseur',
 };
 
 interface ArchiveRow {
@@ -141,6 +142,7 @@ export default function ArchivePage() {
   const docTypeBadgeColor = (t: string) => {
     switch (t) {
       case 'facture': return 'default';
+      case 'facture_achat': return 'secondary';
       case 'devis': return 'secondary';
       case 'bon_livraison': return 'outline';
       case 'bon_commande': return 'outline';
@@ -175,6 +177,7 @@ export default function ArchivePage() {
             <SelectItem value="devis">Devis</SelectItem>
             <SelectItem value="bon_livraison">Bons de livraison</SelectItem>
             <SelectItem value="bon_commande">Bons de commande</SelectItem>
+            <SelectItem value="facture_achat">Factures fournisseurs</SelectItem>
           </SelectContent>
         </Select>
         <Select value={yearFilter} onValueChange={setYearFilter}>
@@ -282,7 +285,7 @@ export default function ArchivePage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs uppercase tracking-wider">Type</p>
-                    <p className="font-medium mt-1">{DOC_LABELS[detail.document_type]}</p>
+                    <p className="font-medium mt-1">{DOC_LABELS[detail.document_type] || detail.document_type}</p>
                   </div>
                 </div>
 
