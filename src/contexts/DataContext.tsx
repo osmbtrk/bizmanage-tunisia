@@ -426,7 +426,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
 
     refresh();
-  }, [companyId, products, refresh]);
+  }, [companyId, refresh]);
 
   const handleDeleteExpense = useCallback(async (id: string) => {
     await expensesApi.deleteExpense(id);
