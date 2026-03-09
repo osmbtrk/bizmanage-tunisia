@@ -13,6 +13,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
 import { Plus, Trash2, Pencil, Eye, FileText, Download } from 'lucide-react';
 import { buildPurchaseInvoiceHtml } from '@/lib/generatePurchasePdfHtml';
+import { archiveDocument } from '@/lib/archiveService';
 
 interface PurchaseInvoice {
   id: string;
@@ -53,7 +54,7 @@ const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondar
 };
 
 export default function PurchaseInvoicesPage() {
-  const { companyId } = useAuth();
+  const { companyId, user } = useAuth();
   const { suppliers, products, company, refresh: refreshData } = useData();
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -241,6 +242,8 @@ export default function PurchaseInvoicesPage() {
             suppliers={suppliers}
             products={products}
             companyId={companyId}
+            company={company}
+            userId={user?.id || ''}
             editingInvoice={editingInvoice}
             onDone={() => {
               setDialogOpen(false);
@@ -331,12 +334,16 @@ function PurchaseInvoiceForm({
   suppliers,
   products,
   companyId,
+  company,
+  userId,
   editingInvoice,
   onDone,
 }: {
   suppliers: any[];
   products: any[];
   companyId: string | null;
+  company: any;
+  userId: string;
   editingInvoice: PurchaseInvoice | null;
   onDone: () => void;
 }) {
@@ -524,6 +531,40 @@ function PurchaseInvoiceForm({
             }
           }
 
+          // Archive the invoice
+          if (companyId && userId) {
+            const archiveHtml = buildPurchaseInvoiceHtml(
+              {
+                number,
+                date,
+                dueDate: dueDate || null,
+                supplierName: selectedSupplier?.name || 'Inconnu',
+                items: items.map(it => ({ product_name: it.product_name, quantity: it.quantity, unit_price: it.unit_price, tva_rate: it.tva_rate })),
+                subtotal,
+                tvaTotal,
+                total,
+                paidAmount,
+                status,
+                notes: notes || null,
+              },
+              company ? { name: company.name, matricule_fiscal: company.matricule_fiscal, address: company.address, phone: company.phone, email: company.email, code_tva: company.code_tva } : null
+            );
+            const blob = new Blob([archiveHtml], { type: 'text/html' });
+            const filePath = `${companyId}/facture_achat/${number.replace(/\//g, '-')}.html`;
+            await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
+            const { data: urlData } = supabase.storage.from('archives').getPublicUrl(filePath);
+            await supabase.from('archives').insert({
+              company_id: companyId,
+              document_type: 'facture_achat',
+              document_number: number,
+              client_name: selectedSupplier?.name || 'Inconnu',
+              total_amount: total,
+              pdf_file_url: urlData.publicUrl,
+              created_by_user: userId,
+              invoice_id: invData.id,
+            });
+          }
+
           toast({ title: 'Facture créée avec succès' });
         }
       }
@@ -546,8 +587,8 @@ function PurchaseInvoiceForm({
           </Select>
         </div>
         <div>
-          <Label>Numéro de facture *</Label>
-          <Input required value={number} readOnly disabled className="bg-muted font-mono" placeholder={numberLoading ? 'Génération...' : 'FA-2026-0001'} />
+          <Label>Numéro de facture</Label>
+          <Input value={number} readOnly className="bg-muted font-mono cursor-not-allowed" placeholder={numberLoading ? 'Génération...' : 'FA-2026-0001'} />
         </div>
         <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
         <div><Label>Date d'échéance</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
@@ -576,6 +617,16 @@ function PurchaseInvoiceForm({
           </Button>
         </div>
         {items.length === 0 && <p className="text-sm text-muted-foreground">Ajoutez au moins un article</p>}
+        {items.length > 0 && (
+          <div className="grid grid-cols-12 gap-2 mb-1 text-xs text-muted-foreground font-medium">
+            <div className="col-span-4">Produit</div>
+            <div className="col-span-2">Nom</div>
+            <div className="col-span-1">Qté</div>
+            <div className="col-span-2">P.U. HT</div>
+            <div className="col-span-2 text-right">Total HT</div>
+            <div className="col-span-1"></div>
+          </div>
+        )}
         {items.map((item, idx) => (
           <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
             <div className="col-span-4">
@@ -594,7 +645,7 @@ function PurchaseInvoiceForm({
               {item.product_id && <span className="text-xs text-muted-foreground truncate block pt-2">{item.product_name}</span>}
             </div>
             <div className="col-span-1">
-              <Input type="number" min={1} className="h-9 text-xs" value={item.quantity} onChange={e => updateItem(idx, { quantity: +e.target.value })} />
+              <Input type="number" min={1} className="h-9 text-xs text-center" value={item.quantity} onChange={e => updateItem(idx, { quantity: +e.target.value })} />
             </div>
             <div className="col-span-2">
               <Input type="number" step="0.001" className="h-9 text-xs" value={item.unit_price} onChange={e => updateItem(idx, { unit_price: +e.target.value })} />
