@@ -679,49 +679,69 @@ function PurchaseInvoiceForm({
         </div>
         {items.length === 0 && <p className="text-sm text-muted-foreground">Ajoutez au moins un article</p>}
         {items.length > 0 && (
-          <div className="grid grid-cols-12 gap-2 mb-1 text-xs text-muted-foreground font-medium">
+          <div className="hidden sm:grid sm:grid-cols-12 gap-2 mb-1 text-xs text-muted-foreground font-medium">
             <div className="col-span-4">Produit</div>
             <div className="col-span-2">Nom</div>
-            <div className="col-span-1">Qté</div>
-            <div className="col-span-2">P.U. HT</div>
-            <div className="col-span-2 text-right">Total HT</div>
+            <div className="col-span-2 text-right">Quantité</div>
+            <div className="col-span-2 text-right">P.U. HT</div>
+            <div className="col-span-1 text-right">Total</div>
             <div className="col-span-1"></div>
           </div>
         )}
         {items.map((item, idx) => (
-          <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-            <div className="col-span-4">
+          <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-3 items-end">
+            <div className="sm:col-span-4">
               <Select value={item.product_id || '_custom'} onValueChange={v => v === '_custom' ? updateItem(idx, { product_id: null }) : selectProduct(idx, v)}>
-                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Produit" /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm sm:h-9 sm:text-xs"><SelectValue placeholder="Produit" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_custom">Saisie libre</SelectItem>
                   {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2">
-              {!item.product_id && (
-                <Input className="h-9 text-xs" placeholder="Nom" value={item.product_name} onChange={e => updateItem(idx, { product_name: e.target.value })} />
+
+            <div className="sm:col-span-2">
+              <p className="sm:hidden text-xs text-muted-foreground mb-1">Nom</p>
+              {!item.product_id ? (
+                <Input className="h-10 text-sm sm:h-9 sm:text-xs" placeholder="Nom" value={item.product_name} onChange={e => updateItem(idx, { product_name: e.target.value })} />
+              ) : (
+                <span className="text-sm sm:text-xs text-muted-foreground truncate block pt-2">{item.product_name}</span>
               )}
-              {item.product_id && <span className="text-xs text-muted-foreground truncate block pt-2">{item.product_name}</span>}
             </div>
-            <div className="col-span-1">
+
+            <div className="sm:col-span-2">
+              <p className="sm:hidden text-xs text-muted-foreground mb-1">Quantité</p>
               <Input
                 type="number"
                 inputMode="numeric"
                 step="1"
-                className="h-9 text-xs text-center"
+                className="h-10 text-sm sm:h-9 sm:text-xs text-right font-mono tabular-nums"
                 value={item.quantity}
                 onChange={e => updateItem(idx, { quantity: e.target.value === '' ? 1 : Number(e.target.value) })}
               />
             </div>
-            <div className="col-span-2">
-              <Input type="number" step="0.001" className="h-9 text-xs" value={item.unit_price} onChange={e => updateItem(idx, { unit_price: +e.target.value })} />
+
+            <div className="sm:col-span-2">
+              <p className="sm:hidden text-xs text-muted-foreground mb-1">P.U. HT</p>
+              <Input
+                type="number"
+                step="0.001"
+                className="h-10 text-sm sm:h-9 sm:text-xs text-right font-mono tabular-nums"
+                value={item.unit_price}
+                onChange={e => updateItem(idx, { unit_price: +e.target.value })}
+              />
             </div>
-            <div className="col-span-2 text-xs text-right font-medium pt-2">{formatTND(item.quantity * item.unit_price)}</div>
-            <div className="col-span-1">
-              <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeItem(idx)}>
-                <Trash2 className="h-3 w-3" />
+
+            <div className="sm:col-span-1">
+              <p className="sm:hidden text-xs text-muted-foreground mb-1">Total</p>
+              <div className="h-10 sm:h-9 flex items-center justify-end text-sm sm:text-xs font-medium tabular-nums">
+                {formatTND(item.quantity * item.unit_price)}
+              </div>
+            </div>
+
+            <div className="sm:col-span-1 flex justify-end">
+              <Button type="button" variant="ghost" size="icon" className="h-10 w-10 sm:h-9 sm:w-9" onClick={() => removeItem(idx)}>
+                <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
               </Button>
             </div>
           </div>
