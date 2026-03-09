@@ -84,9 +84,9 @@ function SidebarNavGroup({ group, currentPath, onNavigate }: { group: NavGroup; 
   return (
     <div className="pt-3 first:pt-0">
       <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-1.5 text-xs font-semibold tracking-wider uppercase transition-colors rounded-md hover:bg-sidebar-accent/50 group">
+        <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-sidebar-accent group">
           <GroupIcon className={cn(
-            "h-3.5 w-3.5 shrink-0 transition-colors",
+            "h-4 w-4 shrink-0 transition-colors",
             isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground"
           )} />
           <span className={cn(
@@ -96,7 +96,7 @@ function SidebarNavGroup({ group, currentPath, onNavigate }: { group: NavGroup; 
             {group.label}
           </span>
           <ChevronRight className={cn(
-            "h-3 w-3 transition-transform duration-200",
+            "h-4 w-4 transition-transform duration-200",
             isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted",
             open && "rotate-90"
           )} />
