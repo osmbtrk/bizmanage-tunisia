@@ -44,6 +44,7 @@ export default function ArchivePage() {
   const [exporting, setExporting] = useState(false);
 
   const getSignedUrl = async (storagePath: string) => {
+    // Handle both old public URLs and new file paths
     const marker = '/object/public/archives/';
     const idx = storagePath.indexOf(marker);
     const filePath = idx >= 0 ? storagePath.substring(idx + marker.length) : storagePath;
