@@ -611,10 +611,18 @@ function PurchaseInvoiceForm({
             <SelectTrigger><SelectValue placeholder="Choisir un fournisseur" /></SelectTrigger>
             <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
         <div>
-          <Label>Numéro de facture</Label>
-          <Input value={number} readOnly className="bg-muted font-mono cursor-not-allowed" placeholder={numberLoading ? 'Génération...' : 'FA-2026-0001'} />
+          <Label>Numéro de facture *</Label>
+          <Input
+            value={number}
+            readOnly={!!number && !numberLoading}
+            onChange={(e) => setNumber(e.target.value)}
+            className="font-mono"
+            placeholder={numberLoading ? 'Génération...' : 'FA-2026-0001'}
+          />
+          {!number && !numberLoading && (
+            <p className="mt-1 text-xs text-muted-foreground">Si la génération automatique échoue, vous pouvez saisir le numéro ici.</p>
+          )}
         </div>
         <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
         <div><Label>Date d'échéance</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
