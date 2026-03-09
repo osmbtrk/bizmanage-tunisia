@@ -285,7 +285,7 @@ export default function ArchivePage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs uppercase tracking-wider">Type</p>
-                    <p className="font-medium mt-1">{DOC_LABELS[detail.document_type]}</p>
+                    <p className="font-medium mt-1">{DOC_LABELS[detail.document_type] || detail.document_type}</p>
                   </div>
                 </div>
 
