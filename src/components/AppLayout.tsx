@@ -19,12 +19,14 @@ import { cn } from '@/lib/utils';
 
 interface NavGroup {
   label: string;
+  icon: React.ElementType;
   items: { to: string; icon: React.ElementType; label: string }[];
 }
 
 const navGroups: NavGroup[] = [
   {
     label: 'VENTES',
+    icon: ShoppingCart,
     items: [
       { to: '/pos', icon: ShoppingCart, label: 'Point de Vente' },
       { to: '/factures', icon: FileText, label: 'Factures' },
@@ -34,12 +36,14 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'CLIENTS',
+    icon: Users,
     items: [
       { to: '/clients', icon: Users, label: 'Gestion clients' },
     ],
   },
   {
     label: 'PRODUITS & INVENTAIRE',
+    icon: Package,
     items: [
       { to: '/produits', icon: Package, label: 'Produits' },
       { to: '/categories', icon: FolderTree, label: 'Catégories' },
@@ -49,6 +53,7 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'ACHATS',
+    icon: Truck,
     items: [
       { to: '/fournisseurs', icon: Truck, label: 'Fournisseurs' },
       { to: '/factures-fournisseurs', icon: FileText, label: 'Factures fournisseurs' },
@@ -56,6 +61,7 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'FINANCES',
+    icon: Receipt,
     items: [
       { to: '/depenses', icon: Receipt, label: 'Dépenses' },
       { to: '/taxes', icon: Calculator, label: 'Taxes' },
@@ -73,35 +79,51 @@ const standaloneBottom = [
 function SidebarNavGroup({ group, currentPath, onNavigate }: { group: NavGroup; currentPath: string; onNavigate: () => void }) {
   const isGroupActive = group.items.some(i => currentPath === i.to || (i.to !== '/' && currentPath.startsWith(i.to)));
   const [open, setOpen] = useState(isGroupActive);
+  const GroupIcon = group.icon;
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-[10px] font-semibold tracking-wider text-sidebar-muted/70 uppercase hover:text-sidebar-muted transition-colors">
-        {group.label}
-        <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", open && "rotate-90")} />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-0.5">
-        {group.items.map(item => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ml-1',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-primary'
-                  : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
-              )
-            }
-          >
-            <item.icon className="h-4 w-4 shrink-0" />
-            {item.label}
-          </NavLink>
-        ))}
-      </CollapsibleContent>
-    </Collapsible>
+    <div className="pt-3 first:pt-0">
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-1.5 text-[10px] font-semibold tracking-widest uppercase transition-colors rounded-md hover:bg-sidebar-accent/50 group">
+          <GroupIcon className={cn(
+            "h-3.5 w-3.5 shrink-0 transition-colors",
+            isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted/60 group-hover:text-sidebar-muted"
+          )} />
+          <span className={cn(
+            "flex-1 text-left transition-colors",
+            isGroupActive ? "text-sidebar-primary/80" : "text-sidebar-muted/60 group-hover:text-sidebar-muted"
+          )}>
+            {group.label}
+          </span>
+          <ChevronRight className={cn(
+            "h-3 w-3 transition-transform duration-200",
+            isGroupActive ? "text-sidebar-primary/60" : "text-sidebar-muted/40",
+            open && "rotate-90"
+          )} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-0.5 space-y-0.5 ml-1">
+          {group.items.map(item => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-sidebar-accent text-sidebar-primary'
+                    : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                )
+              }
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              {item.label}
+            </NavLink>
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   );
 }
 
