@@ -12,7 +12,7 @@ import {
   Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote,
   Building2, AlertTriangle, Check, Percent, Hash, ScanBarcode, X
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { clientsApi, productsApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import CheckoutDialog from '@/components/pos/CheckoutDialog';
 
