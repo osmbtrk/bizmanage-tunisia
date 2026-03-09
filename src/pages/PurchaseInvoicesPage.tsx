@@ -558,14 +558,15 @@ function PurchaseInvoiceForm({
             const { error: uploadError } = await archivesApi.uploadArchiveFile(filePath, blob);
             if (uploadError) throw uploadError;
 
-            const { data: urlData } = archivesApi.getArchivePublicUrl(filePath);
+            const { data: urlData, error: urlErr } = await archivesApi.getArchiveAccessUrl(filePath);
+            if (urlErr || !urlData?.signedUrl) throw urlErr || new Error('Failed to get signed URL');
             const { error: insertError } = await archivesApi.insertArchive({
               company_id: companyId,
               document_type: 'facture_achat',
               document_number: generatedNumber,
               client_name: selectedSupplier?.name || 'Inconnu',
               total_amount: total,
-              pdf_file_url: urlData.publicUrl,
+              pdf_file_url: filePath,
               created_by_user: userId,
               invoice_id: null,
             });

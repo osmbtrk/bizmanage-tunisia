@@ -298,12 +298,9 @@ export default function PosPage() {
   const handleCheckout = async () => {
     if (items.length === 0 || !selectedClientId) return;
 
-    // Fetch fresh stock from DB before validating
+    // Fetch fresh stock from DB via API layer before validating
     const productIds = items.filter(i => i.product_id).map(i => i.product_id);
-    const { data: freshProducts } = await supabase
-      .from('products')
-      .select('id, stock, name')
-      .in('id', productIds);
+    const { data: freshProducts } = await productsApi.fetchProductsByIds(productIds);
     const freshMap = new Map((freshProducts ?? []).map(p => [p.id, p]));
 
     const insufficientItems = items.filter(i => {
