@@ -229,19 +229,17 @@ export default function ProductsPage() {
 
   const openBom = async (productId: string) => {
     setBomProductId(productId);
-    const { data } = await supabase.from('bom_items').select('*').eq('finished_product_id', productId);
+    const { data } = await bomApi.fetchBomItems(productId);
     setBomItems((data ?? []).map(b => ({ raw_material_id: b.raw_material_id, quantity: Number(b.quantity), unit_type: b.unit_type })));
     setBomOpen(true);
   };
 
   const saveBom = async () => {
     if (!bomProductId) return;
-    await supabase.from('bom_items').delete().eq('finished_product_id', bomProductId);
-    if (bomItems.length > 0) {
-      await supabase.from('bom_items').insert(
-        bomItems.map(b => ({ finished_product_id: bomProductId, raw_material_id: b.raw_material_id, quantity: b.quantity, unit_type: b.unit_type }))
-      );
-    }
+    await bomApi.replaceBomItems(
+      bomProductId,
+      bomItems.map(b => ({ raw_material_id: b.raw_material_id, quantity: b.quantity, unit_type: b.unit_type }))
+    );
     toast({ title: 'Nomenclature enregistrée' });
     setBomOpen(false);
   };
