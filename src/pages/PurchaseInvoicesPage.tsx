@@ -638,17 +638,18 @@ function PurchaseInvoiceForm({
           </Select>
         </div>
         <div>
-          <Label>Numéro de facture *</Label>
-          <Input
-            value={number}
-            readOnly={!!number && !numberLoading}
-            onChange={(e) => setNumber(e.target.value)}
-            className="font-mono"
-            placeholder={numberLoading ? 'Génération...' : 'FA-2026-0001'}
-          />
-          {!number && !numberLoading && (
-            <p className="mt-1 text-xs text-muted-foreground">Si la génération automatique échoue, vous pouvez saisir le numéro ici.</p>
-          )}
+          <Label>Numéro (auto)</Label>
+          <div className="flex items-center justify-between gap-2 rounded-md border border-input bg-muted/30 px-3 py-2">
+            <span className="font-mono text-sm tabular-nums">
+              {numberLoading ? 'Génération…' : (number || '—')}
+            </span>
+            {!editingInvoice && !numberLoading && !number && (
+              <Button type="button" variant="outline" size="sm" onClick={generateNumber}>
+                Générer
+              </Button>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">Le numéro est généré automatiquement et ne peut pas être modifié.</p>
         </div>
         <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
         <div><Label>Date d'échéance</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
