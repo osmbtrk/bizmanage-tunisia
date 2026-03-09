@@ -66,20 +66,13 @@ export default function PurchaseInvoicesPage() {
   const loadInvoices = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
-    const { data: invs } = await supabase
-      .from('purchase_invoices' as any)
-      .select('*')
-      .eq('company_id', companyId)
-      .order('created_at', { ascending: false });
+    const { data: invs } = await purchaseInvoicesApi.fetchPurchaseInvoices(companyId);
 
     const allInvs = (invs ?? []) as any[];
     
     if (allInvs.length > 0) {
       const ids = allInvs.map((i: any) => i.id);
-      const { data: items } = await supabase
-        .from('purchase_invoice_items' as any)
-        .select('*')
-        .in('purchase_invoice_id', ids);
+      const { data: items } = await purchaseInvoicesApi.fetchPurchaseInvoiceItems(ids);
 
       const allItems = (items ?? []) as any[];
       setInvoices(allInvs.map((inv: any) => ({
@@ -96,19 +89,14 @@ export default function PurchaseInvoicesPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    // Reverse stock if items had products
     const inv = invoices.find(i => i.id === deleteId);
     if (inv) {
       for (const item of inv.items) {
         if (item.product_id) {
-          const { data: product } = await supabase
-            .from('products')
-            .select('stock')
-            .eq('id', item.product_id)
-            .single();
+          const { data: product } = await productsApi.fetchProductStock(item.product_id);
           if (product && companyId) {
-            await supabase.from('products').update({ stock: product.stock - item.quantity }).eq('id', item.product_id);
-            await supabase.from('stock_movements').insert({
+            await productsApi.updateProduct(item.product_id, { stock: product.stock - item.quantity });
+            await stockMovementsApi.insertStockMovement({
               company_id: companyId,
               product_id: item.product_id,
               product_name: item.product_name,
@@ -120,7 +108,7 @@ export default function PurchaseInvoicesPage() {
         }
       }
     }
-    await supabase.from('purchase_invoices' as any).delete().eq('id', deleteId);
+    await purchaseInvoicesApi.deletePurchaseInvoice(deleteId);
     setDeleteId(null);
     setCounter(c => c + 1);
     refreshData();
