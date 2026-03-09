@@ -428,10 +428,8 @@ function PurchaseInvoiceForm({
         // Reverse old stock
         for (const oldItem of editingInvoice.items) {
           if (oldItem.product_id) {
-            const { data: product } = await productsApi.fetchProductStock(oldItem.product_id);
-            if (product) {
-              await productsApi.updateProduct(oldItem.product_id, { stock: Math.max(0, product.stock - oldItem.quantity) });
-            }
+            // Atomic stock reversal for old items
+            await productsApi.adjustStock(oldItem.product_id, -oldItem.quantity);
           }
         }
 
