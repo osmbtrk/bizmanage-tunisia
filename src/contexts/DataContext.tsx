@@ -388,18 +388,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (stockItems && stockItems.length > 0) {
       for (const si of stockItems) {
-        const product = products.find(p => p.id === si.product_id);
-        if (product) {
-          await productsApi.updateProduct(si.product_id, { stock: product.stock + si.quantity });
-          await stockMovementsApi.insertStockMovement({
-            company_id: companyId,
-            product_id: si.product_id,
-            product_name: si.product_name,
-            type: 'in',
-            quantity: si.quantity,
-            reason: `Achat fournisseur - ${data.description}`,
-          });
-        }
+        // Atomic stock increase
+        await productsApi.adjustStock(si.product_id, si.quantity);
+        await stockMovementsApi.insertStockMovement({
+          company_id: companyId,
+          product_id: si.product_id,
+          product_name: si.product_name,
+          type: 'in',
+          quantity: si.quantity,
+          reason: `Achat fournisseur - ${data.description}`,
+        });
       }
     }
 

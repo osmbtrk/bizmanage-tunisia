@@ -509,21 +509,18 @@ function PurchaseInvoiceForm({
         const { error: itemsErr } = await purchaseInvoicesApi.insertPurchaseInvoiceItems(itemsToInsert);
         if (itemsErr) throw itemsErr;
 
-        // Increase stock for products
+        // Increase stock for products using atomic operation
         for (const item of items) {
           if (item.product_id && companyId) {
-            const { data: product } = await productsApi.fetchProductStock(item.product_id);
-            if (product) {
-              await productsApi.updateProduct(item.product_id, { stock: product.stock + item.quantity });
-              await stockMovementsApi.insertStockMovement({
-                company_id: companyId,
-                product_id: item.product_id,
-                product_name: item.product_name,
-                type: 'in',
-                quantity: item.quantity,
-                reason: `Facture fournisseur ${generatedNumber}`,
-              });
-            }
+            await productsApi.adjustStock(item.product_id, item.quantity);
+            await stockMovementsApi.insertStockMovement({
+              company_id: companyId,
+              product_id: item.product_id,
+              product_name: item.product_name,
+              type: 'in',
+              quantity: item.quantity,
+              reason: `Facture fournisseur ${generatedNumber}`,
+            });
           }
         }
 
