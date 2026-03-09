@@ -620,6 +620,7 @@ function PurchaseInvoiceForm({
             <SelectTrigger><SelectValue placeholder="Choisir un fournisseur" /></SelectTrigger>
             <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
+        </div>
         <div>
           <Label>Numéro de facture *</Label>
           <Input
