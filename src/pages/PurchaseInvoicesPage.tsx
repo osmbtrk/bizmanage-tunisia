@@ -54,7 +54,7 @@ const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondar
 };
 
 export default function PurchaseInvoicesPage() {
-  const { companyId } = useAuth();
+  const { companyId, user } = useAuth();
   const { suppliers, products, company, refresh: refreshData } = useData();
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
   const [loading, setLoading] = useState(true);
