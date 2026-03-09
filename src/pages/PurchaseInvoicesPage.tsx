@@ -729,7 +729,7 @@ function PurchaseInvoiceForm({
 
       <div><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
 
-      <Button type="submit" className="w-full" disabled={submitting || numberLoading || !number || items.length === 0}>
+      <Button type="submit" className="w-full" disabled={submitting || items.length === 0}>
         {submitting ? 'Enregistrement...' : editingInvoice ? 'Modifier' : 'Créer la facture'}
       </Button>
     </form>
