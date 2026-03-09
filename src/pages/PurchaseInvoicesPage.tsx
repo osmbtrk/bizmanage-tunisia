@@ -408,11 +408,6 @@ function PurchaseInvoiceForm({
 
     if (!companyId) return;
 
-    if (!number) {
-      toast({ title: 'Numéro en cours', description: 'Veuillez attendre la génération du numéro.', variant: 'destructive' });
-      return;
-    }
-
     if (items.length === 0) {
       toast({ title: 'Articles requis', description: 'Ajoutez au moins un article.', variant: 'destructive' });
       return;
@@ -429,6 +424,7 @@ function PurchaseInvoiceForm({
 
     try {
       if (editingInvoice) {
+        const docNumber = editingInvoice.number;
         // Update existing
         const { error: updateErr } = await supabase.from('purchase_invoices' as any).update({
           supplier_id: supplierId || null,
@@ -482,7 +478,7 @@ function PurchaseInvoiceForm({
                 product_name: item.product_name,
                 type: 'in',
                 quantity: item.quantity,
-                reason: `Facture fournisseur ${number} (modification)`,
+                reason: `Facture fournisseur ${docNumber} (modification)`,
               });
             }
           }
@@ -491,12 +487,24 @@ function PurchaseInvoiceForm({
         toast({ title: 'Facture modifiée avec succès' });
         success = true;
       } else {
+        // Generate number at submit time (safe, sequential, no wasted numbers)
+        const { data: docNumber, error: numErr } = await supabase.rpc('next_document_number', {
+          _company_id: companyId,
+          _doc_type: 'facture_achat',
+        });
+        if (numErr || !docNumber) {
+          toast({ title: 'Erreur de numérotation', description: numErr?.message || 'Impossible de générer le numéro.', variant: 'destructive' });
+          setSubmitting(false);
+          return;
+        }
+        const generatedNumber = docNumber as string;
+
         // Create new
         const { data: inv, error: invErr } = await supabase.from('purchase_invoices' as any).insert({
           company_id: companyId,
           supplier_id: supplierId || null,
           supplier_name: selectedSupplier?.name || 'Inconnu',
-          number,
+          number: generatedNumber,
           date,
           due_date: dueDate || null,
           subtotal,
@@ -535,18 +543,18 @@ function PurchaseInvoiceForm({
                 product_name: item.product_name,
                 type: 'in',
                 quantity: item.quantity,
-                reason: `Facture fournisseur ${number}`,
+                reason: `Facture fournisseur ${generatedNumber}`,
               });
             }
           }
         }
 
-        // Archive the invoice (should never block saving)
+        // Archive the invoice
         try {
           if (companyId && userId) {
             const archiveHtml = buildPurchaseInvoiceHtml(
               {
-                number,
+                number: generatedNumber,
                 date,
                 dueDate: dueDate || null,
                 supplierName: selectedSupplier?.name || 'Inconnu',
@@ -562,7 +570,7 @@ function PurchaseInvoiceForm({
             );
 
             const blob = new Blob([archiveHtml], { type: 'text/html' });
-            const filePath = `${companyId}/facture_achat/${number.replace(/\//g, '-')}.html`;
+            const filePath = `${companyId}/facture_achat/${generatedNumber.replace(/\//g, '-')}.html`;
             const { error: uploadError } = await supabase.storage.from('archives').upload(filePath, blob, { upsert: true, contentType: 'text/html' });
             if (uploadError) throw uploadError;
 
@@ -570,7 +578,7 @@ function PurchaseInvoiceForm({
             const { error: insertError } = await supabase.from('archives').insert({
               company_id: companyId,
               document_type: 'facture_achat',
-              document_number: number,
+              document_number: generatedNumber,
               client_name: selectedSupplier?.name || 'Inconnu',
               total_amount: total,
               pdf_file_url: urlData.publicUrl,
@@ -606,18 +614,14 @@ function PurchaseInvoiceForm({
             <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Numéro (auto)</Label>
-          <div className="flex items-center justify-between gap-2 rounded-md border border-input bg-muted/30 px-3 py-2">
-            <span className="font-mono text-sm tabular-nums">
-              {numberLoading ? 'Génération…' : (number || '—')}
-            </span>
-            {!editingInvoice && !numberLoading && !number && (
-              <Button type="button" variant="outline" size="sm" onClick={generateNumber}>
-                Générer
-              </Button>
-            )}
+        {editingInvoice && (
+          <div>
+            <Label>Numéro</Label>
+            <div className="flex items-center rounded-md border border-input bg-muted/30 px-3 py-2">
+              <span className="font-mono text-sm tabular-nums">{editingInvoice.number}</span>
+            </div>
           </div>
+        )}
           <p className="mt-1 text-xs text-muted-foreground">Le numéro est généré automatiquement et ne peut pas être modifié.</p>
         </div>
         <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
