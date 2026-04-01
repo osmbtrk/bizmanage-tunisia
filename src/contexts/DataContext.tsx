@@ -339,40 +339,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (inv && (inv.type === 'facture' || inv.type === 'bon_livraison')) {
       for (const item of inv.items) {
         if (item.product_id && companyId) {
-          // Atomic stock restoration for finished product
-          const { error: stockErr } = await productsApi.adjustStock(item.product_id, item.quantity);
-          if (!stockErr) {
-            await stockMovementsApi.insertStockMovement({
-              company_id: companyId,
-              product_id: item.product_id,
-              product_name: item.product_name,
-              type: 'in',
-              quantity: item.quantity,
-              reason: `Annulation ${inv.type === 'facture' ? 'Facture' : 'BL'} ${inv.number}`,
-            });
-          }
-
-          // BOM reversal: restore raw materials that were deducted
-          const { data: bomItems } = await bomApi.fetchBomItems(item.product_id);
-          if (bomItems && bomItems.length > 0) {
-            for (const bom of bomItems) {
-              const restoreQty = bom.unit_type === 'percentage'
-                ? Math.ceil((Number(bom.quantity) / 100) * item.quantity)
-                : Number(bom.quantity) * item.quantity;
-
-              const { error: bomErr } = await productsApi.adjustStock(bom.raw_material_id, restoreQty);
-              if (!bomErr) {
-                const { data: rawProducts } = await productsApi.fetchProductsByIds([bom.raw_material_id]);
-                const rawMat = rawProducts?.[0];
-                await stockMovementsApi.insertStockMovement({
-                  company_id: companyId,
-                  product_id: bom.raw_material_id,
-                  product_name: rawMat?.name || 'Matière première',
-                  type: 'in',
-                  quantity: restoreQty,
-                  reason: `Annulation BOM - ${item.product_name} (${inv.type === 'facture' ? 'Facture' : 'BL'} ${inv.number})`,
-                });
-              }
+          // Restore finished product stock only (BOM not deducted on sale)
+          const product = products.find(p => p.id === item.product_id);
+          if (product && product.product_type !== 'service') {
+            const { error: stockErr } = await productsApi.adjustStock(item.product_id, item.quantity);
+            if (!stockErr) {
+              await stockMovementsApi.insertStockMovement({
+                company_id: companyId,
+                product_id: item.product_id,
+                product_name: item.product_name,
+                type: 'in',
+                quantity: item.quantity,
+                reason: `Annulation ${inv.type === 'facture' ? 'Facture' : 'BL'} ${inv.number}`,
+              });
             }
           }
         }
@@ -380,7 +359,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
     await invoicesApi.deleteInvoice(id);
     refresh();
-  }, [invoices, companyId, refresh]);
+  }, [invoices, companyId, products, refresh]);
 
   const addExpense = useCallback(async (
     data: Omit<DbExpense, 'id' | 'company_id' | 'created_at' | 'updated_at'>,
