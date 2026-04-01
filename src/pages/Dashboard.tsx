@@ -11,6 +11,7 @@ import { generateInvoicePdf } from '@/lib/generatePdf';
 import KpiCard from '@/components/dashboard/KpiCard';
 import TopClients from '@/components/dashboard/TopClients';
 import RecentInvoices from '@/components/dashboard/RecentInvoices';
+import StockStatus from '@/components/dashboard/StockStatus';
 import StatusBadge from '@/components/StatusBadge';
 
 export default function Dashboard() {
