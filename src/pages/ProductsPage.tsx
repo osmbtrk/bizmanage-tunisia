@@ -140,8 +140,7 @@ function ProductFormFields({
 export default function ProductsPage() {
   const { products, addProduct, deleteProduct, updateProduct, suppliers, categories } = useData();
   const { toast } = useToast();
-  const [editingStockId, setEditingStockId] = useState<string | null>(null);
-  const [editStock, setEditStock] = useState(0);
+  const [stockAdjustProduct, setStockAdjustProduct] = useState<DbProduct | null>(null);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<DbProduct | null>(null);
