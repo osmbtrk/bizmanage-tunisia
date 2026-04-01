@@ -327,22 +327,16 @@ export default function ProductsPage() {
                   <td className="py-3">{Number(p.selling_price).toFixed(3)} TND</td>
                   <td className="py-3">{p.tva_rate}%</td>
                   <td className="py-3">
-                    {editingStockId === p.id ? (
-                      <div className="flex items-center gap-1">
-                        <Input type="number" min={0} className="h-8 w-20 text-xs" value={editStock} onChange={e => setEditStock(+e.target.value)} />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={() => { updateProduct(p.id, { stock: editStock }); setEditingStockId(null); }}>
-                          <Check className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingStockId(null)}>
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className={`flex items-center gap-1 cursor-pointer ${p.stock <= p.min_stock ? 'text-amber-600 font-semibold' : ''}`} onClick={() => { setEditingStockId(p.id); setEditStock(p.stock); }}>
-                        {p.stock <= p.min_stock && <AlertTriangle className="h-3.5 w-3.5" />}
-                        {p.stock} {p.unit}
-                      </span>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`gap-1 h-auto py-1 px-2 ${p.stock <= p.min_stock ? 'text-warning font-semibold' : ''}`}
+                      onClick={() => setStockAdjustProduct(p)}
+                    >
+                      {p.stock <= p.min_stock && <AlertTriangle className="h-3.5 w-3.5" />}
+                      <BoxIcon className="h-3 w-3" />
+                      {p.stock} {p.unit}
+                    </Button>
                   </td>
                   <td className="py-3">
                     <div className="flex items-center gap-1">
