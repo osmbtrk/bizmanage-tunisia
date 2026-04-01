@@ -70,6 +70,34 @@ export default function StockAdjustDialog({ product, open, onOpenChange }: Stock
         reason: movementReason,
       });
 
+      // BOM: when INCREASING stock of a finished product, deduct raw materials (production)
+      if (delta > 0 && product.product_type === 'finished_product') {
+        const { data: bomItems } = await bomApi.fetchBomItems(product.id);
+        if (bomItems && bomItems.length > 0) {
+          for (const bom of bomItems) {
+            const deductQty = bom.unit_type === 'percentage'
+              ? Math.ceil((Number(bom.quantity) / 100) * delta)
+              : Number(bom.quantity) * delta;
+
+            const { error: rawErr } = await productsApi.adjustStock(bom.raw_material_id, -deductQty);
+            if (rawErr) {
+              toast({ title: 'Alerte matière première', description: rawErr.message, variant: 'destructive' });
+            } else {
+              const { data: rawProducts } = await productsApi.fetchProductsByIds([bom.raw_material_id]);
+              const rawMat = rawProducts?.[0];
+              await stockMovementsApi.insertStockMovement({
+                company_id: companyId,
+                product_id: bom.raw_material_id,
+                product_name: rawMat?.name || 'Matière première',
+                type: 'out',
+                quantity: deductQty,
+                reason: `Production - ${product.name} (${delta} unités)`,
+              });
+            }
+          }
+        }
+      }
+
       toast({ title: 'Stock mis à jour', description: `${product.name}: ${product.stock} → ${product.stock + delta}` });
       refresh();
       onOpenChange(false);
