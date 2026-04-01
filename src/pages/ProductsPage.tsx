@@ -424,6 +424,14 @@ export default function ProductsPage() {
         description="Le produit sera supprimé définitivement. Cette action est irréversible."
         onConfirm={() => { if (deleteTarget) { deleteProduct(deleteTarget); setDeleteTarget(null); } }}
       />
+
+      <StockAdjustDialog
+        product={stockAdjustProduct}
+        open={!!stockAdjustProduct}
+        onOpenChange={(o) => { if (!o) setStockAdjustProduct(null); }}
+      />
     </div>
+  );
+}
   );
 }
