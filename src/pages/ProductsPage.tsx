@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Check, X, Layers } from 'lucide-react';
+import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Layers, BoxIcon } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import StockAdjustDialog from '@/components/products/StockAdjustDialog';
 import { bomApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -139,8 +140,7 @@ function ProductFormFields({
 export default function ProductsPage() {
   const { products, addProduct, deleteProduct, updateProduct, suppliers, categories } = useData();
   const { toast } = useToast();
-  const [editingStockId, setEditingStockId] = useState<string | null>(null);
-  const [editStock, setEditStock] = useState(0);
+  const [stockAdjustProduct, setStockAdjustProduct] = useState<DbProduct | null>(null);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<DbProduct | null>(null);
@@ -327,22 +327,16 @@ export default function ProductsPage() {
                   <td className="py-3">{Number(p.selling_price).toFixed(3)} TND</td>
                   <td className="py-3">{p.tva_rate}%</td>
                   <td className="py-3">
-                    {editingStockId === p.id ? (
-                      <div className="flex items-center gap-1">
-                        <Input type="number" min={0} className="h-8 w-20 text-xs" value={editStock} onChange={e => setEditStock(+e.target.value)} />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={() => { updateProduct(p.id, { stock: editStock }); setEditingStockId(null); }}>
-                          <Check className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingStockId(null)}>
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className={`flex items-center gap-1 cursor-pointer ${p.stock <= p.min_stock ? 'text-amber-600 font-semibold' : ''}`} onClick={() => { setEditingStockId(p.id); setEditStock(p.stock); }}>
-                        {p.stock <= p.min_stock && <AlertTriangle className="h-3.5 w-3.5" />}
-                        {p.stock} {p.unit}
-                      </span>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`gap-1 h-auto py-1 px-2 ${p.stock <= p.min_stock ? 'text-warning font-semibold' : ''}`}
+                      onClick={() => setStockAdjustProduct(p)}
+                    >
+                      {p.stock <= p.min_stock && <AlertTriangle className="h-3.5 w-3.5" />}
+                      <BoxIcon className="h-3 w-3" />
+                      {p.stock} {p.unit}
+                    </Button>
                   </td>
                   <td className="py-3">
                     <div className="flex items-center gap-1">
@@ -429,6 +423,12 @@ export default function ProductsPage() {
         title="Supprimer ce produit ?"
         description="Le produit sera supprimé définitivement. Cette action est irréversible."
         onConfirm={() => { if (deleteTarget) { deleteProduct(deleteTarget); setDeleteTarget(null); } }}
+      />
+
+      <StockAdjustDialog
+        product={stockAdjustProduct}
+        open={!!stockAdjustProduct}
+        onOpenChange={(o) => { if (!o) setStockAdjustProduct(null); }}
       />
     </div>
   );

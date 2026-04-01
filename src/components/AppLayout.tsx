@@ -168,7 +168,7 @@ export default function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin scroll-smooth overscroll-contain">
           {/* Dashboard - standalone */}
           <NavLink
             to={standaloneTop.to}

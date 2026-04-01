@@ -11,6 +11,7 @@ import { generateInvoicePdf } from '@/lib/generatePdf';
 import KpiCard from '@/components/dashboard/KpiCard';
 import TopClients from '@/components/dashboard/TopClients';
 import RecentInvoices from '@/components/dashboard/RecentInvoices';
+import StockStatus from '@/components/dashboard/StockStatus';
 import StatusBadge from '@/components/StatusBadge';
 
 export default function Dashboard() {
@@ -139,37 +140,8 @@ export default function Dashboard() {
         <KpiCard icon={Clock} label="En retard" value={String(stats.overdueCount)} color={stats.overdueCount > 0 ? 'text-destructive' : 'text-muted-foreground'} />
       </div>
 
-      {/* Low Stock Warning */}
-      {stats.lowStockProducts.length > 0 && (
-        <div className="stock-alert-card">
-          <CardContent className="p-5">
-            <div className="flex items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-destructive/15">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-bold text-destructive mb-1">Alerte stock</h3>
-                <p className="text-xs text-muted-foreground mb-3">
-                  {stats.lowStockProducts.length} produit(s) en dessous du seuil minimum
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                  {stats.lowStockProducts.map(p => (
-                    <div key={p.id} className="flex items-center justify-between rounded-lg bg-card border border-destructive/20 px-3 py-2.5 text-sm transition-colors duration-200 hover:border-destructive/40">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className={`h-2 w-2 rounded-full shrink-0 ${p.stock <= 0 ? 'bg-destructive' : 'bg-warning'}`} />
-                        <span className="truncate font-medium text-foreground">{p.name}</span>
-                      </div>
-                      <span className={`ml-3 font-bold whitespace-nowrap tabular-nums ${p.stock <= 0 ? 'text-destructive' : 'text-warning'}`}>
-                        {p.stock} {p.unit}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </div>
-      )}
+      {/* Stock Status - always visible */}
+      <StockStatus products={products} />
 
       {/* Charts Row */}
       <div className="grid gap-6 lg:grid-cols-3">
