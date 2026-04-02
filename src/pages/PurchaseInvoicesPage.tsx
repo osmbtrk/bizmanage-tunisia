@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { purchaseInvoicesApi, productsApi, stockMovementsApi, documentsApi, archivesApi } from '@/services/api';
+import { purchaseInvoicesApi, productsApi, stockMovementsApi, documentsApi, archivesApi, expensesApi } from '@/services/api';
+import InvoiceOCRUpload from '@/components/purchase/InvoiceOCRUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
