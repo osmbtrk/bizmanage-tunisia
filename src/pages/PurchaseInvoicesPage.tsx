@@ -605,8 +605,34 @@ function PurchaseInvoiceForm({
     }
   };
 
+  const handleOCRExtracted = (data: any) => {
+    if (data.supplier_name) {
+      const match = suppliers.find(s => s.name.toLowerCase().includes(data.supplier_name.toLowerCase()));
+      if (match) setSupplierId(match.id);
+    }
+    if (data.date) setDate(data.date);
+    if (data.due_date) setDueDate(data.due_date);
+    if (data.items && data.items.length > 0) {
+      setItems(data.items.map((it: any) => {
+        const matchP = products.find(p => p.name.toLowerCase().includes(it.product_name?.toLowerCase() || ''));
+        return {
+          product_id: matchP?.id || null,
+          product_name: it.product_name || '',
+          quantity: it.quantity || 1,
+          unit_price: it.unit_price || 0,
+          tva_rate: it.tva_rate || 19,
+          total: (it.quantity || 1) * (it.unit_price || 0),
+        };
+      }));
+    }
+    if (data.notes) setNotes(data.notes);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!editingInvoice && (
+        <InvoiceOCRUpload onExtracted={handleOCRExtracted} />
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Fournisseur *</Label>
