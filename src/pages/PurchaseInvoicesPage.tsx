@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { purchaseInvoicesApi, productsApi, stockMovementsApi, documentsApi, archivesApi } from '@/services/api';
+import { purchaseInvoicesApi, productsApi, stockMovementsApi, documentsApi, archivesApi, expensesApi } from '@/services/api';
+import InvoiceOCRUpload from '@/components/purchase/InvoiceOCRUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -567,6 +568,31 @@ function PurchaseInvoiceForm({
           toast({ title: 'Archive', description: "La facture a été créée mais l'archivage a échoué.", variant: 'destructive' });
         }
 
+        // Auto-create linked expense record
+        try {
+          const avgTvaRate = items.length > 0
+            ? items.reduce((s, it) => s + it.tva_rate, 0) / items.length
+            : 19;
+          const amountHT = avgTvaRate > 0 ? total / (1 + avgTvaRate / 100) : total;
+          const tvaExpenseAmount = total - amountHT;
+
+          await expensesApi.insertExpense(companyId, {
+            description: `Facture fournisseur ${generatedNumber} — ${selectedSupplier?.name || 'Fournisseur'}`,
+            amount: total,
+            amount_ht: amountHT,
+            tva_amount: tvaExpenseAmount,
+            tva_rate: Math.round(avgTvaRate),
+            date,
+            category: 'Achats fournisseurs',
+            supplier_id: supplierId || null,
+            is_recurring: false,
+            recurrence_period: null,
+          });
+        } catch (expErr: any) {
+          console.error('Auto expense creation error:', expErr);
+          toast({ title: 'Dépense', description: "Facture créée mais la dépense automatique a échoué.", variant: 'destructive' });
+        }
+
         toast({ title: 'Facture créée avec succès' });
         success = true;
       }
@@ -579,8 +605,34 @@ function PurchaseInvoiceForm({
     }
   };
 
+  const handleOCRExtracted = (data: any) => {
+    if (data.supplier_name) {
+      const match = suppliers.find(s => s.name.toLowerCase().includes(data.supplier_name.toLowerCase()));
+      if (match) setSupplierId(match.id);
+    }
+    if (data.date) setDate(data.date);
+    if (data.due_date) setDueDate(data.due_date);
+    if (data.items && data.items.length > 0) {
+      setItems(data.items.map((it: any) => {
+        const matchP = products.find(p => p.name.toLowerCase().includes(it.product_name?.toLowerCase() || ''));
+        return {
+          product_id: matchP?.id || null,
+          product_name: it.product_name || '',
+          quantity: it.quantity || 1,
+          unit_price: it.unit_price || 0,
+          tva_rate: it.tva_rate || 19,
+          total: (it.quantity || 1) * (it.unit_price || 0),
+        };
+      }));
+    }
+    if (data.notes) setNotes(data.notes);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!editingInvoice && (
+        <InvoiceOCRUpload onExtracted={handleOCRExtracted} />
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Fournisseur *</Label>

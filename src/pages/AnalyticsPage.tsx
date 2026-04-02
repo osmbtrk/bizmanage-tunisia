@@ -4,11 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Package } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Package, Users } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 export default function AnalyticsPage() {
-  const { invoices, expenses, products } = useData();
+  const { invoices, expenses, products, clients } = useData();
   const [view, setView] = useState<'monthly' | 'daily'>('monthly');
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   const formatDT = (n: number) => n.toLocaleString('fr-TN', { style: 'currency', currency: 'TND' });
 
@@ -71,6 +75,34 @@ export default function AnalyticsPage() {
     const colors = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--destructive))', 'hsl(var(--warning))', 'hsl(var(--muted-foreground))', 'hsl(210 40% 60%)', 'hsl(280 40% 60%)', 'hsl(160 40% 50%)'];
     return Object.entries(cats).map(([name, value], i) => ({ name, value, fill: colors[i % colors.length] }));
   }, [expenses]);
+
+  // Client analytics
+  const clientAnalytics = useMemo(() => {
+    return clients.map(client => {
+      const clientInvoices = invoices.filter(i => i.client_id === client.id && i.type === 'facture');
+      const clientDevis = invoices.filter(i => i.client_id === client.id && i.type === 'devis');
+      const totalRevenue = clientInvoices.reduce((s, i) => s + Number(i.total), 0);
+      const totalProducts = clientInvoices.reduce((s, i) => s + i.items.reduce((si, it) => si + it.quantity, 0), 0);
+      const avgOrder = clientInvoices.length > 0 ? totalRevenue / clientInvoices.length : 0;
+      const paidCount = clientInvoices.filter(i => i.status === 'paid').length;
+      const paymentRate = clientInvoices.length > 0 ? (paidCount / clientInvoices.length) * 100 : 0;
+
+      return {
+        id: client.id,
+        name: client.name,
+        invoiceCount: clientInvoices.length,
+        devisCount: clientDevis.length,
+        totalRevenue,
+        totalProducts,
+        avgOrder,
+        paymentRate,
+        invoices: clientInvoices,
+        devis: clientDevis,
+      };
+    }).filter(c => c.invoiceCount > 0 || c.devisCount > 0).sort((a, b) => b.totalRevenue - a.totalRevenue);
+  }, [clients, invoices]);
+
+  const selectedClient = selectedClientId ? clientAnalytics.find(c => c.id === selectedClientId) : null;
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -233,6 +265,125 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Client Analytics Section */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <Users className="h-4 w-4 inline mr-1" /> Analytique par client
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {clientAnalytics.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Aucune donnée client</p>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Client</TableHead>
+                    <TableHead className="text-right">Revenus</TableHead>
+                    <TableHead className="text-right">Factures</TableHead>
+                    <TableHead className="text-right">Produits achetés</TableHead>
+                    <TableHead className="text-right">Panier moyen</TableHead>
+                    <TableHead className="text-right">Taux paiement</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {clientAnalytics.map(c => (
+                    <TableRow
+                      key={c.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedClientId(c.id)}
+                    >
+                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatDT(c.totalRevenue)}</TableCell>
+                      <TableCell className="text-right">{c.invoiceCount}</TableCell>
+                      <TableCell className="text-right">{c.totalProducts}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatDT(c.avgOrder)}</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={c.paymentRate >= 80 ? 'default' : c.paymentRate >= 50 ? 'secondary' : 'destructive'}>
+                          {c.paymentRate.toFixed(0)}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Client Detail Dialog */}
+      <Dialog open={!!selectedClient} onOpenChange={o => { if (!o) setSelectedClientId(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {selectedClient && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  {selectedClient.name} — Détails
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {/* Client KPIs */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="rounded-lg border border-border p-3 text-center">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Revenus</p>
+                    <p className="text-lg font-bold tabular-nums">{formatDT(selectedClient.totalRevenue)}</p>
+                  </div>
+                  <div className="rounded-lg border border-border p-3 text-center">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Factures</p>
+                    <p className="text-lg font-bold">{selectedClient.invoiceCount}</p>
+                  </div>
+                  <div className="rounded-lg border border-border p-3 text-center">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Panier moyen</p>
+                    <p className="text-lg font-bold tabular-nums">{formatDT(selectedClient.avgOrder)}</p>
+                  </div>
+                  <div className="rounded-lg border border-border p-3 text-center">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Produits</p>
+                    <p className="text-lg font-bold">{selectedClient.totalProducts}</p>
+                  </div>
+                </div>
+
+                {/* Transaction History */}
+                <div>
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Historique des factures</h3>
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Numéro</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead>Statut</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...selectedClient.invoices, ...selectedClient.devis]
+                          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                          .map(inv => (
+                            <TableRow key={inv.id}>
+                              <TableCell className="font-mono text-sm">{inv.number}</TableCell>
+                              <TableCell>{new Date(inv.date).toLocaleDateString('fr-TN')}</TableCell>
+                              <TableCell className="text-right tabular-nums">{formatDT(Number(inv.total))}</TableCell>
+                              <TableCell>
+                                <Badge variant={inv.status === 'paid' ? 'default' : inv.status === 'partial' ? 'secondary' : 'destructive'}>
+                                  {inv.type === 'devis' ? 'Devis' : inv.status === 'paid' ? 'Payée' : inv.status === 'partial' ? 'Partielle' : 'Impayée'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

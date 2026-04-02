@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Respon
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { generateInvoicePdf } from '@/lib/generatePdf';
 import KpiCard from '@/components/dashboard/KpiCard';
 import TopClients from '@/components/dashboard/TopClients';
@@ -14,20 +15,32 @@ import RecentInvoices from '@/components/dashboard/RecentInvoices';
 import StockStatus from '@/components/dashboard/StockStatus';
 import StatusBadge from '@/components/StatusBadge';
 
+type PeriodFilter = 'monthly' | 'global';
+
 export default function Dashboard() {
   const { invoices, clients, products, expenses, loading, company } = useData();
   const [detailInvoice, setDetailInvoice] = useState<any>(null);
+  const [period, setPeriod] = useState<PeriodFilter>('monthly');
 
   const stats = useMemo(() => {
     const now = new Date();
-    const thisMonth = invoices.filter(i => {
-      const d = new Date(i.date);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && i.type === 'facture';
-    });
+    const isMonthly = period === 'monthly';
 
-    const monthlyRevenue = thisMonth.reduce((s, i) => s + Number(i.total), 0);
-    const monthlyTVA = thisMonth.reduce((s, i) => s + Number(i.tva_total), 0);
-    const monthlyCount = thisMonth.length;
+    const filterByPeriod = <T extends { date: string }>(arr: T[]) => {
+      if (!isMonthly) return arr;
+      return arr.filter(item => {
+        const d = new Date(item.date);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      });
+    };
+
+    const periodFactures = filterByPeriod(invoices.filter(i => i.type === 'facture'));
+    const periodExpenses = filterByPeriod(expenses);
+
+    const revenue = periodFactures.reduce((s, i) => s + Number(i.total), 0);
+    const tva = periodFactures.reduce((s, i) => s + Number(i.tva_total), 0);
+    const count = periodFactures.length;
+    const expenseTotal = periodExpenses.reduce((s, e) => s + Number(e.amount), 0);
 
     const unpaidInvoices = invoices.filter(i => i.type === 'facture' && i.status !== 'paid');
     const unpaidTotal = unpaidInvoices.reduce((s, i) => s + (Number(i.total) - Number(i.paid_amount)), 0);
@@ -38,29 +51,26 @@ export default function Dashboard() {
       return new Date(i.due_date) < now;
     });
 
-    const lowStockProducts = products.filter(p => p.stock <= p.min_stock);
-
-    const monthlyExpenses = expenses.filter(e => {
-      const d = new Date(e.date);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).reduce((s, e) => s + Number(e.amount), 0);
-
-    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevMonthInvoices = invoices.filter(i => {
-      const d = new Date(i.date);
-      return d.getMonth() === prevMonth.getMonth() && d.getFullYear() === prevMonth.getFullYear() && i.type === 'facture';
-    });
-    const prevMonthRevenue = prevMonthInvoices.reduce((s, i) => s + Number(i.total), 0);
-    const revenueGrowth = prevMonthRevenue > 0 ? ((monthlyRevenue - prevMonthRevenue) / prevMonthRevenue) * 100 : 0;
+    // Growth calc (only for monthly)
+    let revenueGrowth = 0;
+    if (isMonthly) {
+      const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevMonthRevenue = invoices
+        .filter(i => {
+          const d = new Date(i.date);
+          return d.getMonth() === prevMonth.getMonth() && d.getFullYear() === prevMonth.getFullYear() && i.type === 'facture';
+        })
+        .reduce((s, i) => s + Number(i.total), 0);
+      revenueGrowth = prevMonthRevenue > 0 ? ((revenue - prevMonthRevenue) / prevMonthRevenue) * 100 : 0;
+    }
 
     return {
-      monthlyRevenue, monthlyTVA, monthlyCount,
+      revenue, tva, count,
       unpaidTotal, unpaidCount: unpaidInvoices.length,
       overdueCount: overdueInvoices.length,
-      lowStockProducts, monthlyExpenses,
-      revenueGrowth,
+      expenseTotal, revenueGrowth,
     };
-  }, [invoices, products, expenses]);
+  }, [invoices, expenses, period]);
 
   const revenueChart = useMemo(() => {
     const now = new Date();
@@ -126,17 +136,26 @@ export default function Dashboard() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Tableau de bord</h1>
-          <p className="text-sm text-muted-foreground mt-1">Vue d'ensemble du mois en cours</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {period === 'monthly' ? 'Vue du mois en cours' : 'Vue globale (tout le temps)'}
+          </p>
         </div>
+        <Select value={period} onValueChange={v => setPeriod(v as PeriodFilter)}>
+          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="monthly">Mensuel</SelectItem>
+            <SelectItem value="global">Global</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard icon={TrendingUp} label="Chiffre d'affaires TTC" value={formatDT(stats.monthlyRevenue)} trend={stats.revenueGrowth} color="text-accent" />
-        <KpiCard icon={TrendingUp} label="Bénéfice net" value={formatDT(stats.monthlyRevenue - stats.monthlyExpenses)} color={stats.monthlyRevenue - stats.monthlyExpenses >= 0 ? 'text-success' : 'text-destructive'} />
-        <KpiCard icon={Receipt} label="Total TVA" value={formatDT(stats.monthlyTVA)} color="text-muted-foreground" />
+        <KpiCard icon={TrendingUp} label="Chiffre d'affaires TTC" value={formatDT(stats.revenue)} trend={period === 'monthly' ? stats.revenueGrowth : undefined} color="text-accent" />
+        <KpiCard icon={TrendingUp} label="Bénéfice net" value={formatDT(stats.revenue - stats.expenseTotal)} color={stats.revenue - stats.expenseTotal >= 0 ? 'text-success' : 'text-destructive'} />
+        <KpiCard icon={Receipt} label="Total TVA" value={formatDT(stats.tva)} color="text-muted-foreground" />
         <KpiCard icon={DollarSign} label="Impayés" value={formatDT(stats.unpaidTotal)} sub={`${stats.unpaidCount} facture(s)`} color="text-destructive" />
-        <KpiCard icon={FileText} label="Factures du mois" value={String(stats.monthlyCount)} color="text-primary" />
+        <KpiCard icon={FileText} label={period === 'monthly' ? 'Factures du mois' : 'Total factures'} value={String(stats.count)} color="text-primary" />
         <KpiCard icon={Clock} label="En retard" value={String(stats.overdueCount)} color={stats.overdueCount > 0 ? 'text-destructive' : 'text-muted-foreground'} />
       </div>
 
