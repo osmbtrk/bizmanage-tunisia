@@ -568,6 +568,31 @@ function PurchaseInvoiceForm({
           toast({ title: 'Archive', description: "La facture a été créée mais l'archivage a échoué.", variant: 'destructive' });
         }
 
+        // Auto-create linked expense record
+        try {
+          const avgTvaRate = items.length > 0
+            ? items.reduce((s, it) => s + it.tva_rate, 0) / items.length
+            : 19;
+          const amountHT = avgTvaRate > 0 ? total / (1 + avgTvaRate / 100) : total;
+          const tvaExpenseAmount = total - amountHT;
+
+          await expensesApi.insertExpense(companyId, {
+            description: `Facture fournisseur ${generatedNumber} — ${selectedSupplier?.name || 'Fournisseur'}`,
+            amount: total,
+            amount_ht: amountHT,
+            tva_amount: tvaExpenseAmount,
+            tva_rate: Math.round(avgTvaRate),
+            date,
+            category: 'Achats fournisseurs',
+            supplier_id: supplierId || null,
+            is_recurring: false,
+            recurrence_period: null,
+          });
+        } catch (expErr: any) {
+          console.error('Auto expense creation error:', expErr);
+          toast({ title: 'Dépense', description: "Facture créée mais la dépense automatique a échoué.", variant: 'destructive' });
+        }
+
         toast({ title: 'Facture créée avec succès' });
         success = true;
       }
