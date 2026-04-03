@@ -86,11 +86,11 @@ const roleLabels: Record<string, string> = {
 
 function SidebarNavGroup({ group, currentPath, onNavigate, canAccess }: { group: NavGroup; currentPath: string; onNavigate: () => void; canAccess: (path: string) => boolean }) {
   const visibleItems = group.items.filter(i => canAccess(i.to));
-  if (visibleItems.length === 0) return null;
-
   const isGroupActive = visibleItems.some(i => currentPath === i.to || (i.to !== '/dashboard' && currentPath.startsWith(i.to)));
   const [open, setOpen] = useState(isGroupActive);
   const GroupIcon = group.icon;
+
+  if (visibleItems.length === 0) return null;
 
   return (
     <div className="pt-1 first:pt-0">
