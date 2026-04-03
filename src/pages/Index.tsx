@@ -1,218 +1,150 @@
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import {
-  FileText, Users, Package, ShoppingCart, BarChart3, Receipt,
-  Truck, Warehouse, ArrowRight, CheckCircle2, Building2, Shield, Zap
-} from 'lucide-react';
-
-const features = [
-  { icon: ShoppingCart, title: 'Point de Vente', desc: 'Interface POS rapide avec gestion du panier, remises et impression de tickets.' },
-  { icon: FileText, title: 'Facturation', desc: 'Factures, devis et bons conformes à la législation tunisienne avec numérotation automatique.' },
-  { icon: Package, title: 'Gestion de Stock', desc: 'Suivi en temps réel, alertes de stock bas, mouvements et nomenclature (BOM).' },
-  { icon: Users, title: 'Clients & Fournisseurs', desc: 'Base de données complète avec historique des transactions et statuts.' },
-  { icon: Receipt, title: 'Dépenses & Finances', desc: 'Suivi des dépenses, calcul automatique de TVA et rapports financiers.' },
-  { icon: BarChart3, title: 'Analytiques', desc: 'Tableaux de bord avec KPIs, graphiques de revenus et classement clients.' },
-];
-
-const benefits = [
-  'Conforme à la réglementation fiscale tunisienne',
-  'Numérotation séquentielle automatique des documents',
-  'Calcul automatique de TVA (0%, 7%, 13%, 19%)',
-  'Archivage numérique des documents avec stockage sécurisé',
-  'Multi-utilisateur avec rôles (admin / employé)',
-  'Mode sombre / clair automatique',
-];
-
-const pricing = [
-  {
-    name: 'Starter',
-    price: 'Gratuit',
-    period: '',
-    features: ['1 utilisateur', '50 factures/mois', 'POS basique', 'Support email'],
-    highlighted: false,
-  },
-  {
-    name: 'Pro',
-    price: '49 TND',
-    period: '/mois',
-    features: ['5 utilisateurs', 'Factures illimitées', 'POS avancé', 'Analytiques', 'Support prioritaire'],
-    highlighted: true,
-  },
-  {
-    name: 'Entreprise',
-    price: '149 TND',
-    period: '/mois',
-    features: ['Utilisateurs illimités', 'Multi-établissement', 'API dédiée', 'Formation incluse', 'Support 24/7'],
-    highlighted: false,
-  },
-];
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Building2, Loader2, FileText, ShoppingCart, Package, BarChart3, ArrowRight } from 'lucide-react';
 
 export default function Index() {
-  const navigate = useNavigate();
+  const { signIn, signUp } = useAuth();
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    if (isLogin) {
+      const { error } = await signIn(email, password);
+      if (error) setError(error);
+    } else {
+      if (password.length < 6) {
+        setError('Le mot de passe doit contenir au moins 6 caractères');
+        setLoading(false);
+        return;
+      }
+      const { error } = await signUp(email, password, fullName);
+      if (error) {
+        setError(error);
+      } else {
+        setSuccess('Compte créé ! Vérifiez votre email pour confirmer votre inscription.');
+      }
+    }
+    setLoading(false);
+  };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
-        <div className="relative mx-auto max-w-6xl px-6 py-20 lg:py-32">
-          <div className="flex flex-col items-center text-center">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+      {/* Left — Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-primary text-primary-foreground flex-col justify-center px-12 xl:px-20 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/80" />
+        <div className="relative z-10 max-w-lg">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20">
+              <Building2 className="h-7 w-7" />
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight">Fatourty</h1>
+          </div>
+          <p className="text-xl text-primary-foreground/90 mb-6 leading-relaxed">
+            La solution de facturation et gestion commerciale conçue pour les entreprises tunisiennes.
+          </p>
+          <p className="text-primary-foreground/70 mb-10">
+            Gérez vos factures, clients, stock et point de vente dans une seule plateforme moderne et intuitive.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4 mb-10">
+            {[
+              { icon: FileText, label: 'Facturation conforme' },
+              { icon: ShoppingCart, label: 'Point de Vente' },
+              { icon: Package, label: 'Gestion de Stock' },
+              { icon: BarChart3, label: 'Analytiques' },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg bg-primary-foreground/10 p-3 backdrop-blur-sm border border-primary-foreground/10">
+                <item.icon className="h-5 w-5 shrink-0" />
+                <span className="text-sm font-medium">{item.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <Link to="/landing" className="inline-flex items-center gap-2 text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors">
+            Découvrir toutes les fonctionnalités <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Right — Auth Form */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+        <div className="w-full max-w-md">
+          {/* Mobile branding */}
+          <div className="lg:hidden text-center mb-8">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
                 <Building2 className="h-7 w-7 text-primary-foreground" />
               </div>
-              <h1 className="text-4xl lg:text-5xl font-bold tracking-tight">Fatourty</h1>
+              <h1 className="text-3xl font-bold text-foreground">Fatourty</h1>
             </div>
-            <p className="text-xl lg:text-2xl text-muted-foreground max-w-2xl mb-4">
-              La solution de facturation et gestion commerciale conçue pour les entreprises tunisiennes.
-            </p>
-            <p className="text-base text-muted-foreground max-w-xl mb-8">
-              Gérez vos factures, clients, stock et point de vente dans une seule plateforme moderne et intuitive.
-            </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Button size="lg" className="gap-2 text-base px-8" onClick={() => navigate('/auth')}>
-                Commencer gratuitement <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button size="lg" variant="outline" className="gap-2 text-base px-8" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
-                Découvrir les fonctionnalités
-              </Button>
-            </div>
+            <p className="text-muted-foreground text-sm">Facturation conforme à la législation tunisienne</p>
           </div>
-        </div>
-      </section>
 
-      {/* Features */}
-      <section id="features" className="mx-auto max-w-6xl px-6 py-20">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold mb-3">Tout ce dont vous avez besoin</h2>
-          <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-            Une suite complète d'outils pour gérer votre activité commerciale au quotidien.
-          </p>
-        </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((f, i) => (
-            <div key={i} className="group rounded-xl border border-border bg-card p-6 transition-all duration-200 hover:shadow-lg hover:border-primary/30">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 mb-4 group-hover:bg-primary/20 transition-colors">
-                <f.icon className="h-5 w-5 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+          <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
+            <h2 className="text-xl font-semibold mb-1 text-center">
+              {isLogin ? 'Connexion' : 'Créer un compte'}
+            </h2>
+            <p className="text-sm text-muted-foreground text-center mb-6">
+              {isLogin ? 'Accédez à votre espace de gestion' : 'Commencez gratuitement'}
+            </p>
 
-      {/* Benefits */}
-      <section className="bg-muted/50 border-y border-border">
-        <div className="mx-auto max-w-6xl px-6 py-20">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-3xl font-bold mb-3">Conçu pour la Tunisie</h2>
-              <p className="text-muted-foreground text-lg mb-8">
-                Fatourty respecte les exigences fiscales et comptables tunisiennes dès le départ.
-              </p>
-              <div className="space-y-3">
-                {benefits.map((b, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                    <span className="text-sm">{b}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-xl border border-border bg-card p-6 text-center">
-                <Shield className="h-8 w-8 text-primary mx-auto mb-3" />
-                <p className="font-bold text-2xl">RLS</p>
-                <p className="text-xs text-muted-foreground mt-1">Sécurité par défaut</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-6 text-center">
-                <Zap className="h-8 w-8 text-accent mx-auto mb-3" />
-                <p className="font-bold text-2xl">&lt;1s</p>
-                <p className="text-xs text-muted-foreground mt-1">Temps de réponse</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-6 text-center">
-                <Warehouse className="h-8 w-8 text-primary mx-auto mb-3" />
-                <p className="font-bold text-2xl">BOM</p>
-                <p className="text-xs text-muted-foreground mt-1">Nomenclature intégrée</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-6 text-center">
-                <Truck className="h-8 w-8 text-accent mx-auto mb-3" />
-                <p className="font-bold text-2xl">360°</p>
-                <p className="text-xs text-muted-foreground mt-1">Vue complète</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold mb-3">Tarification simple</h2>
-          <p className="text-muted-foreground text-lg">Choisissez le plan adapté à votre activité.</p>
-        </div>
-        <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto">
-          {pricing.map((plan, i) => (
-            <div
-              key={i}
-              className={`rounded-xl border p-6 flex flex-col ${
-                plan.highlighted
-                  ? 'border-primary bg-primary/5 shadow-lg ring-1 ring-primary/20'
-                  : 'border-border bg-card'
-              }`}
-            >
-              {plan.highlighted && (
-                <span className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">Populaire</span>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div>
+                  <Label>Nom complet</Label>
+                  <Input required value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Votre nom" />
+                </div>
               )}
-              <h3 className="text-lg font-bold">{plan.name}</h3>
-              <div className="mt-3 mb-6">
-                <span className="text-3xl font-bold">{plan.price}</span>
-                {plan.period && <span className="text-muted-foreground">{plan.period}</span>}
+              <div>
+                <Label>Email</Label>
+                <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="votre@email.com" />
               </div>
-              <ul className="space-y-2 flex-1 mb-6">
-                {plan.features.map((f, j) => (
-                  <li key={j} className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Button
-                variant={plan.highlighted ? 'default' : 'outline'}
-                className="w-full"
-                onClick={() => navigate('/auth')}
-              >
-                {plan.price === 'Gratuit' ? 'Commencer' : 'Essai gratuit'}
+              <div>
+                <Label>Mot de passe</Label>
+                <Input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" minLength={6} />
+              </div>
+
+              {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
+              {success && <p className="text-sm text-success bg-success/10 rounded-lg px-3 py-2">{success}</p>}
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLogin ? 'Se connecter' : "S'inscrire"}
               </Button>
+            </form>
+
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => { setIsLogin(!isLogin); setError(''); setSuccess(''); }}
+                className="text-sm text-primary hover:underline"
+              >
+                {isLogin ? "Pas de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'}
+              </button>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="bg-primary text-primary-foreground">
-        <div className="mx-auto max-w-4xl px-6 py-16 text-center">
-          <h2 className="text-3xl font-bold mb-4">Prêt à simplifier votre gestion ?</h2>
-          <p className="text-primary-foreground/80 text-lg mb-8 max-w-xl mx-auto">
-            Rejoignez les entreprises tunisiennes qui font confiance à Fatourty pour leur facturation et gestion commerciale.
-          </p>
-          <Button size="lg" variant="secondary" className="gap-2 text-base px-8" onClick={() => navigate('/auth')}>
-            Créer mon compte <ArrowRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border bg-card">
-        <div className="mx-auto max-w-6xl px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-primary" />
-            <span className="font-semibold">Fatourty</span>
           </div>
-          <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Fatourty — Facturation Tunisie. Tous droits réservés.</p>
+
+          <div className="mt-4 text-center">
+            <Link to="/landing" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Découvrir Fatourty →
+            </Link>
+          </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }
