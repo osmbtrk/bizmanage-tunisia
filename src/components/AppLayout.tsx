@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Users, Package, Truck,
   Receipt, Menu, X, Settings, LogOut, User, ChevronDown, Plus, ShoppingCart, BarChart3,
@@ -7,6 +7,7 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
@@ -70,51 +71,45 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-const standaloneTop = { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' };
+const standaloneTop = { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' };
 const standaloneBottom = [
   { to: '/analytiques', icon: BarChart3, label: 'Analytiques' },
   { to: '/parametres', icon: Settings, label: 'Paramètres' },
 ];
 
-function SidebarNavGroup({ group, currentPath, onNavigate }: { group: NavGroup; currentPath: string; onNavigate: () => void }) {
-  const isGroupActive = group.items.some(i => currentPath === i.to || (i.to !== '/' && currentPath.startsWith(i.to)));
+const roleLabels: Record<string, string> = {
+  admin: 'Administrateur',
+  employee: 'Employé',
+  cashier: 'Caissier',
+  accountant: 'Comptable',
+};
+
+function SidebarNavGroup({ group, currentPath, onNavigate, canAccess }: { group: NavGroup; currentPath: string; onNavigate: () => void; canAccess: (path: string) => boolean }) {
+  const visibleItems = group.items.filter(i => canAccess(i.to));
+  const isGroupActive = visibleItems.some(i => currentPath === i.to || (i.to !== '/dashboard' && currentPath.startsWith(i.to)));
   const [open, setOpen] = useState(isGroupActive);
   const GroupIcon = group.icon;
+
+  if (visibleItems.length === 0) return null;
 
   return (
     <div className="pt-1 first:pt-0">
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-sidebar-accent group whitespace-nowrap">
-          <GroupIcon className={cn(
-            "h-4 w-4 shrink-0 transition-colors",
-            isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground"
-          )} />
-          <span className={cn(
-            "flex-1 text-left transition-colors",
-            isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground"
-          )}>
-            {group.label}
-          </span>
-          <ChevronRight className={cn(
-            "h-4 w-4 transition-transform duration-200",
-            isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted",
-            open && "rotate-90"
-          )} />
+          <GroupIcon className={cn("h-4 w-4 shrink-0 transition-colors", isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground")} />
+          <span className={cn("flex-1 text-left transition-colors", isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground")}>{group.label}</span>
+          <ChevronRight className={cn("h-4 w-4 transition-transform duration-200", isGroupActive ? "text-sidebar-primary" : "text-sidebar-muted", open && "rotate-90")} />
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-0.5 space-y-0.5 ml-1">
-          {group.items.map(item => (
+          {visibleItems.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
+              end={item.to === '/dashboard'}
               onClick={onNavigate}
               className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-sidebar-accent text-sidebar-primary'
-                    : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
-                )
+                cn('flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  isActive ? 'bg-sidebar-accent text-sidebar-primary' : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground')
               }
             >
               <item.icon className="h-4 w-4 shrink-0" />
@@ -131,18 +126,21 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [createDialog, setCreateDialog] = useState<GlobalDialogType>(null);
   const { profile, role, signOut } = useAuth();
+  const { canAccess } = useRoleAccess();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Redirect unauthorized page access
+  if (!canAccess(location.pathname) && location.pathname !== '/dashboard') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm lg:hidden"
-          onClick={closeSidebar}
-        />
+        <div className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm lg:hidden" onClick={closeSidebar} />
       )}
 
       <aside className={cn(
@@ -151,7 +149,6 @@ export default function AppLayout() {
         'lg:relative lg:translate-x-0 flex flex-col',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
@@ -167,45 +164,33 @@ export default function AppLayout() {
           </button>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin scroll-smooth overscroll-contain">
-          {/* Dashboard - standalone */}
           <NavLink
             to={standaloneTop.to}
             end
             onClick={closeSidebar}
             className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-primary'
-                  : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
-              )
+              cn('flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                isActive ? 'bg-sidebar-accent text-sidebar-primary' : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground')
             }
           >
             <standaloneTop.icon className="h-4.5 w-4.5 shrink-0" />
             {standaloneTop.label}
           </NavLink>
 
-          {/* Grouped sections */}
           {navGroups.map(group => (
-            <SidebarNavGroup key={group.label} group={group} currentPath={location.pathname} onNavigate={closeSidebar} />
+            <SidebarNavGroup key={group.label} group={group} currentPath={location.pathname} onNavigate={closeSidebar} canAccess={canAccess} />
           ))}
 
-          {/* Bottom standalone items */}
           <div className="pt-2 border-t border-sidebar-border mt-2 space-y-0.5">
-            {standaloneBottom.map(item => (
+            {standaloneBottom.filter(item => canAccess(item.to)).map(item => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 onClick={closeSidebar}
                 className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-sidebar-accent text-sidebar-primary'
-                      : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground'
-                  )
+                  cn('flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    isActive ? 'bg-sidebar-accent text-sidebar-primary' : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground')
                 }
               >
                 <item.icon className="h-4.5 w-4.5 shrink-0" />
@@ -215,7 +200,6 @@ export default function AppLayout() {
           </div>
         </nav>
 
-        {/* User info */}
         <div className="p-4 border-t border-sidebar-border shrink-0">
           <div className="flex items-center gap-3 px-2">
             <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center">
@@ -223,7 +207,7 @@ export default function AppLayout() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-sidebar-foreground truncate">{profile?.full_name || profile?.email}</p>
-              <p className="text-xs text-sidebar-muted capitalize">{role || 'utilisateur'}</p>
+              <p className="text-xs text-sidebar-muted">{roleLabels[role || ''] || 'Utilisateur'}</p>
             </div>
           </div>
         </div>
@@ -231,20 +215,19 @@ export default function AppLayout() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center gap-4 border-b border-border bg-card px-4 py-3 lg:px-6">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden text-muted-foreground hover:text-foreground"
-          >
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-muted-foreground hover:text-foreground">
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex-1" />
 
           <ThemeToggle />
 
-          <Button variant="outline" size="sm" className="gap-1.5 transition-colors duration-200" onClick={() => navigate('/pos')}>
-            <ShoppingCart className="h-4 w-4" />
-            <span className="hidden sm:inline">POS</span>
-          </Button>
+          {canAccess('/pos') && (
+            <Button variant="outline" size="sm" className="gap-1.5 transition-colors duration-200" onClick={() => navigate('/pos')}>
+              <ShoppingCart className="h-4 w-4" />
+              <span className="hidden sm:inline">POS</span>
+            </Button>
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -254,19 +237,27 @@ export default function AppLayout() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => setCreateDialog('facture')} className="cursor-pointer">
-                <FileText className="h-4 w-4 mr-2" /> Nouvelle Facture
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCreateDialog('devis')} className="cursor-pointer">
-                <FileText className="h-4 w-4 mr-2" /> Nouveau Devis
-              </DropdownMenuItem>
+              {canAccess('/factures') && (
+                <DropdownMenuItem onClick={() => setCreateDialog('facture')} className="cursor-pointer">
+                  <FileText className="h-4 w-4 mr-2" /> Nouvelle Facture
+                </DropdownMenuItem>
+              )}
+              {canAccess('/devis') && (
+                <DropdownMenuItem onClick={() => setCreateDialog('devis')} className="cursor-pointer">
+                  <FileText className="h-4 w-4 mr-2" /> Nouveau Devis
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setCreateDialog('client')} className="cursor-pointer">
-                <Users className="h-4 w-4 mr-2" /> Nouveau Client
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCreateDialog('product')} className="cursor-pointer">
-                <PackageIcon className="h-4 w-4 mr-2" /> Nouveau Produit
-              </DropdownMenuItem>
+              {canAccess('/clients') && (
+                <DropdownMenuItem onClick={() => setCreateDialog('client')} className="cursor-pointer">
+                  <Users className="h-4 w-4 mr-2" /> Nouveau Client
+                </DropdownMenuItem>
+              )}
+              {canAccess('/produits') && (
+                <DropdownMenuItem onClick={() => setCreateDialog('product')} className="cursor-pointer">
+                  <PackageIcon className="h-4 w-4 mr-2" /> Nouveau Produit
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -282,14 +273,16 @@ export default function AppLayout() {
               <div className="px-2 py-1.5 text-xs text-muted-foreground">
                 {profile?.email}
                 <br />
-                <span className="capitalize font-medium">{role}</span>
+                <span className="capitalize font-medium">{roleLabels[role || ''] || role}</span>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <NavLink to="/parametres" className="flex items-center gap-2 cursor-pointer">
-                  <Settings className="h-4 w-4" /> Paramètres
-                </NavLink>
-              </DropdownMenuItem>
+              {canAccess('/parametres') && (
+                <DropdownMenuItem asChild>
+                  <NavLink to="/parametres" className="flex items-center gap-2 cursor-pointer">
+                    <Settings className="h-4 w-4" /> Paramètres
+                  </NavLink>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
                 <LogOut className="h-4 w-4 mr-2" /> Déconnexion

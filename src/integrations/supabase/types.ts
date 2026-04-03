@@ -872,7 +872,7 @@ export type Database = {
       validate_stock_availability: { Args: { _items: Json }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "employee"
+      app_role: "admin" | "employee" | "cashier" | "accountant"
       category_type: "normal" | "matiere_premiere"
       client_status: "active" | "inactive"
       legal_form:
@@ -1011,7 +1011,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "employee"],
+      app_role: ["admin", "employee", "cashier", "accountant"],
       category_type: ["normal", "matiere_premiere"],
       client_status: ["active", "inactive"],
       legal_form: [

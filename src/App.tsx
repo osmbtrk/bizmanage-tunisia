@@ -23,7 +23,8 @@ import SettingsPage from "@/pages/SettingsPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import ArchivePage from "@/pages/ArchivePage";
 import PaymentsPage from "@/pages/PaymentsPage";
-import AuthPage from "@/pages/AuthPage";
+import Index from "@/pages/Index";
+import LandingPage from "@/pages/LandingPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -40,13 +41,13 @@ function ProtectedRoutes() {
     );
   }
 
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/" replace />;
 
   return (
     <DataProvider>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/pos" element={<PosPage />} />
           <Route path="/factures" element={<InvoicesPage docType="facture" title="Factures" />} />
           <Route path="/devis" element={<InvoicesPage docType="devis" title="Devis" />} />
@@ -79,8 +80,21 @@ function AuthRoute() {
       </div>
     );
   }
-  if (user) return <Navigate to="/" replace />;
-  return <AuthPage />;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <Index />;
+}
+
+function LandingRoute() {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <LandingPage />;
 }
 
 const App = () => (
@@ -92,7 +106,8 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/auth" element={<AuthRoute />} />
+              <Route path="/" element={<AuthRoute />} />
+              <Route path="/landing" element={<LandingRoute />} />
               <Route path="/*" element={<ProtectedRoutes />} />
             </Routes>
           </BrowserRouter>

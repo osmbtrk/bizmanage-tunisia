@@ -45,14 +45,13 @@ export default function AnalyticsPage() {
     }
   }, [invoices, expenses, view]);
 
-  // Totals
   const totals = useMemo(() => {
     const totalRevenue = invoices.filter(i => i.type === 'facture').reduce((s, i) => s + Number(i.total), 0);
     const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount), 0);
     return { revenue: totalRevenue, expenses: totalExpenses, profit: totalRevenue - totalExpenses };
   }, [invoices, expenses]);
 
-  // Best selling products
+  // Best selling products (by qty and revenue)
   const bestProducts = useMemo(() => {
     const productSales: Record<string, { name: string; qty: number; revenue: number }> = {};
     invoices.filter(i => i.type === 'facture').forEach(inv => {
@@ -66,17 +65,49 @@ export default function AnalyticsPage() {
     return Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
   }, [invoices]);
 
+  // Profit per product (revenue - cost)
+  const profitPerProduct = useMemo(() => {
+    const productMap: Record<string, { name: string; revenue: number; cost: number; qty: number }> = {};
+    invoices.filter(i => i.type === 'facture').forEach(inv => {
+      inv.items.forEach(item => {
+        const key = item.product_name;
+        if (!productMap[key]) productMap[key] = { name: key, revenue: 0, cost: 0, qty: 0 };
+        productMap[key].revenue += Number(item.total);
+        productMap[key].qty += item.quantity;
+        // Find product purchase price
+        const prod = products.find(p => p.id === item.product_id);
+        if (prod) {
+          productMap[key].cost += item.quantity * Number(prod.purchase_price);
+        }
+      });
+    });
+    return Object.values(productMap)
+      .map(p => ({ ...p, profit: p.revenue - p.cost, margin: p.revenue > 0 ? ((p.revenue - p.cost) / p.revenue * 100) : 0 }))
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 10);
+  }, [invoices, products]);
+
+  // Top clients by revenue
+  const topClients = useMemo(() => {
+    const clientRevenue: Record<string, { name: string; revenue: number; invoiceCount: number }> = {};
+    invoices.filter(i => i.type === 'facture').forEach(inv => {
+      const key = inv.client_name;
+      if (!clientRevenue[key]) clientRevenue[key] = { name: key, revenue: 0, invoiceCount: 0 };
+      clientRevenue[key].revenue += Number(inv.total);
+      clientRevenue[key].invoiceCount += 1;
+    });
+    return Object.values(clientRevenue).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+  }, [invoices]);
+
   // Expense by category
   const expenseByCategory = useMemo(() => {
     const cats: Record<string, number> = {};
-    expenses.forEach(e => {
-      cats[e.category] = (cats[e.category] || 0) + Number(e.amount);
-    });
+    expenses.forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount); });
     const colors = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--destructive))', 'hsl(var(--warning))', 'hsl(var(--muted-foreground))', 'hsl(210 40% 60%)', 'hsl(280 40% 60%)', 'hsl(160 40% 50%)'];
     return Object.entries(cats).map(([name, value], i) => ({ name, value, fill: colors[i % colors.length] }));
   }, [expenses]);
 
-  // Client analytics
+  // Client analytics (detailed)
   const clientAnalytics = useMemo(() => {
     return clients.map(client => {
       const clientInvoices = invoices.filter(i => i.client_id === client.id && i.type === 'facture');
@@ -86,19 +117,7 @@ export default function AnalyticsPage() {
       const avgOrder = clientInvoices.length > 0 ? totalRevenue / clientInvoices.length : 0;
       const paidCount = clientInvoices.filter(i => i.status === 'paid').length;
       const paymentRate = clientInvoices.length > 0 ? (paidCount / clientInvoices.length) * 100 : 0;
-
-      return {
-        id: client.id,
-        name: client.name,
-        invoiceCount: clientInvoices.length,
-        devisCount: clientDevis.length,
-        totalRevenue,
-        totalProducts,
-        avgOrder,
-        paymentRate,
-        invoices: clientInvoices,
-        devis: clientDevis,
-      };
+      return { id: client.id, name: client.name, invoiceCount: clientInvoices.length, devisCount: clientDevis.length, totalRevenue, totalProducts, avgOrder, paymentRate, invoices: clientInvoices, devis: clientDevis };
     }).filter(c => c.invoiceCount > 0 || c.devisCount > 0).sort((a, b) => b.totalRevenue - a.totalRevenue);
   }, [clients, invoices]);
 
@@ -143,10 +162,10 @@ export default function AnalyticsPage() {
         <Card className="transition-all duration-200 hover:shadow-md">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <DollarSign className={`h-4 w-4 ${totals.profit >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`} />
+              <DollarSign className={`h-4 w-4 ${totals.profit >= 0 ? 'text-success' : 'text-destructive'}`} />
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Bénéfice net</p>
             </div>
-            <p className={`text-2xl font-bold tabular-nums ${totals.profit >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>{formatDT(totals.profit)}</p>
+            <p className={`text-2xl font-bold tabular-nums ${totals.profit >= 0 ? 'text-success' : 'text-destructive'}`}>{formatDT(totals.profit)}</p>
           </CardContent>
         </Card>
       </div>
@@ -159,10 +178,7 @@ export default function AnalyticsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={{
-            revenue: { label: 'Revenus', color: 'hsl(var(--accent))' },
-            expenses: { label: 'Dépenses', color: 'hsl(var(--destructive))' },
-          }} className="h-[300px] w-full">
+          <ChartContainer config={{ revenue: { label: 'Revenus', color: 'hsl(var(--accent))' }, expenses: { label: 'Dépenses', color: 'hsl(var(--destructive))' } }} className="h-[300px] w-full">
             <BarChart data={timeData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="label" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
@@ -175,7 +191,7 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      {/* Profit Chart */}
+      {/* Net Profit Evolution */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -183,9 +199,7 @@ export default function AnalyticsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={{
-            profit: { label: 'Bénéfice', color: 'hsl(var(--success))' },
-          }} className="h-[250px] w-full">
+          <ChartContainer config={{ profit: { label: 'Bénéfice', color: 'hsl(var(--success))' } }} className="h-[250px] w-full">
             <LineChart data={timeData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="label" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
@@ -220,6 +234,73 @@ export default function AnalyticsPage() {
                       </div>
                     </div>
                     <span className="text-sm font-semibold tabular-nums">{formatDT(p.revenue)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Profit per Product */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              <DollarSign className="h-4 w-4 inline mr-1" /> Bénéfice par produit
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {profitPerProduct.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Aucune donnée</p>
+            ) : (
+              <div className="space-y-3">
+                {profitPerProduct.map((p, i) => (
+                  <div key={i} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground shrink-0">{i + 1}</span>
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium truncate block">{p.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          Revenu: {formatDT(p.revenue)} · Coût: {formatDT(p.cost)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 ml-2">
+                      <span className={`text-sm font-semibold tabular-nums block ${p.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {formatDT(p.profit)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{p.margin.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Top Clients */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              <Users className="h-4 w-4 inline mr-1" /> Top clients (par revenus)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topClients.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Aucun client</p>
+            ) : (
+              <div className="space-y-3">
+                {topClients.map((c, i) => (
+                  <div key={i} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground">{i + 1}</span>
+                      <div>
+                        <span className="text-sm font-medium">{c.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">{c.invoiceCount} factures</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold tabular-nums">{formatDT(c.revenue)}</span>
                   </div>
                 ))}
               </div>
@@ -266,7 +347,7 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* Client Analytics Section */}
+      {/* Client Analytics Table */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -291,11 +372,7 @@ export default function AnalyticsPage() {
                 </TableHeader>
                 <TableBody>
                   {clientAnalytics.map(c => (
-                    <TableRow
-                      key={c.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => setSelectedClientId(c.id)}
-                    >
+                    <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedClientId(c.id)}>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatDT(c.totalRevenue)}</TableCell>
                       <TableCell className="text-right">{c.invoiceCount}</TableCell>
@@ -327,7 +404,6 @@ export default function AnalyticsPage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                {/* Client KPIs */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="rounded-lg border border-border p-3 text-center">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Revenus</p>
@@ -347,7 +423,6 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
 
-                {/* Transaction History */}
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Historique des factures</h3>
                   <div className="rounded-lg border border-border overflow-hidden">
@@ -361,24 +436,48 @@ export default function AnalyticsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {[...selectedClient.invoices, ...selectedClient.devis]
-                          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                          .map(inv => (
-                            <TableRow key={inv.id}>
-                              <TableCell className="font-mono text-sm">{inv.number}</TableCell>
-                              <TableCell>{new Date(inv.date).toLocaleDateString('fr-TN')}</TableCell>
-                              <TableCell className="text-right tabular-nums">{formatDT(Number(inv.total))}</TableCell>
-                              <TableCell>
-                                <Badge variant={inv.status === 'paid' ? 'default' : inv.status === 'partial' ? 'secondary' : 'destructive'}>
-                                  {inv.type === 'devis' ? 'Devis' : inv.status === 'paid' ? 'Payée' : inv.status === 'partial' ? 'Partielle' : 'Impayée'}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                        {selectedClient.invoices.map(inv => (
+                          <TableRow key={inv.id}>
+                            <TableCell className="font-mono text-sm">{inv.number}</TableCell>
+                            <TableCell>{new Date(inv.date).toLocaleDateString('fr-TN')}</TableCell>
+                            <TableCell className="text-right tabular-nums">{formatDT(Number(inv.total))}</TableCell>
+                            <TableCell>
+                              <Badge variant={inv.status === 'paid' ? 'default' : inv.status === 'partial' ? 'secondary' : 'destructive'}>
+                                {inv.status === 'paid' ? 'Payée' : inv.status === 'partial' ? 'Partielle' : 'Impayée'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
                       </TableBody>
                     </Table>
                   </div>
                 </div>
+
+                {selectedClient.devis.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Devis</h3>
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Numéro</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedClient.devis.map(d => (
+                            <TableRow key={d.id}>
+                              <TableCell className="font-mono text-sm">{d.number}</TableCell>
+                              <TableCell>{new Date(d.date).toLocaleDateString('fr-TN')}</TableCell>
+                              <TableCell className="text-right tabular-nums">{formatDT(Number(d.total))}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

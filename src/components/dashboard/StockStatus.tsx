@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Package, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Package, AlertTriangle, CheckCircle2, XCircle, ChevronDown } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type DbProduct = Database['public']['Tables']['products']['Row'];
@@ -11,16 +12,32 @@ interface StockStatusProps {
 }
 
 export default function StockStatus({ products }: StockStatusProps) {
-  const { outOfStock, lowStock, okStock } = useMemo(() => {
+  const [showAll, setShowAll] = useState(false);
+
+  const { outOfStock, lowStock, okStock, sortedCritical } = useMemo(() => {
     const nonService = products.filter(p => p.product_type !== 'service');
-    return {
-      outOfStock: nonService.filter(p => p.stock <= 0),
-      lowStock: nonService.filter(p => p.stock > 0 && p.stock <= p.min_stock),
-      okStock: nonService.filter(p => p.stock > p.min_stock),
-    };
+    const out = nonService.filter(p => p.stock <= 0);
+    const low = nonService.filter(p => p.stock > 0 && p.stock <= p.min_stock);
+    const ok = nonService.filter(p => p.stock > p.min_stock);
+
+    // Sort: out of stock first (by name), then low stock (by stock asc)
+    const sorted = [
+      ...out.sort((a, b) => a.name.localeCompare(b.name)),
+      ...low.sort((a, b) => a.stock - b.stock),
+      ...ok.sort((a, b) => a.stock - b.stock),
+    ];
+
+    return { outOfStock: out, lowStock: low, okStock: ok, sortedCritical: sorted };
   }, [products]);
 
   const total = outOfStock.length + lowStock.length + okStock.length;
+  const displayList = showAll ? sortedCritical : sortedCritical.slice(0, 5);
+
+  const getStatus = (p: DbProduct) => {
+    if (p.stock <= 0) return { label: 'Rupture', color: 'destructive' as const, dot: 'bg-destructive' };
+    if (p.stock <= p.min_stock) return { label: 'Bas', color: 'secondary' as const, dot: 'bg-warning' };
+    return { label: 'OK', color: 'default' as const, dot: 'bg-success' };
+  };
 
   return (
     <Card>
@@ -65,37 +82,60 @@ export default function StockStatus({ products }: StockStatusProps) {
           </div>
         )}
 
-        {/* Product list */}
-        {(outOfStock.length > 0 || lowStock.length > 0) && (
-          <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
-            {outOfStock.map(p => (
-              <div key={p.id} className="flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="h-2 w-2 rounded-full bg-destructive shrink-0" />
-                  <span className="truncate font-medium">{p.name}</span>
-                </div>
-                <Badge variant="destructive" className="text-xs ml-2 shrink-0">
-                  {p.stock} {p.unit}
-                </Badge>
-              </div>
-            ))}
-            {lowStock.map(p => (
-              <div key={p.id} className="flex items-center justify-between rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 text-sm">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="h-2 w-2 rounded-full bg-warning shrink-0" />
-                  <span className="truncate font-medium">{p.name}</span>
-                </div>
-                <span className="text-xs font-semibold text-warning ml-2 shrink-0 tabular-nums">
-                  {p.stock}/{p.min_stock} {p.unit}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Structured product list */}
+        {total > 0 ? (
+          <div className="space-y-1.5">
+            {/* Header */}
+            <div className="grid grid-cols-12 gap-2 px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              <div className="col-span-5">Produit</div>
+              <div className="col-span-3 text-right">Quantité</div>
+              <div className="col-span-4 text-right">Statut</div>
+            </div>
 
-        {outOfStock.length === 0 && lowStock.length === 0 && (
+            {displayList.map(p => {
+              const st = getStatus(p);
+              return (
+                <div
+                  key={p.id}
+                  className={`grid grid-cols-12 gap-2 items-center rounded-lg border px-3 py-2 text-sm ${
+                    st.label === 'Rupture'
+                      ? 'border-destructive/20 bg-destructive/5'
+                      : st.label === 'Bas'
+                        ? 'border-warning/20 bg-warning/5'
+                        : 'border-border bg-card'
+                  }`}
+                >
+                  <div className="col-span-5 flex items-center gap-2 min-w-0">
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${st.dot}`} />
+                    <span className="truncate font-medium">{p.name}</span>
+                  </div>
+                  <div className="col-span-3 text-right tabular-nums font-semibold">
+                    {p.stock} {p.unit}
+                  </div>
+                  <div className="col-span-4 text-right">
+                    <Badge variant={st.color} className="text-xs">
+                      {st.label}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })}
+
+            {sortedCritical.length > 5 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full mt-2 text-xs gap-1"
+                onClick={() => setShowAll(!showAll)}
+              >
+                <ChevronDown className={`h-3 w-3 transition-transform ${showAll ? 'rotate-180' : ''}`} />
+                {showAll ? 'Voir moins' : `Voir plus (${sortedCritical.length - 5} restants)`}
+              </Button>
+            )}
+          </div>
+        ) : (
           <p className="text-sm text-muted-foreground text-center py-2">
-            Tous les produits sont en stock suffisant ✓
+            Aucun produit en stock
           </p>
         )}
       </CardContent>
