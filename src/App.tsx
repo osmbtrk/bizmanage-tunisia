@@ -23,6 +23,8 @@ import SettingsPage from "@/pages/SettingsPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import ArchivePage from "@/pages/ArchivePage";
 import PaymentsPage from "@/pages/PaymentsPage";
+import ReturnsPage from "@/pages/ReturnsPage";
+import EmployeesPage from "@/pages/EmployeesPage";
 import Index from "@/pages/Index";
 import LandingPage from "@/pages/LandingPage";
 import NotFound from "./pages/NotFound";
@@ -52,6 +54,7 @@ function ProtectedRoutes() {
           <Route path="/factures" element={<InvoicesPage docType="facture" title="Factures" />} />
           <Route path="/devis" element={<InvoicesPage docType="devis" title="Devis" />} />
           <Route path="/paiements" element={<PaymentsPage />} />
+          <Route path="/retours" element={<ReturnsPage />} />
           <Route path="/clients" element={<ClientsPage />} />
           <Route path="/produits" element={<ProductsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
@@ -63,6 +66,7 @@ function ProtectedRoutes() {
           <Route path="/taxes" element={<TaxesPage />} />
           <Route path="/archives" element={<ArchivePage />} />
           <Route path="/analytiques" element={<AnalyticsPage />} />
+          <Route path="/rh" element={<EmployeesPage />} />
           <Route path="/parametres" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

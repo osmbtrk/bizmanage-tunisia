@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { DocumentType } from '@/contexts/DataContext';
@@ -24,6 +25,10 @@ export default function InvoiceForm({ docType, clients, products, company, onSub
   const [notes, setNotes] = useState('');
   const [paymentTerms, setPaymentTerms] = useState(company?.payment_terms || 'Paiement à 30 jours');
   const [submitting, setSubmitting] = useState(false);
+  const [markAsPaid, setMarkAsPaid] = useState(false);
+
+  // Devis status
+  const [devisStatus, setDevisStatus] = useState('brouillon');
 
   const addItem = () => {
     if (products.length === 0) return;
@@ -86,11 +91,15 @@ export default function InvoiceForm({ docType, clients, products, company, onSub
       }
     }
 
+    const isPaid = docType === 'facture' && markAsPaid;
+    const status = docType === 'devis' ? devisStatus : (isPaid ? 'paid' : 'unpaid');
+    const paidAmount = isPaid ? total : 0;
+
     setSubmitting(true);
     await onSubmit({
       type: docType, date, due_date: dueDate || undefined,
       client_id: clientId, client_name: selectedClient?.name || '',
-      items, status: 'unpaid', paid_amount: 0,
+      items, status, paid_amount: paidAmount,
       payment_terms: paymentTerms, notes,
     });
     setSubmitting(false);
@@ -112,6 +121,20 @@ export default function InvoiceForm({ docType, clients, products, company, onSub
         <div><Label>Date d'échéance</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
         <div><Label>Conditions de paiement</Label><Input value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)} /></div>
       </div>
+
+      {docType === 'devis' && (
+        <div>
+          <Label>Statut du devis</Label>
+          <Select value={devisStatus} onValueChange={setDevisStatus}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="brouillon">Brouillon</SelectItem>
+              <SelectItem value="envoyé">Envoyé</SelectItem>
+              <SelectItem value="accepté">Accepté</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -150,6 +173,19 @@ export default function InvoiceForm({ docType, clients, products, company, onSub
           <div className="flex justify-between"><span className="text-muted-foreground">Sous-total HT</span><span>{formatDT(subtotal)}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span>{formatDT(tvaTotal)}</span></div>
           <div className="flex justify-between font-bold text-base"><span>Total TTC</span><span>{formatDT(total)}</span></div>
+        </div>
+      )}
+
+      {docType === 'facture' && (
+        <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-3">
+          <Checkbox
+            id="markAsPaid"
+            checked={markAsPaid}
+            onCheckedChange={v => setMarkAsPaid(v === true)}
+          />
+          <label htmlFor="markAsPaid" className="text-sm font-medium cursor-pointer">
+            Marquer comme payée
+          </label>
         </div>
       )}
 
