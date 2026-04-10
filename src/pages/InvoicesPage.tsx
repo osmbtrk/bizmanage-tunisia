@@ -400,6 +400,14 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
         description="Le document sera supprimé définitivement et le stock sera restauré si applicable."
         onConfirm={() => { if (deleteTarget) { deleteInvoice(deleteTarget); setDeleteTarget(null); } }}
       />
+
+      <ConfirmDialog
+        open={!!convertTarget}
+        onOpenChange={(o) => { if (!o) setConvertTarget(null); }}
+        title="Convertir ce devis en facture ?"
+        description={`Le devis ${convertTarget?.number || ''} sera marqué comme accepté et une nouvelle facture sera créée avec les mêmes articles.`}
+        onConfirm={() => { if (convertTarget) handleConvertToFacture(convertTarget); }}
+      />
     </div>
   );
 }
