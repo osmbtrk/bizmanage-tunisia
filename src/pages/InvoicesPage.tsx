@@ -222,7 +222,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{inv.number}</span>
-                    <StatusBadge status={inv.status} />
+                    <StatusBadge status={getEffectiveStatus(inv)} />
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{inv.client_name}</p>
                   <p className="text-xs text-muted-foreground">{new Date(inv.date).toLocaleDateString('fr-TN')}</p>
@@ -245,6 +245,23 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
                           <SelectItem value="paid">Payée</SelectItem>
                           <SelectItem value="partial">Partielle</SelectItem>
                           <SelectItem value="unpaid">Impayée</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {docType === 'devis' && getEffectiveStatus(inv) !== 'accepté' && (
+                    <Button variant="outline" size="sm" className="text-xs gap-1" onClick={(e) => { e.stopPropagation(); setConvertTarget(inv); }} title="Convertir en facture">
+                      <ArrowRightLeft className="h-3 w-3" /> Facture
+                    </Button>
+                  )}
+                  {docType === 'devis' && getEffectiveStatus(inv) !== 'accepté' && (
+                    <div onClick={e => e.stopPropagation()}>
+                      <Select value={getEffectiveStatus(inv)} onValueChange={v => updateInvoiceStatus(inv.id, v)}>
+                        <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="brouillon">Brouillon</SelectItem>
+                          <SelectItem value="envoyé">Envoyé</SelectItem>
+                          <SelectItem value="accepté">Accepté</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
