@@ -2,7 +2,8 @@ import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Users, Package, Truck,
   Receipt, Menu, X, Settings, LogOut, User, ChevronDown, Plus, ShoppingCart, BarChart3,
-  Warehouse, Archive, FolderTree, CreditCard, ArrowLeftRight, Calculator, ChevronRight
+  Warehouse, Archive, FolderTree, CreditCard, ArrowLeftRight, Calculator, ChevronRight,
+  RotateCcw, UserCheck
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -33,6 +34,7 @@ const navGroups: NavGroup[] = [
       { to: '/factures', icon: FileText, label: 'Factures' },
       { to: '/devis', icon: FileText, label: 'Devis' },
       { to: '/paiements', icon: CreditCard, label: 'Paiements' },
+      { to: '/retours', icon: RotateCcw, label: 'Retours' },
     ],
   },
   {
@@ -67,6 +69,13 @@ const navGroups: NavGroup[] = [
       { to: '/depenses', icon: Receipt, label: 'Dépenses' },
       { to: '/taxes', icon: Calculator, label: 'Taxes' },
       { to: '/archives', icon: Archive, label: 'Archive numérique' },
+    ],
+  },
+  {
+    label: 'RH',
+    icon: UserCheck,
+    items: [
+      { to: '/rh', icon: UserCheck, label: 'Ressources Humaines' },
     ],
   },
 ];

@@ -264,6 +264,101 @@ export type Database = {
           },
         ]
       }
+      employee_attendance: {
+        Row: {
+          company_id: string
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          notes: string | null
+          shift: string | null
+          status: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          date?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          shift?: string | null
+          status?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          shift?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_attendance_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          company_id: string
+          created_at: string
+          email: string | null
+          full_name: string
+          hire_date: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          email?: string | null
+          full_name: string
+          hire_date?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          hire_date?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -497,6 +592,70 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_returns: {
+        Row: {
+          company_id: string
+          created_at: string
+          credit_note_number: string | null
+          id: string
+          invoice_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          reason: string
+          refund_amount: number
+          return_type: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          credit_note_number?: string | null
+          id?: string
+          invoice_id: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          reason?: string
+          refund_amount?: number
+          return_type?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          credit_note_number?: string | null
+          id?: string
+          invoice_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          reason?: string
+          refund_amount?: number
+          return_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_returns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_returns_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_returns_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
