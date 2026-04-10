@@ -5,13 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, FileText, Download, Calendar, Eye } from 'lucide-react';
+import { Plus, Search, FileText, Download, Calendar, Eye, ArrowRightLeft } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StatusBadge from '@/components/StatusBadge';
 import InvoiceForm from '@/components/invoices/InvoiceForm';
 import { generateInvoicePdf } from '@/lib/generatePdf';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { Trash2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 type PeriodFilter = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
 
@@ -45,8 +46,18 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [detailInvoice, setDetailInvoice] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [convertTarget, setConvertTarget] = useState<any>(null);
 
   const showFiltering = docType === 'facture' || docType === 'devis';
+
+  // Auto-expire devis
+  const getEffectiveStatus = (inv: any) => {
+    if (docType === 'devis' && inv.due_date && inv.status !== 'accepté') {
+      const dueDate = new Date(inv.due_date);
+      if (dueDate < new Date()) return 'expiré';
+    }
+    return inv.status;
+  };
 
   const filtered = useMemo(() => {
     let list = invoices
@@ -62,6 +73,35 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
 
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [invoices, docType, search, period, customStart, customEnd, showFiltering]);
+
+  const handleConvertToFacture = async (devis: any) => {
+    try {
+      await addInvoice({
+        type: 'facture',
+        date: new Date().toISOString().split('T')[0],
+        due_date: devis.due_date,
+        client_id: devis.client_id,
+        client_name: devis.client_name,
+        items: devis.items.map((it: any) => ({
+          product_id: it.product_id,
+          product_name: it.product_name,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+          tva_rate: it.tva_rate,
+          total: it.total,
+        })),
+        status: 'unpaid',
+        paid_amount: 0,
+        payment_terms: devis.payment_terms,
+        notes: `Convertie depuis devis ${devis.number}`,
+      });
+      await updateInvoiceStatus(devis.id, 'accepté');
+      toast({ title: 'Devis converti en facture' });
+      setConvertTarget(null);
+    } catch (err: any) {
+      toast({ title: 'Erreur', description: err?.message, variant: 'destructive' });
+    }
+  };
 
   const totals = useMemo(() => {
     if (!showFiltering) return null;
