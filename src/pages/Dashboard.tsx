@@ -1,5 +1,5 @@
 import { useData } from '@/contexts/DataContext';
-import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2, Receipt, Clock, Download } from 'lucide-react';
+import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2, Receipt, Clock, Download, ShoppingBag, CalendarDays } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { CardContent } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
@@ -25,6 +25,8 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     const now = new Date();
     const isMonthly = period === 'monthly';
+    const todayStr = now.toISOString().split('T')[0];
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
 
     const filterByPeriod = <T extends { date: string }>(arr: T[]) => {
       if (!isMonthly) return arr;
@@ -34,41 +36,57 @@ export default function Dashboard() {
       });
     };
 
-    const periodFactures = filterByPeriod(invoices.filter(i => i.type === 'facture'));
+    const allFactures = invoices.filter(i => i.type === 'facture');
+    const periodFactures = filterByPeriod(allFactures);
     const periodExpenses = filterByPeriod(expenses);
 
-    const revenue = periodFactures.reduce((s, i) => s + Number(i.total), 0);
+    // Today sales
+    const todayFactures = allFactures.filter(i => i.date === todayStr);
+    const todayRevenueTTC = todayFactures.reduce((s, i) => s + Number(i.total), 0);
+    const todayRevenueHT = todayFactures.reduce((s, i) => s + Number(i.subtotal), 0);
+
+    // 7-day sales
+    const weekFactures = allFactures.filter(i => new Date(i.date) >= sevenDaysAgo);
+    const weekRevenueTTC = weekFactures.reduce((s, i) => s + Number(i.total), 0);
+    const weekRevenueHT = weekFactures.reduce((s, i) => s + Number(i.subtotal), 0);
+
+    // Period totals
+    const revenueTTC = periodFactures.reduce((s, i) => s + Number(i.total), 0);
+    const revenueHT = periodFactures.reduce((s, i) => s + Number(i.subtotal), 0);
     const tva = periodFactures.reduce((s, i) => s + Number(i.tva_total), 0);
-    const count = periodFactures.length;
-    const expenseTotal = periodExpenses.reduce((s, e) => s + Number(e.amount), 0);
 
-    const unpaidInvoices = invoices.filter(i => i.type === 'facture' && i.status !== 'paid');
-    const unpaidTotal = unpaidInvoices.reduce((s, i) => s + (Number(i.total) - Number(i.paid_amount)), 0);
+    const expenseTotalTTC = periodExpenses.reduce((s, e) => s + Number(e.amount), 0);
+    const expenseTotalHT = periodExpenses.reduce((s, e) => s + Number(e.amount_ht), 0);
 
-    const overdueInvoices = invoices.filter(i => {
-      if (i.type !== 'facture' || i.status === 'paid') return false;
-      if (!i.due_date) return false;
-      return new Date(i.due_date) < now;
-    });
+    const netProfitTTC = revenueTTC - expenseTotalTTC;
+    const netProfitHT = revenueHT - expenseTotalHT;
+
+    const unpaidInvoices = allFactures.filter(i => i.status !== 'paid');
+    const unpaidTotalTTC = unpaidInvoices.reduce((s, i) => s + (Number(i.total) - Number(i.paid_amount)), 0);
+    const unpaidTotalHT = unpaidInvoices.reduce((s, i) => s + (Number(i.subtotal) - Number(i.paid_amount) * (Number(i.subtotal) / (Number(i.total) || 1))), 0);
 
     // Growth calc (only for monthly)
     let revenueGrowth = 0;
     if (isMonthly) {
       const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const prevMonthRevenue = invoices
+      const prevMonthRevenue = allFactures
         .filter(i => {
           const d = new Date(i.date);
-          return d.getMonth() === prevMonth.getMonth() && d.getFullYear() === prevMonth.getFullYear() && i.type === 'facture';
+          return d.getMonth() === prevMonth.getMonth() && d.getFullYear() === prevMonth.getFullYear();
         })
         .reduce((s, i) => s + Number(i.total), 0);
-      revenueGrowth = prevMonthRevenue > 0 ? ((revenue - prevMonthRevenue) / prevMonthRevenue) * 100 : 0;
+      revenueGrowth = prevMonthRevenue > 0 ? ((revenueTTC - prevMonthRevenue) / prevMonthRevenue) * 100 : 0;
     }
 
     return {
-      revenue, tva, count,
-      unpaidTotal, unpaidCount: unpaidInvoices.length,
-      overdueCount: overdueInvoices.length,
-      expenseTotal, revenueGrowth,
+      todayRevenueTTC, todayRevenueHT,
+      weekRevenueTTC, weekRevenueHT,
+      revenueTTC, revenueHT,
+      expenseTotalTTC, expenseTotalHT,
+      netProfitTTC, netProfitHT,
+      unpaidTotalTTC, unpaidTotalHT,
+      unpaidCount: unpaidInvoices.length,
+      revenueGrowth,
     };
   }, [invoices, expenses, period]);
 
@@ -151,15 +169,15 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard icon={TrendingUp} label="Chiffre d'affaires TTC" value={formatDT(stats.revenue)} trend={period === 'monthly' ? stats.revenueGrowth : undefined} color="text-accent" />
-        <KpiCard icon={TrendingUp} label="Bénéfice net" value={formatDT(stats.revenue - stats.expenseTotal)} color={stats.revenue - stats.expenseTotal >= 0 ? 'text-success' : 'text-destructive'} />
-        <KpiCard icon={Receipt} label="Total TVA" value={formatDT(stats.tva)} color="text-muted-foreground" />
-        <KpiCard icon={DollarSign} label="Impayés" value={formatDT(stats.unpaidTotal)} sub={`${stats.unpaidCount} facture(s)`} color="text-destructive" />
-        <KpiCard icon={FileText} label={period === 'monthly' ? 'Factures du mois' : 'Total factures'} value={String(stats.count)} color="text-primary" />
-        <KpiCard icon={Clock} label="En retard" value={String(stats.overdueCount)} color={stats.overdueCount > 0 ? 'text-destructive' : 'text-muted-foreground'} />
+        <KpiCard icon={ShoppingBag} label="Ventes aujourd'hui" valueTTC={formatDT(stats.todayRevenueTTC)} valueHT={formatDT(stats.todayRevenueHT)} color="text-primary" />
+        <KpiCard icon={CalendarDays} label="Ventes sur 7 jours" valueTTC={formatDT(stats.weekRevenueTTC)} valueHT={formatDT(stats.weekRevenueHT)} color="text-accent" />
+        <KpiCard icon={TrendingUp} label="Chiffre d'affaires" valueTTC={formatDT(stats.revenueTTC)} valueHT={formatDT(stats.revenueHT)} trend={period === 'monthly' ? stats.revenueGrowth : undefined} color="text-accent" />
+        <KpiCard icon={Receipt} label="Dépenses" valueTTC={formatDT(stats.expenseTotalTTC)} valueHT={formatDT(stats.expenseTotalHT)} color="text-muted-foreground" />
+        <KpiCard icon={TrendingUp} label="Bénéfice net" valueTTC={formatDT(stats.netProfitTTC)} valueHT={formatDT(stats.netProfitHT)} color={stats.netProfitTTC >= 0 ? 'text-success' : 'text-destructive'} />
+        <KpiCard icon={DollarSign} label="Impayés" valueTTC={formatDT(stats.unpaidTotalTTC)} valueHT={formatDT(stats.unpaidTotalHT)} sub={`${stats.unpaidCount} facture(s)`} color="text-destructive" />
       </div>
 
-      {/* Stock Status - always visible */}
+      {/* Stock Status */}
       <StockStatus products={products} />
 
       {/* Charts Row */}

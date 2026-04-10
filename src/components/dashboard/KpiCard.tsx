@@ -4,13 +4,15 @@ import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 interface KpiCardProps {
   icon: React.ElementType;
   label: string;
-  value: string;
+  valueHT?: string;
+  valueTTC?: string;
+  value?: string;
   sub?: string;
   color: string;
   trend?: number;
 }
 
-export default function KpiCard({ icon: Icon, label, value, sub, color, trend }: KpiCardProps) {
+export default function KpiCard({ icon: Icon, label, value, valueHT, valueTTC, sub, color, trend }: KpiCardProps) {
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
       <CardContent className="p-4">
@@ -27,7 +29,14 @@ export default function KpiCard({ icon: Icon, label, value, sub, color, trend }:
         </div>
         <div className="mt-3">
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-          <p className="text-xl font-bold mt-1 tabular-nums">{value}</p>
+          {(valueHT || valueTTC) ? (
+            <div className="mt-1 space-y-0.5">
+              {valueTTC && <p className="text-lg font-bold tabular-nums">{valueTTC}</p>}
+              {valueHT && <p className="text-xs text-muted-foreground tabular-nums">HT: {valueHT}</p>}
+            </div>
+          ) : (
+            <p className="text-xl font-bold mt-1 tabular-nums">{value}</p>
+          )}
           {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
         </div>
       </CardContent>
