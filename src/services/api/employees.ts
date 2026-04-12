@@ -11,8 +11,11 @@ export async function insertEmployee(data: {
   phone?: string;
   email?: string;
   hire_date?: string;
+  base_salary?: number;
+  commission_type?: string;
+  commission_value?: number;
 }) {
-  return supabase.from('employees').insert(data).select().single();
+  return supabase.from('employees').insert(data as any).select().single();
 }
 
 export async function updateEmployee(id: string, data: Partial<{
@@ -21,8 +24,11 @@ export async function updateEmployee(id: string, data: Partial<{
   phone: string;
   email: string;
   is_active: boolean;
+  base_salary: number;
+  commission_type: string;
+  commission_value: number;
 }>) {
-  return supabase.from('employees').update(data).eq('id', id);
+  return supabase.from('employees').update(data as any).eq('id', id);
 }
 
 export async function deleteEmployee(id: string) {
