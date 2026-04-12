@@ -19,7 +19,7 @@ const benefits = [
   'Numérotation séquentielle automatique des documents',
   'Calcul automatique de TVA (0%, 7%, 13%, 19%)',
   'Archivage numérique des documents avec stockage sécurisé',
-  'Multi-utilisateur avec rôles (admin / employé)',
+  'Rôles et permissions (Admin, Caissier, Comptable)',
   'Mode sombre / clair automatique',
 ];
 
@@ -52,28 +52,30 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.08),transparent_60%)]" />
         <div className="relative mx-auto max-w-6xl px-6 py-20 lg:py-32">
           <div className="flex flex-col items-center text-center">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
-                <Building2 className="h-7 w-7 text-primary-foreground" />
-              </div>
-              <h1 className="text-4xl lg:text-5xl font-bold tracking-tight">Fatourty</h1>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs font-medium mb-6">
+              <Zap className="h-3 w-3 text-primary" /> Solution #1 de facturation en Tunisie
             </div>
-            <p className="text-xl lg:text-2xl text-muted-foreground max-w-2xl mb-4">
-              La solution de facturation et gestion commerciale conçue pour les entreprises tunisiennes.
+            <h1 className="text-4xl lg:text-6xl font-bold tracking-tight max-w-3xl leading-[1.1]">
+              Gérez votre entreprise avec <span className="text-primary">simplicité</span>
+            </h1>
+            <p className="text-lg lg:text-xl text-muted-foreground max-w-2xl mt-6 leading-relaxed">
+              Facturation, stock, POS et analytiques dans une seule plateforme moderne, conçue pour les entreprises tunisiennes.
             </p>
-            <p className="text-base text-muted-foreground max-w-xl mb-8">
-              Gérez vos factures, clients, stock et point de vente dans une seule plateforme moderne et intuitive.
-            </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Button size="lg" className="gap-2 text-base px-8" onClick={() => navigate('/')}>
+            <div className="flex flex-wrap gap-3 justify-center mt-8">
+              <Button size="lg" className="gap-2 text-base px-8 h-12" onClick={() => navigate('/')}>
                 Commencer gratuitement <ArrowRight className="h-4 w-4" />
               </Button>
-              <Button size="lg" variant="outline" className="gap-2 text-base px-8" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
-                Découvrir les fonctionnalités
+              <Button size="lg" variant="outline" className="gap-2 text-base px-8 h-12" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
+                Découvrir
               </Button>
+            </div>
+            <div className="flex items-center gap-6 mt-8 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-success" /> Gratuit pour démarrer</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-success" /> Sans carte bancaire</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-success" /> Conforme TVA</span>
             </div>
           </div>
         </div>
@@ -87,8 +89,8 @@ export default function LandingPage() {
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f, i) => (
-            <div key={i} className="group rounded-xl border border-border bg-card p-6 transition-all duration-200 hover:shadow-lg hover:border-primary/30">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 mb-4 group-hover:bg-primary/20 transition-colors">
+            <div key={i} className="group rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 mb-4 group-hover:bg-primary/15 transition-colors">
                 <f.icon className="h-5 w-5 text-primary" />
               </div>
               <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
@@ -99,7 +101,7 @@ export default function LandingPage() {
       </section>
 
       {/* Benefits */}
-      <section className="bg-muted/50 border-y border-border">
+      <section className="bg-muted/30 border-y border-border">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
@@ -108,7 +110,7 @@ export default function LandingPage() {
               <div className="space-y-3">
                 {benefits.map((b, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                     <span className="text-sm">{b}</span>
                   </div>
                 ))}
@@ -121,7 +123,7 @@ export default function LandingPage() {
                 <p className="text-xs text-muted-foreground mt-1">Sécurité par défaut</p>
               </div>
               <div className="rounded-xl border border-border bg-card p-6 text-center">
-                <Zap className="h-8 w-8 text-accent mx-auto mb-3" />
+                <Zap className="h-8 w-8 text-primary mx-auto mb-3" />
                 <p className="font-bold text-2xl">&lt;1s</p>
                 <p className="text-xs text-muted-foreground mt-1">Temps de réponse</p>
               </div>
@@ -131,7 +133,7 @@ export default function LandingPage() {
                 <p className="text-xs text-muted-foreground mt-1">Nomenclature intégrée</p>
               </div>
               <div className="rounded-xl border border-border bg-card p-6 text-center">
-                <Truck className="h-8 w-8 text-accent mx-auto mb-3" />
+                <Truck className="h-8 w-8 text-primary mx-auto mb-3" />
                 <p className="font-bold text-2xl">360°</p>
                 <p className="text-xs text-muted-foreground mt-1">Vue complète</p>
               </div>
@@ -148,7 +150,7 @@ export default function LandingPage() {
         </div>
         <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto">
           {pricing.map((plan, i) => (
-            <div key={i} className={`rounded-xl border p-6 flex flex-col ${plan.highlighted ? 'border-primary bg-primary/5 shadow-lg ring-1 ring-primary/20' : 'border-border bg-card'}`}>
+            <div key={i} className={`rounded-xl border p-6 flex flex-col transition-all duration-300 ${plan.highlighted ? 'border-primary bg-primary/5 shadow-xl ring-1 ring-primary/20 scale-[1.02]' : 'border-border bg-card hover:shadow-md'}`}>
               {plan.highlighted && <span className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">Populaire</span>}
               <h3 className="text-lg font-bold">{plan.name}</h3>
               <div className="mt-3 mb-6">
@@ -158,7 +160,7 @@ export default function LandingPage() {
               <ul className="space-y-2 flex-1 mb-6">
                 {plan.features.map((f, j) => (
                   <li key={j} className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                     {f}
                   </li>
                 ))}
