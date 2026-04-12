@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          company_id: string
+          created_at: string
+          details: Json | null
+          employee_id: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          company_id: string
+          created_at?: string
+          details?: Json | null
+          employee_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          company_id?: string
+          created_at?: string
+          details?: Json | null
+          employee_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       archives: {
         Row: {
           client_name: string
@@ -314,6 +365,9 @@ export type Database = {
       }
       employees: {
         Row: {
+          base_salary: number
+          commission_type: string
+          commission_value: number
           company_id: string
           created_at: string
           email: string | null
@@ -326,6 +380,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          base_salary?: number
+          commission_type?: string
+          commission_value?: number
           company_id: string
           created_at?: string
           email?: string | null
@@ -338,6 +395,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          base_salary?: number
+          commission_type?: string
+          commission_value?: number
           company_id?: string
           created_at?: string
           email?: string | null
