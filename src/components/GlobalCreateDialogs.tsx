@@ -208,6 +208,19 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
         </div>
       )}
 
+      {docType === 'facture' && (
+        <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-3">
+          <Checkbox
+            id="markAsPaidGlobal"
+            checked={markAsPaid}
+            onCheckedChange={v => setMarkAsPaid(v === true)}
+          />
+          <label htmlFor="markAsPaidGlobal" className="text-sm font-medium cursor-pointer">
+            Marquer comme payée
+          </label>
+        </div>
+      )}
+
       <div><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
 
       <Button type="submit" className="w-full" disabled={!clientId || items.length === 0 || submitting}>
