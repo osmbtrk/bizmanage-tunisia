@@ -6,7 +6,7 @@ const rolePermissions: Record<AppRole, string[]> = {
   admin: ['*'],
   employee: ['*'],
   cashier: ['/', '/dashboard', '/pos', '/retours'],
-  accountant: ['/', '/dashboard', '/factures', '/devis', '/paiements', '/retours', '/clients', '/depenses', '/taxes', '/archives', '/analytiques', '/factures-fournisseurs', '/fournisseurs'],
+  accountant: ['/', '/dashboard', '/factures', '/devis', '/paiements', '/retours', '/clients', '/depenses', '/taxes', '/declarations', '/archives', '/analytiques', '/factures-fournisseurs', '/fournisseurs'],
 };
 
 export function useRoleAccess() {
