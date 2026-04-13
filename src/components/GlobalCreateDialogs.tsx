@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useData, type DocumentType } from '@/contexts/DataContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,7 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
   const [notes, setNotes] = useState('');
   const [paymentTerms, setPaymentTerms] = useState(company?.payment_terms || 'Paiement à 30 jours');
   const [submitting, setSubmitting] = useState(false);
+  const [markAsPaid, setMarkAsPaid] = useState(false);
 
   const addItem = () => {
     if (products.length === 0) return;
@@ -136,11 +138,15 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
       }
     }
 
+    const isPaid = docType === 'facture' && markAsPaid;
+    const status = isPaid ? 'paid' : 'unpaid';
+    const paidAmount = isPaid ? total : 0;
+
     setSubmitting(true);
     await addInvoice({
       type: docType, date, due_date: dueDate || undefined,
       client_id: clientId, client_name: selectedClient?.name || '',
-      items, status: 'unpaid', paid_amount: 0,
+      items, status, paid_amount: paidAmount,
       payment_terms: paymentTerms, notes,
     });
     setSubmitting(false);
@@ -199,6 +205,19 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
           <div className="flex justify-between"><span className="text-muted-foreground">Sous-total HT</span><span>{formatDT(subtotal)}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span>{formatDT(tvaTotal)}</span></div>
           <div className="flex justify-between font-bold text-base"><span>Total TTC</span><span>{formatDT(total)}</span></div>
+        </div>
+      )}
+
+      {docType === 'facture' && (
+        <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-3">
+          <Checkbox
+            id="markAsPaidGlobal"
+            checked={markAsPaid}
+            onCheckedChange={v => setMarkAsPaid(v === true)}
+          />
+          <label htmlFor="markAsPaidGlobal" className="text-sm font-medium cursor-pointer">
+            Marquer comme payée
+          </label>
         </div>
       )}
 

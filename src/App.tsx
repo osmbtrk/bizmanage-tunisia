@@ -25,6 +25,7 @@ import ArchivePage from "@/pages/ArchivePage";
 import PaymentsPage from "@/pages/PaymentsPage";
 import ReturnsPage from "@/pages/ReturnsPage";
 import EmployeesPage from "@/pages/EmployeesPage";
+import TaxDeclarationPage from "@/pages/TaxDeclarationPage";
 import Index from "@/pages/Index";
 import LandingPage from "@/pages/LandingPage";
 import NotFound from "./pages/NotFound";
@@ -67,6 +68,7 @@ function ProtectedRoutes() {
           <Route path="/archives" element={<ArchivePage />} />
           <Route path="/analytiques" element={<AnalyticsPage />} />
           <Route path="/rh" element={<EmployeesPage />} />
+          <Route path="/declarations" element={<TaxDeclarationPage />} />
           <Route path="/parametres" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

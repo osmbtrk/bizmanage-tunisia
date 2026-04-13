@@ -68,6 +68,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/depenses', icon: Receipt, label: 'Dépenses' },
       { to: '/taxes', icon: Calculator, label: 'Taxes' },
+      { to: '/declarations', icon: FileText, label: 'Déclarations fiscales' },
       { to: '/archives', icon: Archive, label: 'Archive numérique' },
     ],
   },

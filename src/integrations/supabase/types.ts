@@ -317,6 +317,8 @@ export type Database = {
       }
       employee_attendance: {
         Row: {
+          check_in: string | null
+          check_out: string | null
           company_id: string
           created_at: string
           date: string
@@ -327,6 +329,8 @@ export type Database = {
           status: string
         }
         Insert: {
+          check_in?: string | null
+          check_out?: string | null
           company_id: string
           created_at?: string
           date?: string
@@ -337,6 +341,8 @@ export type Database = {
           status?: string
         }
         Update: {
+          check_in?: string | null
+          check_out?: string | null
           company_id?: string
           created_at?: string
           date?: string

@@ -6,6 +6,7 @@ import { fetchActivityLogs } from '@/services/api/activityLogs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Users, BarChart3, CalendarDays, Trash2, Edit, Activity, DollarSign, TrendingUp } from 'lucide-react';
+import { Plus, Users, BarChart3, CalendarDays, Trash2, Edit, Activity, DollarSign, Clock } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -47,11 +48,14 @@ export default function EmployeesPage() {
   const [baseSalary, setBaseSalary] = useState(0);
   const [commissionType, setCommissionType] = useState('percentage');
   const [commissionValue, setCommissionValue] = useState(0);
+  const [createAccount, setCreateAccount] = useState(false);
+  const [accountPassword, setAccountPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const resetForm = () => {
     setFullName(''); setRole('employee'); setPhone(''); setEmail('');
     setBaseSalary(0); setCommissionType('percentage'); setCommissionValue(0);
+    setCreateAccount(false); setAccountPassword('');
     setEditEmployee(null);
   };
 
@@ -80,6 +84,8 @@ export default function EmployeesPage() {
     setBaseSalary(Number(emp.base_salary) || 0);
     setCommissionType(emp.commission_type || 'percentage');
     setCommissionValue(Number(emp.commission_value) || 0);
+    setCreateAccount(false);
+    setAccountPassword('');
     setDialogOpen(true);
   };
 
@@ -88,21 +94,37 @@ export default function EmployeesPage() {
     if (!companyId || !fullName.trim()) return;
     setSubmitting(true);
 
-    if (editEmployee) {
-      const { error } = await employeesApi.updateEmployee(editEmployee.id, {
-        full_name: fullName, role, phone, email,
-        base_salary: baseSalary, commission_type: commissionType, commission_value: commissionValue,
-      });
-      if (error) toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
-      else { toast({ title: 'Employé modifié' }); setDialogOpen(false); resetForm(); load(); }
-    } else {
-      const { error } = await employeesApi.insertEmployee({
-        company_id: companyId, full_name: fullName, role,
-        phone: phone || undefined, email: email || undefined,
-        base_salary: baseSalary, commission_type: commissionType, commission_value: commissionValue,
-      });
-      if (error) toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
-      else { toast({ title: 'Employé ajouté' }); setDialogOpen(false); resetForm(); load(); }
+    try {
+      if (editEmployee) {
+        const { error } = await employeesApi.updateEmployee(editEmployee.id, {
+          full_name: fullName, role, phone, email,
+          base_salary: baseSalary, commission_type: commissionType, commission_value: commissionValue,
+        });
+        if (error) throw error;
+        toast({ title: 'Employé modifié' });
+      } else {
+        // Optionally create user account
+        if (createAccount && email && accountPassword) {
+          const { error: authError } = await employeesApi.createEmployeeAccount(email, accountPassword, fullName);
+          if (authError) {
+            toast({ title: 'Erreur compte', description: authError.message, variant: 'destructive' });
+            setSubmitting(false);
+            return;
+          }
+          toast({ title: 'Compte utilisateur créé', description: 'Un email de confirmation a été envoyé.' });
+        }
+
+        const { error } = await employeesApi.insertEmployee({
+          company_id: companyId, full_name: fullName, role,
+          phone: phone || undefined, email: email || undefined,
+          base_salary: baseSalary, commission_type: commissionType, commission_value: commissionValue,
+        });
+        if (error) throw error;
+        toast({ title: 'Employé ajouté' });
+      }
+      setDialogOpen(false); resetForm(); load();
+    } catch (err: any) {
+      toast({ title: 'Erreur', description: err?.message, variant: 'destructive' });
     }
     setSubmitting(false);
   };
@@ -114,13 +136,47 @@ export default function EmployeesPage() {
     toast({ title: 'Employé supprimé' });
   };
 
+  const handleCheckIn = async (employeeId: string, date: string) => {
+    if (!companyId) return;
+    const now = new Date().toISOString();
+    await employeesApi.upsertAttendance({
+      company_id: companyId, employee_id: employeeId, date,
+      status: 'present', check_in: now,
+    });
+    load();
+    toast({ title: 'Pointage entrée enregistré' });
+  };
+
+  const handleCheckOut = async (employeeId: string, date: string) => {
+    if (!companyId) return;
+    const now = new Date().toISOString();
+    const existing = attendance.find((a: any) => a.employee_id === employeeId && a.date === date);
+    await employeesApi.upsertAttendance({
+      company_id: companyId, employee_id: employeeId, date,
+      status: 'present',
+      check_in: existing?.check_in || now,
+      check_out: now,
+    });
+    load();
+    toast({ title: 'Pointage sortie enregistré' });
+  };
+
   const markAttendance = async (employeeId: string, date: string, status: string) => {
     if (!companyId) return;
     await employeesApi.upsertAttendance({ company_id: companyId, employee_id: employeeId, date, status });
     load();
   };
 
-  // Performance: revenue per employee (placeholder — would need employee_id on invoices for real tracking)
+  const calcWorkingHours = (checkIn: string | null, checkOut: string | null): string => {
+    if (!checkIn || !checkOut) return '—';
+    const diff = new Date(checkOut).getTime() - new Date(checkIn).getTime();
+    if (diff <= 0) return '—';
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return `${h}h${String(m).padStart(2, '0')}`;
+  };
+
+  // Performance
   const performance = useMemo(() => {
     const factures = invoices.filter(i => i.type === 'facture');
     const totalRevenue = factures.reduce((s, i) => s + Number(i.total), 0);
@@ -154,6 +210,22 @@ export default function EmployeesPage() {
     }
     return days;
   }, [attendanceMonth]);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Total working hours per employee for the month
+  const monthlyHours = useMemo(() => {
+    const map: Record<string, number> = {};
+    attendance.forEach((a: any) => {
+      if (a.check_in && a.check_out) {
+        const diff = new Date(a.check_out).getTime() - new Date(a.check_in).getTime();
+        if (diff > 0) {
+          map[a.employee_id] = (map[a.employee_id] || 0) + diff / 3600000;
+        }
+      }
+    });
+    return map;
+  }, [attendance]);
 
   const actionLabels: Record<string, string> = {
     created_invoice: 'Facture créée',
@@ -308,15 +380,95 @@ export default function EmployeesPage() {
           </div>
         </TabsContent>
 
-        {/* ATTENDANCE TAB */}
+        {/* ATTENDANCE TAB — with check-in/check-out */}
         <TabsContent value="attendance" className="space-y-4">
           <div className="flex items-center gap-3">
             <Label>Mois :</Label>
             <Input type="month" value={attendanceMonth} onChange={e => setAttendanceMonth(e.target.value)} className="w-48" />
           </div>
-          {employees.length === 0 ? (
-            <p className="text-muted-foreground text-center py-10">Ajoutez des employés pour gérer la présence</p>
-          ) : (
+
+          {/* Today's check-in/out */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2"><Clock className="h-4 w-4" /> Pointage du jour — {new Date().toLocaleDateString('fr-TN')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {employees.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Ajoutez des employés</p>
+              ) : (
+                <div className="space-y-2">
+                  {employees.filter(e => e.is_active).map((emp: any) => {
+                    const att = attendance.find((a: any) => a.employee_id === emp.id && a.date === todayStr);
+                    const checkIn = att?.check_in;
+                    const checkOut = att?.check_out;
+                    return (
+                      <div key={emp.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                        <div>
+                          <p className="font-medium text-sm">{emp.full_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {checkIn ? `Entrée: ${new Date(checkIn).toLocaleTimeString('fr-TN', { hour: '2-digit', minute: '2-digit' })}` : 'Non pointé'}
+                            {checkOut ? ` — Sortie: ${new Date(checkOut).toLocaleTimeString('fr-TN', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                            {checkIn && checkOut ? ` — Durée: ${calcWorkingHours(checkIn, checkOut)}` : ''}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          {!checkIn && (
+                            <Button size="sm" variant="outline" onClick={() => handleCheckIn(emp.id, todayStr)} className="text-xs gap-1">
+                              <Clock className="h-3 w-3" /> Entrée
+                            </Button>
+                          )}
+                          {checkIn && !checkOut && (
+                            <Button size="sm" variant="outline" onClick={() => handleCheckOut(emp.id, todayStr)} className="text-xs gap-1">
+                              <Clock className="h-3 w-3" /> Sortie
+                            </Button>
+                          )}
+                          {checkIn && checkOut && (
+                            <Badge variant="secondary" className="text-xs">{calcWorkingHours(checkIn, checkOut)}</Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Monthly summary */}
+          {employees.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Résumé mensuel — Heures travaillées</CardTitle></CardHeader>
+              <CardContent>
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employé</TableHead>
+                        <TableHead className="text-right">Heures totales</TableHead>
+                        <TableHead className="text-right">Jours présent</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {employees.map((emp: any) => {
+                        const hours = monthlyHours[emp.id] || 0;
+                        const daysPresent = attendance.filter((a: any) => a.employee_id === emp.id && a.status === 'present').length;
+                        return (
+                          <TableRow key={emp.id}>
+                            <TableCell className="font-medium">{emp.full_name}</TableCell>
+                            <TableCell className="text-right font-mono">{hours.toFixed(1)}h</TableCell>
+                            <TableCell className="text-right">{daysPresent} jours</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Day-by-day grid (last 7 days) */}
+          {employees.length > 0 && (
             <div className="rounded-lg border border-border overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -342,13 +494,11 @@ export default function EmployeesPage() {
                               onClick={() => markAttendance(emp.id, d, status === 'present' ? 'absent' : 'present')}
                               className={`w-8 h-8 rounded-md text-xs font-medium transition-colors ${
                                 status === 'present'
-                                  ? 'bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]'
-                                  : status === 'holiday'
-                                  ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]'
+                                  ? 'bg-primary text-primary-foreground'
                                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
                               }`}
                             >
-                              {status === 'present' ? 'P' : status === 'holiday' ? 'F' : 'A'}
+                              {status === 'present' ? 'P' : 'A'}
                             </button>
                           </TableCell>
                         );
@@ -380,13 +530,7 @@ export default function EmployeesPage() {
                         <span className="font-medium">{emp?.full_name || 'Utilisateur'}</span>
                         {' — '}
                         <span>{actionLabels[log.action] || log.action}</span>
-                        {log.entity_id && <span className="text-muted-foreground"> ({log.entity_type} #{log.entity_id?.slice(0, 8)})</span>}
                       </p>
-                      {log.details && Object.keys(log.details).length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {JSON.stringify(log.details).slice(0, 100)}
-                        </p>
-                      )}
                     </div>
                     <span className="text-xs text-muted-foreground whitespace-nowrap">
                       {new Date(log.created_at).toLocaleDateString('fr-TN')} {new Date(log.created_at).toLocaleTimeString('fr-TN', { hour: '2-digit', minute: '2-digit' })}
@@ -401,7 +545,7 @@ export default function EmployeesPage() {
 
       {/* ADD/EDIT DIALOG */}
       <Dialog open={dialogOpen} onOpenChange={o => { if (!o) { setDialogOpen(false); resetForm(); } else setDialogOpen(true); }}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editEmployee ? 'Modifier employé' : 'Nouvel employé'}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div><Label>Nom complet *</Label><Input required value={fullName} onChange={e => setFullName(e.target.value)} /></div>
@@ -432,6 +576,41 @@ export default function EmployeesPage() {
               </div>
               <div><Label>Valeur commission</Label><Input type="number" step="0.01" value={commissionValue} onChange={e => setCommissionValue(+e.target.value)} /></div>
             </div>
+
+            {/* Account creation section */}
+            {!editEmployee && (
+              <div className="border-t border-border pt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="createAccount"
+                    checked={createAccount}
+                    onCheckedChange={v => setCreateAccount(v === true)}
+                  />
+                  <label htmlFor="createAccount" className="text-sm font-medium cursor-pointer">
+                    Créer un compte utilisateur
+                  </label>
+                </div>
+                {createAccount && (
+                  <div className="space-y-3 pl-6">
+                    <p className="text-xs text-muted-foreground">
+                      L'employé pourra se connecter avec son email et ce mot de passe. Son rôle ({roleOptions.find(r => r.value === role)?.label}) déterminera ses accès.
+                    </p>
+                    <div>
+                      <Label>Mot de passe *</Label>
+                      <Input
+                        type="password"
+                        required={createAccount}
+                        minLength={6}
+                        value={accountPassword}
+                        onChange={e => setAccountPassword(e.target.value)}
+                        placeholder="Min. 6 caractères"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? 'Enregistrement...' : editEmployee ? 'Enregistrer' : 'Ajouter'}
             </Button>
@@ -459,6 +638,7 @@ export default function EmployeesPage() {
                     <div><span className="text-muted-foreground">Salaire</span><p className="font-medium">{formatTND(Number(selectedEmployee.base_salary))}</p></div>
                     <div><span className="text-muted-foreground">CA généré</span><p className="font-medium">{formatTND(perf?.revenue || 0)}</p></div>
                     <div><span className="text-muted-foreground">Commission</span><p className="font-medium text-primary">{formatTND(perf?.commission || 0)}</p></div>
+                    <div><span className="text-muted-foreground">Heures (mois)</span><p className="font-medium">{(monthlyHours[selectedEmployee.id] || 0).toFixed(1)}h</p></div>
                   </div>
                   {empLogs.length > 0 && (
                     <div>
