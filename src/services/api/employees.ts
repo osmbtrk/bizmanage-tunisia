@@ -50,6 +50,21 @@ export async function upsertAttendance(data: {
   status: string;
   shift?: string;
   notes?: string;
+  check_in?: string | null;
+  check_out?: string | null;
 }) {
-  return supabase.from('employee_attendance').upsert(data, { onConflict: 'employee_id,date' });
+  return supabase.from('employee_attendance').upsert(data as any, { onConflict: 'employee_id,date' });
+}
+
+export async function createEmployeeAccount(email: string, password: string, fullName: string) {
+  // Sign up via Supabase Auth — the handle_new_user trigger will create a profile + company.
+  // We return the result so the caller can link the employee record.
+  return supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: fullName },
+      emailRedirectTo: window.location.origin,
+    },
+  });
 }
