@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { HeroUIProvider } from "@heroui/react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
 import AppLayout from "@/components/AppLayout";
@@ -106,19 +107,21 @@ function LandingRoute() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange={false}>
-      <TooltipProvider>
-        <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<AuthRoute />} />
-              <Route path="/landing" element={<LandingRoute />} />
-              <Route path="/*" element={<ProtectedRoutes />} />
-            </Routes>
-          </BrowserRouter>
-        </AuthProvider>
-      </TooltipProvider>
+      <HeroUIProvider>
+        <TooltipProvider>
+          <AuthProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<AuthRoute />} />
+                <Route path="/landing" element={<LandingRoute />} />
+                <Route path="/*" element={<ProtectedRoutes />} />
+              </Routes>
+            </BrowserRouter>
+          </AuthProvider>
+        </TooltipProvider>
+      </HeroUIProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

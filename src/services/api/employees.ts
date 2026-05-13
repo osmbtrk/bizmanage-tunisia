@@ -14,6 +14,7 @@ export async function insertEmployee(data: {
   base_salary?: number;
   commission_type?: string;
   commission_value?: number;
+  user_id?: string | null;
 }) {
   return supabase.from('employees').insert(data as any).select().single();
 }
@@ -56,15 +57,16 @@ export async function upsertAttendance(data: {
   return supabase.from('employee_attendance').upsert(data as any, { onConflict: 'employee_id,date' });
 }
 
-export async function createEmployeeAccount(email: string, password: string, fullName: string) {
-  // Sign up via Supabase Auth — the handle_new_user trigger will create a profile + company.
-  // We return the result so the caller can link the employee record.
-  return supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: fullName },
-      emailRedirectTo: window.location.origin,
-    },
-  });
+export async function createEmployeeAccount(payload: {
+  email: string;
+  password: string;
+  full_name: string;
+  role: 'admin' | 'cashier' | 'accountant' | 'employee';
+}) {
+  // Calls the edge function with the admin's session so the admin stays logged in.
+  return supabase.functions.invoke('create-employee-account', { body: payload });
+}
+
+export async function fetchEmployeeByUserId(userId: string) {
+  return supabase.from('employees').select('*').eq('user_id', userId).maybeSingle();
 }

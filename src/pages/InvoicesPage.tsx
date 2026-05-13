@@ -5,13 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, FileText, Download, Calendar, Eye, ArrowRightLeft } from 'lucide-react';
+import { Plus, Search, FileText, Download, Calendar, Eye, ArrowRightLeft, RotateCcw } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StatusBadge from '@/components/StatusBadge';
 import InvoiceForm from '@/components/invoices/InvoiceForm';
+import InvoiceReturnDialog from '@/components/invoices/InvoiceReturnDialog';
 import { generateInvoicePdf } from '@/lib/generatePdf';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 
 type PeriodFilter = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
@@ -47,6 +49,8 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
   const [detailInvoice, setDetailInvoice] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [convertTarget, setConvertTarget] = useState<any>(null);
+  const [returnTarget, setReturnTarget] = useState<any>(null);
+  const [showReturned, setShowReturned] = useState(false);
 
   const showFiltering = docType === 'facture' || docType === 'devis';
 
@@ -64,6 +68,11 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
       .filter(i => i.type === docType)
       .filter(i => i.number.includes(search) || i.client_name.toLowerCase().includes(search.toLowerCase()));
 
+    // Hide returned invoices by default (factures only)
+    if (docType === 'facture' && !showReturned) {
+      list = list.filter(i => i.status !== 'returned');
+    }
+
     if (showFiltering && period !== 'all') {
       const range = getDateRange(period, customStart, customEnd);
       if (range) {
@@ -72,7 +81,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
     }
 
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [invoices, docType, search, period, customStart, customEnd, showFiltering]);
+  }, [invoices, docType, search, period, customStart, customEnd, showFiltering, showReturned]);
 
   const handleConvertToFacture = async (devis: any) => {
     try {
@@ -204,9 +213,17 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
         </div>
       )}
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Rechercher..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Rechercher..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        {docType === 'facture' && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer whitespace-nowrap px-3 py-2 rounded-md border border-border bg-card">
+            <Checkbox checked={showReturned} onCheckedChange={v => setShowReturned(v === true)} />
+            Afficher les factures retournées
+          </label>
+        )}
       </div>
 
       {paginated.length === 0 ? (
@@ -386,12 +403,26 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
                   <Button variant="outline" className="flex-1" onClick={() => generateInvoicePdf({ ...detailInvoice, clientName: detailInvoice.client_name, subtotal: detailInvoice.subtotal, tvaTotal: detailInvoice.tva_total, paidAmount: detailInvoice.paid_amount }, company)}>
                     <Download className="h-4 w-4 mr-2" /> Télécharger PDF
                   </Button>
+                  {docType === 'facture' && detailInvoice.status !== 'returned' && (
+                    <Button variant="default" className="flex-1" onClick={() => setReturnTarget(detailInvoice)}>
+                      <RotateCcw className="h-4 w-4 mr-2" /> Retour produit
+                    </Button>
+                  )}
                 </div>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {returnTarget && (
+        <InvoiceReturnDialog
+          open={!!returnTarget}
+          onOpenChange={o => { if (!o) setReturnTarget(null); }}
+          invoice={returnTarget}
+          onDone={() => { setReturnTarget(null); setDetailInvoice(null); }}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleteTarget}

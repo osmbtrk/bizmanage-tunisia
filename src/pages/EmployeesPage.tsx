@@ -103,21 +103,30 @@ export default function EmployeesPage() {
         if (error) throw error;
         toast({ title: 'Employé modifié' });
       } else {
-        // Optionally create user account
+        // Optionally create user account via edge function (admin stays logged in)
+        let linkedUserId: string | null = null;
         if (createAccount && email && accountPassword) {
-          const { error: authError } = await employeesApi.createEmployeeAccount(email, accountPassword, fullName);
-          if (authError) {
-            toast({ title: 'Erreur compte', description: authError.message, variant: 'destructive' });
+          const { data: accountData, error: authError } = await employeesApi.createEmployeeAccount({
+            email,
+            password: accountPassword,
+            full_name: fullName,
+            role: (role as 'admin' | 'cashier' | 'accountant' | 'employee'),
+          });
+          if (authError || (accountData as any)?.error) {
+            const msg = authError?.message || (accountData as any)?.error || 'Erreur création compte';
+            toast({ title: 'Erreur compte', description: msg, variant: 'destructive' });
             setSubmitting(false);
             return;
           }
-          toast({ title: 'Compte utilisateur créé', description: 'Un email de confirmation a été envoyé.' });
+          linkedUserId = (accountData as any)?.user_id ?? null;
+          toast({ title: 'Compte utilisateur créé', description: `${email} peut désormais se connecter.` });
         }
 
         const { error } = await employeesApi.insertEmployee({
           company_id: companyId, full_name: fullName, role,
           phone: phone || undefined, email: email || undefined,
           base_salary: baseSalary, commission_type: commissionType, commission_value: commissionValue,
+          user_id: linkedUserId,
         });
         if (error) throw error;
         toast({ title: 'Employé ajouté' });
