@@ -10,8 +10,8 @@ const rolePermissions: Record<AppRole, string[]> = {
 };
 
 export function useRoleAccess() {
-  const { role } = useAuth();
-  const currentRole = (role as AppRole) || 'employee';
+  const { functionalRole } = useAuth();
+  const currentRole: AppRole = functionalRole;
 
   const canAccess = (path: string): boolean => {
     const perms = rolePermissions[currentRole];
@@ -20,5 +20,7 @@ export function useRoleAccess() {
     return perms.some(p => path === p || (p !== '/' && p !== '/dashboard' && path.startsWith(p)));
   };
 
-  return { role: currentRole, canAccess };
+  const isAdmin = currentRole === 'admin';
+
+  return { role: currentRole, canAccess, isAdmin };
 }

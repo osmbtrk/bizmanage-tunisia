@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { authApi } from '@/services/api';
+import { authApi, employeesApi } from '@/services/api';
 import type { User, Session } from '@supabase/supabase-js';
+
+export type FunctionalRole = 'admin' | 'cashier' | 'accountant' | 'employee';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: { full_name: string | null; email: string | null; company_id: string | null } | null;
   role: 'admin' | 'employee' | null;
+  functionalRole: FunctionalRole;
   companyId: string | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>;
@@ -23,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<AuthContextType['profile']>(null);
   const [role, setRole] = useState<'admin' | 'employee' | null>(null);
+  const [functionalRole, setFunctionalRole] = useState<FunctionalRole>('employee');
   const [loading, setLoading] = useState(true);
 
   const companyId = profile?.company_id ?? null;
@@ -32,7 +36,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(data);
 
     const { data: roleData } = await authApi.fetchUserRole(userId);
-    setRole((roleData?.role as 'admin' | 'employee') ?? 'employee');
+    const baseRole = (roleData?.role as 'admin' | 'employee') ?? 'employee';
+    setRole(baseRole);
+
+    // Resolve finer role from employees table if linked
+    const { data: emp } = await employeesApi.fetchEmployeeByUserId(userId);
+    const empRole = emp?.role as FunctionalRole | undefined;
+    if (baseRole === 'admin') setFunctionalRole('admin');
+    else if (empRole === 'cashier' || empRole === 'accountant' || empRole === 'admin') setFunctionalRole(empRole);
+    else setFunctionalRole('employee');
   }, []);
 
   useEffect(() => {
@@ -97,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, companyId, loading, signUp: handleSignUp, signIn: handleSignIn, signOut: handleSignOut }}>
+    <AuthContext.Provider value={{ user, session, profile, role, functionalRole, companyId, loading, signUp: handleSignUp, signIn: handleSignIn, signOut: handleSignOut }}>
       {children}
     </AuthContext.Provider>
   );
