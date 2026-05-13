@@ -126,6 +126,7 @@ export default function EmployeesPage() {
           company_id: companyId, full_name: fullName, role,
           phone: phone || undefined, email: email || undefined,
           base_salary: baseSalary, commission_type: commissionType, commission_value: commissionValue,
+          user_id: linkedUserId,
         });
         if (error) throw error;
         toast({ title: 'Employé ajouté' });
