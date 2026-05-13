@@ -31,6 +31,7 @@ export default function SettingsPage() {
   const [form, setForm] = useState({
     name: '', legal_form: 'sarl' as string, matricule_fiscal: '', code_tva: '', rne: '',
     address: '', governorate: '', phone: '', email: '', website: '', payment_terms: '',
+    return_deadline_days: 15,
   });
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function SettingsPage() {
         email: company.email || '',
         website: company.website || '',
         payment_terms: company.payment_terms || '',
+        return_deadline_days: (company as any).return_deadline_days ?? 15,
       });
     }
   }, [company]);
@@ -66,7 +68,8 @@ export default function SettingsPage() {
       email: form.email || null,
       website: form.website || null,
       payment_terms: form.payment_terms || null,
-    });
+      return_deadline_days: Number(form.return_deadline_days) || 15,
+    } as any);
     setSaving(false);
   };
 
@@ -153,6 +156,19 @@ export default function SettingsPage() {
           <div>
             <Label>Conditions de paiement par défaut</Label>
             <Input value={form.payment_terms} onChange={e => setForm(f => ({ ...f, payment_terms: e.target.value }))} placeholder="Paiement à 30 jours" />
+          </div>
+          <div>
+            <Label>Délai de retour produit (jours)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={365}
+              value={form.return_deadline_days}
+              onChange={e => setForm(f => ({ ...f, return_deadline_days: Number(e.target.value) }))}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Au-delà de ce délai, les retours sont bloqués pour les non-administrateurs.
+            </p>
           </div>
         </div>
 
