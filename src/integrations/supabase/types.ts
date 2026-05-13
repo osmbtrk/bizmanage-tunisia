@@ -243,6 +243,7 @@ export type Database = {
           name: string
           payment_terms: string | null
           phone: string | null
+          return_deadline_days: number
           rne: string | null
           updated_at: string
           website: string | null
@@ -260,6 +261,7 @@ export type Database = {
           name: string
           payment_terms?: string | null
           phone?: string | null
+          return_deadline_days?: number
           rne?: string | null
           updated_at?: string
           website?: string | null
@@ -277,6 +279,7 @@ export type Database = {
           name?: string
           payment_terms?: string | null
           phone?: string | null
+          return_deadline_days?: number
           rne?: string | null
           updated_at?: string
           website?: string | null
@@ -384,6 +387,7 @@ export type Database = {
           phone: string | null
           role: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           base_salary?: number
@@ -399,6 +403,7 @@ export type Database = {
           phone?: string | null
           role?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           base_salary?: number
@@ -414,6 +419,7 @@ export type Database = {
           phone?: string | null
           role?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -669,6 +675,7 @@ export type Database = {
           credit_note_number: string | null
           id: string
           invoice_id: string
+          is_full_return: boolean
           product_id: string | null
           product_name: string
           quantity: number
@@ -682,6 +689,7 @@ export type Database = {
           credit_note_number?: string | null
           id?: string
           invoice_id: string
+          is_full_return?: boolean
           product_id?: string | null
           product_name: string
           quantity?: number
@@ -695,6 +703,7 @@ export type Database = {
           credit_note_number?: string | null
           id?: string
           invoice_id?: string
+          is_full_return?: boolean
           product_id?: string | null
           product_name?: string
           quantity?: number
