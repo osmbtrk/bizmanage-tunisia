@@ -14,6 +14,7 @@ export async function insertEmployee(data: {
   base_salary?: number;
   commission_type?: string;
   commission_value?: number;
+  user_id?: string | null;
 }) {
   return supabase.from('employees').insert(data as any).select().single();
 }
