@@ -7,6 +7,7 @@ export default function StatusBadge({ status }: { status: string }) {
     'envoyé': 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]',
     'accepté': 'status-paid',
     'expiré': 'status-unpaid',
+    returned: 'bg-orange-500/20 text-orange-700 dark:text-orange-300',
   };
   const labels: Record<string, string> = {
     paid: 'Payée',
@@ -16,6 +17,7 @@ export default function StatusBadge({ status }: { status: string }) {
     'envoyé': 'Envoyé',
     'accepté': 'Accepté',
     'expiré': 'Expiré',
+    returned: 'Retournée',
   };
   return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${styles[status] || 'bg-muted text-muted-foreground'}`}>{labels[status] || status}</span>;
 }
