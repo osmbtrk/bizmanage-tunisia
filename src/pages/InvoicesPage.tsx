@@ -213,9 +213,17 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
         </div>
       )}
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Rechercher..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Rechercher..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        {docType === 'facture' && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer whitespace-nowrap px-3 py-2 rounded-md border border-border bg-card">
+            <Checkbox checked={showReturned} onCheckedChange={v => setShowReturned(v === true)} />
+            Afficher les factures retournées
+          </label>
+        )}
       </div>
 
       {paginated.length === 0 ? (
@@ -395,12 +403,26 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
                   <Button variant="outline" className="flex-1" onClick={() => generateInvoicePdf({ ...detailInvoice, clientName: detailInvoice.client_name, subtotal: detailInvoice.subtotal, tvaTotal: detailInvoice.tva_total, paidAmount: detailInvoice.paid_amount }, company)}>
                     <Download className="h-4 w-4 mr-2" /> Télécharger PDF
                   </Button>
+                  {docType === 'facture' && detailInvoice.status !== 'returned' && (
+                    <Button variant="default" className="flex-1" onClick={() => setReturnTarget(detailInvoice)}>
+                      <RotateCcw className="h-4 w-4 mr-2" /> Retour produit
+                    </Button>
+                  )}
                 </div>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {returnTarget && (
+        <InvoiceReturnDialog
+          open={!!returnTarget}
+          onOpenChange={o => { if (!o) setReturnTarget(null); }}
+          invoice={returnTarget}
+          onDone={() => { setReturnTarget(null); setDetailInvoice(null); }}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleteTarget}
