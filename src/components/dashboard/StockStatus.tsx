@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardBody, CardHeader, Chip, Button } from '@heroui/react';
 import { Package, AlertTriangle, CheckCircle2, XCircle, ChevronDown } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -20,7 +18,6 @@ export default function StockStatus({ products }: StockStatusProps) {
     const low = nonService.filter(p => p.stock > 0 && p.stock <= p.min_stock);
     const ok = nonService.filter(p => p.stock > p.min_stock);
 
-    // Sort: out of stock first (by name), then low stock (by stock asc)
     const sorted = [
       ...out.sort((a, b) => a.name.localeCompare(b.name)),
       ...low.sort((a, b) => a.stock - b.stock),
@@ -34,21 +31,20 @@ export default function StockStatus({ products }: StockStatusProps) {
   const displayList = showAll ? sortedCritical : sortedCritical.slice(0, 5);
 
   const getStatus = (p: DbProduct) => {
-    if (p.stock <= 0) return { label: 'Rupture', color: 'destructive' as const, dot: 'bg-destructive' };
-    if (p.stock <= p.min_stock) return { label: 'Bas', color: 'secondary' as const, dot: 'bg-warning' };
-    return { label: 'OK', color: 'default' as const, dot: 'bg-success' };
+    if (p.stock <= 0) return { label: 'Rupture', color: 'danger' as const, dot: 'bg-destructive' };
+    if (p.stock <= p.min_stock) return { label: 'Bas', color: 'warning' as const, dot: 'bg-warning' };
+    return { label: 'OK', color: 'success' as const, dot: 'bg-success' };
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+    <Card shadow="sm" className="bg-card border border-border">
+      <CardHeader className="pb-3 pt-4 px-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <Package className="h-4 w-4" />
           État de stock
-        </CardTitle>
+        </h3>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Summary bar */}
+      <CardBody className="space-y-4 px-4 pb-4">
         <div className="flex gap-4 text-center">
           <div className="flex-1 rounded-lg bg-destructive/10 p-3">
             <XCircle className="h-5 w-5 text-destructive mx-auto mb-1" />
@@ -67,7 +63,6 @@ export default function StockStatus({ products }: StockStatusProps) {
           </div>
         </div>
 
-        {/* Progress bar */}
         {total > 0 && (
           <div className="h-2 rounded-full bg-muted overflow-hidden flex">
             {outOfStock.length > 0 && (
@@ -82,10 +77,8 @@ export default function StockStatus({ products }: StockStatusProps) {
           </div>
         )}
 
-        {/* Structured product list */}
         {total > 0 ? (
           <div className="space-y-1.5">
-            {/* Header */}
             <div className="grid grid-cols-12 gap-2 px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
               <div className="col-span-5">Produit</div>
               <div className="col-span-3 text-right">Quantité</div>
@@ -113,9 +106,7 @@ export default function StockStatus({ products }: StockStatusProps) {
                     {p.stock} {p.unit}
                   </div>
                   <div className="col-span-4 text-right">
-                    <Badge variant={st.color} className="text-xs">
-                      {st.label}
-                    </Badge>
+                    <Chip size="sm" variant="flat" color={st.color}>{st.label}</Chip>
                   </div>
                 </div>
               );
@@ -123,12 +114,12 @@ export default function StockStatus({ products }: StockStatusProps) {
 
             {sortedCritical.length > 5 && (
               <Button
-                variant="ghost"
+                variant="light"
                 size="sm"
-                className="w-full mt-2 text-xs gap-1"
-                onClick={() => setShowAll(!showAll)}
+                className="w-full mt-2 text-xs"
+                onPress={() => setShowAll(!showAll)}
+                startContent={<ChevronDown className={`h-3 w-3 transition-transform ${showAll ? 'rotate-180' : ''}`} />}
               >
-                <ChevronDown className={`h-3 w-3 transition-transform ${showAll ? 'rotate-180' : ''}`} />
                 {showAll ? 'Voir moins' : `Voir plus (${sortedCritical.length - 5} restants)`}
               </Button>
             )}
@@ -138,7 +129,7 @@ export default function StockStatus({ products }: StockStatusProps) {
             Aucun produit en stock
           </p>
         )}
-      </CardContent>
+      </CardBody>
     </Card>
   );
 }

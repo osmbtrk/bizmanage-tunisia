@@ -1,13 +1,13 @@
 import { useData } from '@/contexts/DataContext';
 import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2, Receipt, Clock, Download, ShoppingBag, CalendarDays } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { CardContent } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Card, CardBody, CardHeader,
+  Modal, ModalContent, ModalHeader, ModalBody,
+  Button, Select, SelectItem,
+} from '@heroui/react';
 import { generateInvoicePdf } from '@/lib/generatePdf';
 import KpiCard from '@/components/dashboard/KpiCard';
 import TopClients from '@/components/dashboard/TopClients';
@@ -158,12 +158,19 @@ export default function Dashboard() {
             {period === 'monthly' ? 'Vue du mois en cours' : 'Vue globale (tout le temps)'}
           </p>
         </div>
-        <Select value={period} onValueChange={v => setPeriod(v as PeriodFilter)}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="monthly">Mensuel</SelectItem>
-            <SelectItem value="global">Global</SelectItem>
-          </SelectContent>
+        <Select
+          aria-label="Période"
+          selectedKeys={[period]}
+          onSelectionChange={(keys) => {
+            const v = Array.from(keys)[0] as PeriodFilter;
+            if (v) setPeriod(v);
+          }}
+          className="w-36"
+          size="sm"
+          variant="bordered"
+        >
+          <SelectItem key="monthly">Mensuel</SelectItem>
+          <SelectItem key="global">Global</SelectItem>
         </Select>
       </div>
 
@@ -182,13 +189,13 @@ export default function Dashboard() {
 
       {/* Charts Row */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <Card shadow="sm" className="lg:col-span-2 bg-card border border-border">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Évolution des revenus (6 mois)
-            </CardTitle>
+            </h3>
           </CardHeader>
-          <CardContent>
+          <CardBody className="px-4 pb-4">
             <ChartContainer config={{
               revenue: { label: 'Revenus', color: 'hsl(var(--accent))' },
               expenses: { label: 'Dépenses', color: 'hsl(var(--destructive))' },
@@ -202,16 +209,16 @@ export default function Dashboard() {
                 <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Dépenses" />
               </BarChart>
             </ChartContainer>
-          </CardContent>
+          </CardBody>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <Card shadow="sm" className="bg-card border border-border">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Statut des factures
-            </CardTitle>
+            </h3>
           </CardHeader>
-          <CardContent className="flex flex-col items-center">
+          <CardBody className="flex flex-col items-center px-4 pb-4">
             {statusChart.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8">Aucune facture</p>
             ) : (
@@ -239,7 +246,7 @@ export default function Dashboard() {
                 </div>
               </>
             )}
-          </CardContent>
+          </CardBody>
         </Card>
       </div>
 
@@ -250,73 +257,84 @@ export default function Dashboard() {
       </div>
 
       {/* Invoice Detail Modal */}
-      <Dialog open={!!detailInvoice} onOpenChange={o => { if (!o) setDetailInvoice(null); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <Modal
+        isOpen={!!detailInvoice}
+        onOpenChange={(o) => { if (!o) setDetailInvoice(null); }}
+        size="lg"
+        scrollBehavior="inside"
+        backdrop="blur"
+      >
+        <ModalContent>
           {detailInvoice && (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  {detailInvoice.number}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-muted-foreground">Client</span><p className="font-medium">{detailInvoice.client_name}</p></div>
-                  <div><span className="text-muted-foreground">Date</span><p className="font-medium">{new Date(detailInvoice.date).toLocaleDateString('fr-TN')}</p></div>
-                  <div><span className="text-muted-foreground">Statut</span><p><StatusBadge status={detailInvoice.status} /></p></div>
-                  {detailInvoice.due_date && <div><span className="text-muted-foreground">Échéance</span><p className="font-medium">{new Date(detailInvoice.due_date).toLocaleDateString('fr-TN')}</p></div>}
-                </div>
-
-                <div className="rounded-lg border border-border overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="text-left p-3 font-medium text-xs">Produit</th>
-                        <th className="text-right p-3 font-medium text-xs">Qté</th>
-                        <th className="text-right p-3 font-medium text-xs">P.U.</th>
-                        <th className="text-right p-3 font-medium text-xs">TVA</th>
-                        <th className="text-right p-3 font-medium text-xs">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detailInvoice.items?.map((item: any, i: number) => (
-                        <tr key={i} className="border-t border-border">
-                          <td className="p-3 font-medium">{item.product_name}</td>
-                          <td className="p-3 text-right tabular-nums">{item.quantity}</td>
-                          <td className="p-3 text-right tabular-nums">{Number(item.unit_price).toFixed(3)}</td>
-                          <td className="p-3 text-right tabular-nums">{item.tva_rate}%</td>
-                          <td className="p-3 text-right tabular-nums font-medium">{formatDT(item.quantity * Number(item.unit_price))}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="space-y-1 text-sm border-t border-border pt-3">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Sous-total HT</span><span className="tabular-nums">{formatDT(Number(detailInvoice.subtotal))}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span className="tabular-nums">{formatDT(Number(detailInvoice.tva_total))}</span></div>
-                  <div className="flex justify-between font-bold text-lg pt-2"><span>Total TTC</span><span className="tabular-nums">{formatDT(Number(detailInvoice.total))}</span></div>
-                  {detailInvoice.paid_amount > 0 && detailInvoice.status !== 'paid' && (
-                    <div className="flex justify-between text-muted-foreground"><span>Montant payé</span><span className="tabular-nums">{formatDT(Number(detailInvoice.paid_amount))}</span></div>
-                  )}
-                </div>
-
-                {detailInvoice.notes && (
-                  <div className="bg-muted/50 rounded-lg p-3">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Notes</p>
-                    <p className="text-sm">{detailInvoice.notes}</p>
+              <ModalHeader className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                {detailInvoice.number}
+              </ModalHeader>
+              <ModalBody className="pb-6">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-muted-foreground">Client</span><p className="font-medium">{detailInvoice.client_name}</p></div>
+                    <div><span className="text-muted-foreground">Date</span><p className="font-medium">{new Date(detailInvoice.date).toLocaleDateString('fr-TN')}</p></div>
+                    <div><span className="text-muted-foreground">Statut</span><p><StatusBadge status={detailInvoice.status} /></p></div>
+                    {detailInvoice.due_date && <div><span className="text-muted-foreground">Échéance</span><p className="font-medium">{new Date(detailInvoice.due_date).toLocaleDateString('fr-TN')}</p></div>}
                   </div>
-                )}
 
-                <Button variant="outline" className="w-full" onClick={() => generateInvoicePdf({ ...detailInvoice, clientName: detailInvoice.client_name, subtotal: detailInvoice.subtotal, tvaTotal: detailInvoice.tva_total, paidAmount: detailInvoice.paid_amount }, company)}>
-                  <Download className="h-4 w-4 mr-2" /> Télécharger PDF
-                </Button>
-              </div>
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-3 font-medium text-xs">Produit</th>
+                          <th className="text-right p-3 font-medium text-xs">Qté</th>
+                          <th className="text-right p-3 font-medium text-xs">P.U.</th>
+                          <th className="text-right p-3 font-medium text-xs">TVA</th>
+                          <th className="text-right p-3 font-medium text-xs">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detailInvoice.items?.map((item: any, i: number) => (
+                          <tr key={i} className="border-t border-border">
+                            <td className="p-3 font-medium">{item.product_name}</td>
+                            <td className="p-3 text-right tabular-nums">{item.quantity}</td>
+                            <td className="p-3 text-right tabular-nums">{Number(item.unit_price).toFixed(3)}</td>
+                            <td className="p-3 text-right tabular-nums">{item.tva_rate}%</td>
+                            <td className="p-3 text-right tabular-nums font-medium">{formatDT(item.quantity * Number(item.unit_price))}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="space-y-1 text-sm border-t border-border pt-3">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Sous-total HT</span><span className="tabular-nums">{formatDT(Number(detailInvoice.subtotal))}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span className="tabular-nums">{formatDT(Number(detailInvoice.tva_total))}</span></div>
+                    <div className="flex justify-between font-bold text-lg pt-2"><span>Total TTC</span><span className="tabular-nums">{formatDT(Number(detailInvoice.total))}</span></div>
+                    {detailInvoice.paid_amount > 0 && detailInvoice.status !== 'paid' && (
+                      <div className="flex justify-between text-muted-foreground"><span>Montant payé</span><span className="tabular-nums">{formatDT(Number(detailInvoice.paid_amount))}</span></div>
+                    )}
+                  </div>
+
+                  {detailInvoice.notes && (
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Notes</p>
+                      <p className="text-sm">{detailInvoice.notes}</p>
+                    </div>
+                  )}
+
+                  <Button
+                    variant="bordered"
+                    className="w-full"
+                    onPress={() => generateInvoicePdf({ ...detailInvoice, clientName: detailInvoice.client_name, subtotal: detailInvoice.subtotal, tvaTotal: detailInvoice.tva_total, paidAmount: detailInvoice.paid_amount }, company)}
+                    startContent={<Download className="h-4 w-4" />}
+                  >
+                    Télécharger PDF
+                  </Button>
+                </div>
+              </ModalBody>
             </>
           )}
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

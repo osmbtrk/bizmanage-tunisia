@@ -10,9 +10,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
+  Button as HButton,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu as HDropdownMenu,
+  DropdownItem,
+  DropdownSection,
+  Avatar,
+} from '@heroui/react';
 import GlobalCreateDialogs, { type GlobalDialogType } from '@/components/GlobalCreateDialogs';
 import { Package as PackageIcon, Building2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -233,72 +238,90 @@ export default function AppLayout() {
           <ThemeToggle />
 
           {canAccess('/pos') && (
-            <Button variant="outline" size="sm" className="gap-1.5 transition-colors duration-200" onClick={() => navigate('/pos')}>
-              <ShoppingCart className="h-4 w-4" />
+            <HButton
+              variant="bordered"
+              size="sm"
+              onPress={() => navigate('/pos')}
+              startContent={<ShoppingCart className="h-4 w-4" />}
+            >
               <span className="hidden sm:inline">POS</span>
-            </Button>
+            </HButton>
           )}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" className="gap-1.5">
-                <Plus className="h-4 w-4" />
+          <Dropdown placement="bottom-end">
+            <DropdownTrigger>
+              <HButton
+                size="sm"
+                color="primary"
+                startContent={<Plus className="h-4 w-4" />}
+              >
                 <span className="hidden sm:inline">Créer</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {canAccess('/factures') && (
-                <DropdownMenuItem onClick={() => setCreateDialog('facture')} className="cursor-pointer">
-                  <FileText className="h-4 w-4 mr-2" /> Nouvelle Facture
-                </DropdownMenuItem>
-              )}
-              {canAccess('/devis') && (
-                <DropdownMenuItem onClick={() => setCreateDialog('devis')} className="cursor-pointer">
-                  <FileText className="h-4 w-4 mr-2" /> Nouveau Devis
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              {canAccess('/clients') && (
-                <DropdownMenuItem onClick={() => setCreateDialog('client')} className="cursor-pointer">
-                  <Users className="h-4 w-4 mr-2" /> Nouveau Client
-                </DropdownMenuItem>
-              )}
-              {canAccess('/produits') && (
-                <DropdownMenuItem onClick={() => setCreateDialog('product')} className="cursor-pointer">
-                  <PackageIcon className="h-4 w-4 mr-2" /> Nouveau Produit
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </HButton>
+            </DropdownTrigger>
+            <HDropdownMenu aria-label="Créer" variant="flat">
+              <DropdownSection showDivider title="Documents">
+                <>
+                  {canAccess('/factures') ? (
+                    <DropdownItem key="facture" startContent={<FileText className="h-4 w-4" />} onPress={() => setCreateDialog('facture')}>
+                      Nouvelle Facture
+                    </DropdownItem>
+                  ) : null}
+                  {canAccess('/devis') ? (
+                    <DropdownItem key="devis" startContent={<FileText className="h-4 w-4" />} onPress={() => setCreateDialog('devis')}>
+                      Nouveau Devis
+                    </DropdownItem>
+                  ) : null}
+                </>
+              </DropdownSection>
+              <DropdownSection title="Données">
+                <>
+                  {canAccess('/clients') ? (
+                    <DropdownItem key="client" startContent={<Users className="h-4 w-4" />} onPress={() => setCreateDialog('client')}>
+                      Nouveau Client
+                    </DropdownItem>
+                  ) : null}
+                  {canAccess('/produits') ? (
+                    <DropdownItem key="product" startContent={<PackageIcon className="h-4 w-4" />} onPress={() => setCreateDialog('product')}>
+                      Nouveau Produit
+                    </DropdownItem>
+                  ) : null}
+                </>
+              </DropdownSection>
+            </HDropdownMenu>
+          </Dropdown>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center">
-                <User className="h-4 w-4" />
-              </div>
-              <span className="hidden sm:inline">{profile?.full_name || profile?.email}</span>
-              <ChevronDown className="h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                {profile?.email}
-                <br />
-                <span className="capitalize font-medium">{roleLabels[role || ''] || role}</span>
-              </div>
-              <DropdownMenuSeparator />
-              {canAccess('/parametres') && (
-                <DropdownMenuItem asChild>
-                  <NavLink to="/parametres" className="flex items-center gap-2 cursor-pointer">
-                    <Settings className="h-4 w-4" /> Paramètres
-                  </NavLink>
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
-                <LogOut className="h-4 w-4 mr-2" /> Déconnexion
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Dropdown placement="bottom-end">
+            <DropdownTrigger>
+              <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Avatar
+                  size="sm"
+                  showFallback
+                  name={profile?.full_name || profile?.email || 'U'}
+                  classNames={{ base: 'bg-secondary', name: 'text-secondary-foreground' }}
+                  icon={<User className="h-4 w-4" />}
+                />
+                <span className="hidden sm:inline">{profile?.full_name || profile?.email}</span>
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </DropdownTrigger>
+            <HDropdownMenu aria-label="Compte" variant="flat">
+              <DropdownItem key="profile" isReadOnly className="opacity-100 cursor-default" textValue="profile">
+                <div className="text-xs text-muted-foreground">
+                  {profile?.email}
+                  <br />
+                  <span className="capitalize font-medium">{roleLabels[role || ''] || role}</span>
+                </div>
+              </DropdownItem>
+              {canAccess('/parametres') ? (
+                <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />} onPress={() => navigate('/parametres')}>
+                  Paramètres
+                </DropdownItem>
+              ) : null}
+              <DropdownItem key="logout" color="danger" startContent={<LogOut className="h-4 w-4" />} onPress={signOut}>
+                Déconnexion
+              </DropdownItem>
+            </HDropdownMenu>
+          </Dropdown>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">

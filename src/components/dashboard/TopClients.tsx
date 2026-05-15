@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardBody, CardHeader } from '@heroui/react';
 
 interface TopClientsProps {
   clients: { name: string; total: number }[];
@@ -7,13 +7,13 @@ interface TopClientsProps {
 
 export default function TopClients({ clients, formatDT }: TopClientsProps) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+    <Card shadow="sm" className="bg-card border border-border">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Top 5 clients
-        </CardTitle>
+        </h3>
       </CardHeader>
-      <CardContent>
+      <CardBody className="px-4 pb-4">
         {clients.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">Pas encore de ventes</p>
         ) : (
@@ -31,7 +31,7 @@ export default function TopClients({ clients, formatDT }: TopClientsProps) {
             ))}
           </div>
         )}
-      </CardContent>
+      </CardBody>
     </Card>
   );
 }

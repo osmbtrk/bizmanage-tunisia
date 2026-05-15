@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardBody, CardHeader } from '@heroui/react';
 import StatusBadge from '@/components/StatusBadge';
 
 interface RecentInvoicesProps {
@@ -9,13 +9,13 @@ interface RecentInvoicesProps {
 
 export default function RecentInvoices({ invoices, formatDT, onSelect }: RecentInvoicesProps) {
   return (
-    <Card className="lg:col-span-2">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+    <Card shadow="sm" className="lg:col-span-2 bg-card border border-border">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Dernières factures
-        </CardTitle>
+        </h3>
       </CardHeader>
-      <CardContent>
+      <CardBody className="px-4 pb-4">
         {invoices.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">Aucune facture</p>
         ) : (
@@ -44,7 +44,7 @@ export default function RecentInvoices({ invoices, formatDT, onSelect }: RecentI
             </table>
           </div>
         )}
-      </CardContent>
+      </CardBody>
     </Card>
   );
 }

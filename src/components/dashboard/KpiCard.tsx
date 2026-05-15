@@ -1,4 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardBody } from '@heroui/react';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 interface KpiCardProps {
@@ -14,8 +14,12 @@ interface KpiCardProps {
 
 export default function KpiCard({ icon: Icon, label, value, valueHT, valueTTC, sub, color, trend }: KpiCardProps) {
   return (
-    <Card className="transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-      <CardContent className="p-4">
+    <Card
+      shadow="sm"
+      isPressable={false}
+      className="bg-card border border-border transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+    >
+      <CardBody className="p-4">
         <div className="flex items-start justify-between">
           <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-secondary ${color}`}>
             <Icon className="h-4 w-4" />
@@ -31,15 +35,15 @@ export default function KpiCard({ icon: Icon, label, value, valueHT, valueTTC, s
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
           {(valueHT || valueTTC) ? (
             <div className="mt-1 space-y-0.5">
-              {valueTTC && <p className="text-lg font-bold tabular-nums">{valueTTC}</p>}
+              {valueTTC && <p className="text-lg font-bold tabular-nums text-foreground">{valueTTC}</p>}
               {valueHT && <p className="text-xs text-muted-foreground tabular-nums">HT: {valueHT}</p>}
             </div>
           ) : (
-            <p className="text-xl font-bold mt-1 tabular-nums">{value}</p>
+            <p className="text-xl font-bold mt-1 tabular-nums text-foreground">{value}</p>
           )}
           {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
         </div>
-      </CardContent>
+      </CardBody>
     </Card>
   );
 }
