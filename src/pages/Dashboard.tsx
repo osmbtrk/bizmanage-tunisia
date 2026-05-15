@@ -158,12 +158,19 @@ export default function Dashboard() {
             {period === 'monthly' ? 'Vue du mois en cours' : 'Vue globale (tout le temps)'}
           </p>
         </div>
-        <Select value={period} onValueChange={v => setPeriod(v as PeriodFilter)}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="monthly">Mensuel</SelectItem>
-            <SelectItem value="global">Global</SelectItem>
-          </SelectContent>
+        <Select
+          aria-label="Période"
+          selectedKeys={[period]}
+          onSelectionChange={(keys) => {
+            const v = Array.from(keys)[0] as PeriodFilter;
+            if (v) setPeriod(v);
+          }}
+          className="w-36"
+          size="sm"
+          variant="bordered"
+        >
+          <SelectItem key="monthly">Mensuel</SelectItem>
+          <SelectItem key="global">Global</SelectItem>
         </Select>
       </div>
 
