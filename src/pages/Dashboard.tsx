@@ -189,13 +189,13 @@ export default function Dashboard() {
 
       {/* Charts Row */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <Card shadow="sm" className="lg:col-span-2 bg-card border border-border">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Évolution des revenus (6 mois)
-            </CardTitle>
+            </h3>
           </CardHeader>
-          <CardContent>
+          <CardBody className="px-4 pb-4">
             <ChartContainer config={{
               revenue: { label: 'Revenus', color: 'hsl(var(--accent))' },
               expenses: { label: 'Dépenses', color: 'hsl(var(--destructive))' },
@@ -209,16 +209,16 @@ export default function Dashboard() {
                 <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Dépenses" />
               </BarChart>
             </ChartContainer>
-          </CardContent>
+          </CardBody>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <Card shadow="sm" className="bg-card border border-border">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Statut des factures
-            </CardTitle>
+            </h3>
           </CardHeader>
-          <CardContent className="flex flex-col items-center">
+          <CardBody className="flex flex-col items-center px-4 pb-4">
             {statusChart.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8">Aucune facture</p>
             ) : (
@@ -246,7 +246,7 @@ export default function Dashboard() {
                 </div>
               </>
             )}
-          </CardContent>
+          </CardBody>
         </Card>
       </div>
 
