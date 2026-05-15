@@ -10,9 +10,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
+  Button as HButton,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu as HDropdownMenu,
+  DropdownItem,
+  DropdownSection,
+  Avatar,
+} from '@heroui/react';
 import GlobalCreateDialogs, { type GlobalDialogType } from '@/components/GlobalCreateDialogs';
 import { Package as PackageIcon, Building2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
