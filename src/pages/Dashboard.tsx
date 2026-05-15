@@ -1,13 +1,13 @@
 import { useData } from '@/contexts/DataContext';
 import { FileText, Users, Package, TrendingUp, AlertTriangle, DollarSign, Loader2, Receipt, Clock, Download, ShoppingBag, CalendarDays } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { CardContent } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Card, CardBody, CardHeader,
+  Modal, ModalContent, ModalHeader, ModalBody,
+  Button, Select, SelectItem,
+} from '@heroui/react';
 import { generateInvoicePdf } from '@/lib/generatePdf';
 import KpiCard from '@/components/dashboard/KpiCard';
 import TopClients from '@/components/dashboard/TopClients';
