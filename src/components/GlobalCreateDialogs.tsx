@@ -1,11 +1,16 @@
 import { useState } from 'react';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  Button,
+  Input,
+  Select,
+  SelectItem,
+  Checkbox,
+} from '@heroui/react';
 import { useData, type DocumentType } from '@/contexts/DataContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -34,34 +39,71 @@ const LEGAL_FORMS = [
 ];
 
 export default function GlobalCreateDialogs({ openDialog, onClose }: GlobalCreateDialogsProps) {
+  const isInvoice = openDialog === 'facture' || openDialog === 'devis';
+
   return (
     <>
-      <Dialog open={openDialog === 'facture' || openDialog === 'devis'} onOpenChange={o => { if (!o) onClose(); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {openDialog === 'facture' ? 'Créer une facture' : 'Créer un devis'}
-            </DialogTitle>
-          </DialogHeader>
-          {(openDialog === 'facture' || openDialog === 'devis') && (
-            <InvoiceFormGlobal docType={openDialog === 'facture' ? 'facture' : 'devis'} onClose={onClose} />
+      <Modal
+        isOpen={isInvoice}
+        onClose={onClose}
+        size="3xl"
+        scrollBehavior="inside"
+        backdrop="opaque"
+      >
+        <ModalContent>
+          {(close) => (
+            <>
+              <ModalHeader>
+                {openDialog === 'facture' ? 'Créer une facture' : 'Créer un devis'}
+              </ModalHeader>
+              <ModalBody className="pb-6">
+                {isInvoice && (
+                  <InvoiceFormGlobal
+                    docType={openDialog === 'facture' ? 'facture' : 'devis'}
+                    onClose={close}
+                  />
+                )}
+              </ModalBody>
+            </>
           )}
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
 
-      <Dialog open={openDialog === 'client'} onOpenChange={o => { if (!o) onClose(); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Ajouter un client</DialogTitle></DialogHeader>
-          {openDialog === 'client' && <ClientFormGlobal onClose={onClose} />}
-        </DialogContent>
-      </Dialog>
+      <Modal
+        isOpen={openDialog === 'client'}
+        onClose={onClose}
+        size="2xl"
+        scrollBehavior="inside"
+      >
+        <ModalContent>
+          {(close) => (
+            <>
+              <ModalHeader>Ajouter un client</ModalHeader>
+              <ModalBody className="pb-6">
+                <ClientFormGlobal onClose={close} />
+              </ModalBody>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
 
-      <Dialog open={openDialog === 'product'} onOpenChange={o => { if (!o) onClose(); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Ajouter un produit</DialogTitle></DialogHeader>
-          {openDialog === 'product' && <ProductFormGlobal onClose={onClose} />}
-        </DialogContent>
-      </Dialog>
+      <Modal
+        isOpen={openDialog === 'product'}
+        onClose={onClose}
+        size="lg"
+        scrollBehavior="inside"
+      >
+        <ModalContent>
+          {(close) => (
+            <>
+              <ModalHeader>Ajouter un produit</ModalHeader>
+              <ModalBody className="pb-6">
+                <ProductFormGlobal onClose={close} />
+              </ModalBody>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </>
   );
 }
@@ -143,56 +185,70 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
     const paidAmount = isPaid ? total : 0;
 
     setSubmitting(true);
-    await addInvoice({
-      type: docType, date, due_date: dueDate || undefined,
-      client_id: clientId, client_name: selectedClient?.name || '',
-      items, status, paid_amount: paidAmount,
-      payment_terms: paymentTerms, notes,
-    });
-    setSubmitting(false);
-    onClose();
+    try {
+      await addInvoice({
+        type: docType, date, due_date: dueDate || undefined,
+        client_id: clientId, client_name: selectedClient?.name || '',
+        items, status, paid_amount: paidAmount,
+        payment_terms: paymentTerms, notes,
+      });
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label>Client *</Label>
-          <Select value={clientId} onValueChange={setClientId}>
-            <SelectTrigger><SelectValue placeholder="Choisir un client" /></SelectTrigger>
-            <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-        <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-        <div><Label>Date d'échéance</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
-        <div><Label>Conditions de paiement</Label><Input value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)} /></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select
+          label="Client"
+          isRequired
+          selectedKeys={clientId ? [clientId] : []}
+          onSelectionChange={(keys) => setClientId(Array.from(keys)[0] as string || '')}
+          placeholder="Choisir un client"
+          variant="bordered"
+        >
+          {clients.map(c => <SelectItem key={c.id}>{c.name}</SelectItem>)}
+        </Select>
+        <Input label="Date" type="date" value={date} onChange={e => setDate(e.target.value)} variant="bordered" />
+        <Input label="Date d'échéance" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} variant="bordered" />
+        <Input label="Conditions de paiement" value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)} variant="bordered" />
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-2">
-          <Label>Articles</Label>
-          <Button type="button" variant="outline" size="sm" onClick={addItem} disabled={products.length === 0}>
-            <Plus className="mr-1 h-3 w-3" /> Ajouter
+          <span className="text-sm font-medium">Articles</span>
+          <Button type="button" variant="bordered" size="sm" onPress={addItem} isDisabled={products.length === 0} startContent={<Plus className="h-3 w-3" />}>
+            Ajouter
           </Button>
         </div>
         {products.length === 0 && <p className="text-sm text-muted-foreground">Ajoutez d'abord des produits</p>}
         {items.map((item: any, idx: number) => (
-          <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-            <div className="col-span-5">
-              <Select value={item.product_id} onValueChange={v => selectProduct(idx, v)}>
-                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+          <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-center">
+            <div className="col-span-12 sm:col-span-5">
+              <Select
+                aria-label="Produit"
+                size="sm"
+                variant="bordered"
+                selectedKeys={item.product_id ? [item.product_id] : []}
+                onSelectionChange={(keys) => {
+                  const v = Array.from(keys)[0] as string;
+                  if (v) selectProduct(idx, v);
+                }}
+              >
+                {products.map(p => <SelectItem key={p.id}>{p.name}</SelectItem>)}
               </Select>
             </div>
-            <div className="col-span-2">
-              <Input type="number" min={1} className="h-9 text-xs" value={item.quantity} onChange={e => updateItem(idx, { quantity: +e.target.value })} />
+            <div className="col-span-3 sm:col-span-2">
+              <Input aria-label="Quantité" size="sm" type="number" min={1} variant="bordered" value={String(item.quantity)} onChange={e => updateItem(idx, { quantity: +e.target.value })} />
             </div>
-            <div className="col-span-2">
-              <Input type="number" step="0.001" className="h-9 text-xs" value={item.unit_price} onChange={e => updateItem(idx, { unit_price: +e.target.value })} />
+            <div className="col-span-4 sm:col-span-2">
+              <Input aria-label="Prix unitaire" size="sm" type="number" step="0.001" variant="bordered" value={String(item.unit_price)} onChange={e => updateItem(idx, { unit_price: +e.target.value })} />
             </div>
-            <div className="col-span-2 text-xs text-right font-medium pt-2">{formatDT(item.quantity * item.unit_price)}</div>
-            <div className="col-span-1">
-              <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeItem(idx)}>
+            <div className="col-span-3 sm:col-span-2 text-xs text-right font-medium">{formatDT(item.quantity * item.unit_price)}</div>
+            <div className="col-span-2 sm:col-span-1 flex justify-end">
+              <Button type="button" isIconOnly variant="light" size="sm" onPress={() => removeItem(idx)}>
                 <Trash2 className="h-3 w-3" />
               </Button>
             </div>
@@ -209,21 +265,22 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
       )}
 
       {docType === 'facture' && (
-        <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-3">
-          <Checkbox
-            id="markAsPaidGlobal"
-            checked={markAsPaid}
-            onCheckedChange={v => setMarkAsPaid(v === true)}
-          />
-          <label htmlFor="markAsPaidGlobal" className="text-sm font-medium cursor-pointer">
+        <div className="bg-secondary/40 rounded-lg p-3">
+          <Checkbox isSelected={markAsPaid} onValueChange={setMarkAsPaid}>
             Marquer comme payée
-          </label>
+          </Checkbox>
         </div>
       )}
 
-      <div><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
+      <Input label="Notes" value={notes} onChange={e => setNotes(e.target.value)} variant="bordered" />
 
-      <Button type="submit" className="w-full" disabled={!clientId || items.length === 0 || submitting}>
+      <Button
+        type="submit"
+        color="primary"
+        className="w-full"
+        isDisabled={!clientId || items.length === 0 || submitting}
+        isLoading={submitting}
+      >
         {submitting ? 'Création...' : 'Créer le document'}
       </Button>
     </form>
@@ -233,6 +290,7 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
 /* ── Client Form ── */
 function ClientFormGlobal({ onClose }: { onClose: () => void }) {
   const { addClient } = useData();
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: '', legal_form: 'personne_physique' as string, matricule_fiscal: '', code_tva: '', rne: '',
     address: '', governorate: '', phone: '', email: '', contact_person: '',
@@ -241,62 +299,77 @@ function ClientFormGlobal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addClient({
-      name: form.name,
-      legal_form: form.legal_form as any,
-      matricule_fiscal: form.matricule_fiscal || null,
-      code_tva: form.code_tva || null,
-      rne: form.rne || null,
-      address: form.address || null,
-      governorate: form.governorate || null,
-      phone: form.phone || null,
-      email: form.email || null,
-      contact_person: form.contact_person || null,
-      payment_terms: form.payment_terms || null,
-      status: form.status as any,
-      is_archived: false,
-    });
-    onClose();
+    setSubmitting(true);
+    try {
+      await addClient({
+        name: form.name,
+        legal_form: form.legal_form as any,
+        matricule_fiscal: form.matricule_fiscal || null,
+        code_tva: form.code_tva || null,
+        rne: form.rne || null,
+        address: form.address || null,
+        governorate: form.governorate || null,
+        phone: form.phone || null,
+        email: form.email || null,
+        contact_person: form.contact_person || null,
+        payment_terms: form.payment_terms || null,
+        status: form.status as any,
+        is_archived: false,
+      });
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2"><Label>Raison sociale *</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-        <div>
-          <Label>Forme juridique</Label>
-          <Select value={form.legal_form} onValueChange={v => setForm(f => ({ ...f, legal_form: v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{LEGAL_FORMS.map(lf => <SelectItem key={lf.value} value={lf.value}>{lf.label}</SelectItem>)}</SelectContent>
-          </Select>
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="sm:col-span-2">
+          <Input label="Raison sociale" isRequired variant="bordered" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
         </div>
-        <div>
-          <Label>Statut</Label>
-          <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Actif</SelectItem>
-              <SelectItem value="inactive">Inactif</SelectItem>
-            </SelectContent>
-          </Select>
+        <Select
+          label="Forme juridique"
+          variant="bordered"
+          selectedKeys={[form.legal_form]}
+          onSelectionChange={(keys) => setForm(f => ({ ...f, legal_form: Array.from(keys)[0] as string }))}
+        >
+          {LEGAL_FORMS.map(lf => <SelectItem key={lf.value}>{lf.label}</SelectItem>)}
+        </Select>
+        <Select
+          label="Statut"
+          variant="bordered"
+          selectedKeys={[form.status]}
+          onSelectionChange={(keys) => setForm(f => ({ ...f, status: Array.from(keys)[0] as string }))}
+        >
+          <SelectItem key="active">Actif</SelectItem>
+          <SelectItem key="inactive">Inactif</SelectItem>
+        </Select>
+        <Input label="Matricule fiscal" variant="bordered" value={form.matricule_fiscal} onChange={e => setForm(f => ({ ...f, matricule_fiscal: e.target.value }))} />
+        <Input label="Code TVA" variant="bordered" value={form.code_tva} onChange={e => setForm(f => ({ ...f, code_tva: e.target.value }))} />
+        <div className="sm:col-span-2">
+          <Input label="RNE" variant="bordered" value={form.rne} onChange={e => setForm(f => ({ ...f, rne: e.target.value }))} />
         </div>
-        <div><Label>Matricule fiscal</Label><Input value={form.matricule_fiscal} onChange={e => setForm(f => ({ ...f, matricule_fiscal: e.target.value }))} /></div>
-        <div><Label>Code TVA</Label><Input value={form.code_tva} onChange={e => setForm(f => ({ ...f, code_tva: e.target.value }))} /></div>
-        <div className="col-span-2"><Label>RNE</Label><Input value={form.rne} onChange={e => setForm(f => ({ ...f, rne: e.target.value }))} /></div>
-        <div className="col-span-2"><Label>Adresse</Label><Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
-        <div>
-          <Label>Gouvernorat</Label>
-          <Select value={form.governorate} onValueChange={v => setForm(f => ({ ...f, governorate: v }))}>
-            <SelectTrigger><SelectValue placeholder="Choisir..." /></SelectTrigger>
-            <SelectContent>{GOVERNORATES.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
-          </Select>
+        <div className="sm:col-span-2">
+          <Input label="Adresse" variant="bordered" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
         </div>
-        <div><Label>Téléphone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
-        <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
-        <div><Label>Personne de contact</Label><Input value={form.contact_person} onChange={e => setForm(f => ({ ...f, contact_person: e.target.value }))} /></div>
-        <div className="col-span-2"><Label>Conditions de paiement</Label><Input value={form.payment_terms} onChange={e => setForm(f => ({ ...f, payment_terms: e.target.value }))} /></div>
+        <Select
+          label="Gouvernorat"
+          variant="bordered"
+          selectedKeys={form.governorate ? [form.governorate] : []}
+          onSelectionChange={(keys) => setForm(f => ({ ...f, governorate: Array.from(keys)[0] as string || '' }))}
+          placeholder="Choisir..."
+        >
+          {GOVERNORATES.map(g => <SelectItem key={g}>{g}</SelectItem>)}
+        </Select>
+        <Input label="Téléphone" variant="bordered" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+        <Input label="Email" type="email" variant="bordered" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+        <Input label="Personne de contact" variant="bordered" value={form.contact_person} onChange={e => setForm(f => ({ ...f, contact_person: e.target.value }))} />
+        <div className="sm:col-span-2">
+          <Input label="Conditions de paiement" variant="bordered" value={form.payment_terms} onChange={e => setForm(f => ({ ...f, payment_terms: e.target.value }))} />
+        </div>
       </div>
-      <Button type="submit" className="w-full">Enregistrer</Button>
+      <Button type="submit" color="primary" className="w-full" isLoading={submitting}>Enregistrer</Button>
     </form>
   );
 }
@@ -304,6 +377,7 @@ function ClientFormGlobal({ onClose }: { onClose: () => void }) {
 /* ── Product Form ── */
 function ProductFormGlobal({ onClose }: { onClose: () => void }) {
   const { addProduct, categories } = useData();
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: '', description: '', purchase_price: 0, selling_price: 0,
     tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
@@ -313,53 +387,61 @@ function ProductFormGlobal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addProduct({
-      ...form,
-      description: form.description || null,
-      product_type: form.product_type as any,
-      category_type: form.category_type as any,
-    } as any);
-    onClose();
+    setSubmitting(true);
+    try {
+      await addProduct({
+        ...form,
+        description: form.description || null,
+        product_type: form.product_type as any,
+        category_type: form.category_type as any,
+      } as any);
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div><Label>Nom *</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-      <div><Label>Description</Label><Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <Input label="Nom" isRequired variant="bordered" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+      <Input label="Description" variant="bordered" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
       {categories.length > 0 && (
-        <div>
-          <Label>Catégorie</Label>
-          <Select value={form.category_id || '_none'} onValueChange={v => setForm(f => ({ ...f, category_id: v === '_none' ? null : v }))}>
-            <SelectTrigger><SelectValue placeholder="Aucune" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_none">Aucune</SelectItem>
-              {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select
+          label="Catégorie"
+          variant="bordered"
+          selectedKeys={form.category_id ? [form.category_id] : ['_none']}
+          onSelectionChange={(keys) => {
+            const v = Array.from(keys)[0] as string;
+            setForm(f => ({ ...f, category_id: v === '_none' ? null : v }));
+          }}
+        >
+          <>
+            <SelectItem key="_none">Aucune</SelectItem>
+            <>{categories.map(c => <SelectItem key={c.id}>{c.name}</SelectItem>)}</>
+          </>
+        </Select>
       )}
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>Prix d'achat (TND)</Label><Input type="number" step="0.001" min={0} value={form.purchase_price} onChange={e => setForm(f => ({ ...f, purchase_price: +e.target.value }))} /></div>
-        <div><Label>Prix de vente (TND)</Label><Input type="number" step="0.001" min={0} value={form.selling_price} onChange={e => setForm(f => ({ ...f, selling_price: +e.target.value }))} /></div>
+        <Input label="Prix d'achat (TND)" type="number" step="0.001" min={0} variant="bordered" value={String(form.purchase_price)} onChange={e => setForm(f => ({ ...f, purchase_price: +e.target.value }))} />
+        <Input label="Prix de vente (TND)" type="number" step="0.001" min={0} variant="bordered" value={String(form.selling_price)} onChange={e => setForm(f => ({ ...f, selling_price: +e.target.value }))} />
       </div>
       <div className="grid grid-cols-3 gap-3">
-        <div>
-          <Label>TVA %</Label>
-          <Select value={String(form.tva_rate)} onValueChange={v => setForm(f => ({ ...f, tva_rate: +v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">0%</SelectItem>
-              <SelectItem value="7">7%</SelectItem>
-              <SelectItem value="13">13%</SelectItem>
-              <SelectItem value="19">19%</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div><Label>Stock initial</Label><Input type="number" min={0} value={form.stock} onChange={e => setForm(f => ({ ...f, stock: +e.target.value }))} /></div>
-        <div><Label>Stock min</Label><Input type="number" min={0} value={form.min_stock} onChange={e => setForm(f => ({ ...f, min_stock: +e.target.value }))} /></div>
+        <Select
+          label="TVA %"
+          variant="bordered"
+          selectedKeys={[String(form.tva_rate)]}
+          onSelectionChange={(keys) => setForm(f => ({ ...f, tva_rate: +(Array.from(keys)[0] as string) }))}
+        >
+          <SelectItem key="0">0%</SelectItem>
+          <SelectItem key="7">7%</SelectItem>
+          <SelectItem key="13">13%</SelectItem>
+          <SelectItem key="19">19%</SelectItem>
+        </Select>
+        <Input label="Stock initial" type="number" min={0} variant="bordered" value={String(form.stock)} onChange={e => setForm(f => ({ ...f, stock: +e.target.value }))} />
+        <Input label="Stock min" type="number" min={0} variant="bordered" value={String(form.min_stock)} onChange={e => setForm(f => ({ ...f, min_stock: +e.target.value }))} />
       </div>
-      <div><Label>Unité</Label><Input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} /></div>
-      <Button type="submit" className="w-full">Enregistrer</Button>
+      <Input label="Unité" variant="bordered" value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} />
+      <Button type="submit" color="primary" className="w-full" isLoading={submitting}>Enregistrer</Button>
     </form>
   );
 }
