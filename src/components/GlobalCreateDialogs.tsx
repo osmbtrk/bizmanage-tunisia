@@ -415,8 +415,10 @@ function ProductFormGlobal({ onClose }: { onClose: () => void }) {
             setForm(f => ({ ...f, category_id: v === '_none' ? null : v }));
           }}
         >
-          <SelectItem key="_none">Aucune</SelectItem>
-          {categories.map(c => <SelectItem key={c.id}>{c.name}</SelectItem>)}
+          {[
+            <SelectItem key="_none">Aucune</SelectItem>,
+            ...categories.map(c => <SelectItem key={c.id}>{c.name}</SelectItem>),
+          ]}
         </Select>
       )}
       <div className="grid grid-cols-2 gap-3">
