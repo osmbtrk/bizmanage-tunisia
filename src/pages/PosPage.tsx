@@ -573,12 +573,9 @@ export default function PosPage() {
               className="w-36 shrink-0"
               classNames={{ trigger: 'h-10 min-h-10' }}
             >
-              <>
-                <SelectItem key="all">Toutes</SelectItem>
-                {categories.map(c => (
-                  <SelectItem key={c.id}>{c.name}</SelectItem>
-                )) as any}
-              </>
+              {[{ id: 'all', name: 'Toutes' }, ...categories].map(c => (
+                <SelectItem key={c.id}>{c.name}</SelectItem>
+              ))}
             </Select>
           )}
           <Button
