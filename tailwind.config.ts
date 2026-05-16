@@ -4,11 +4,10 @@ import { heroui } from "@heroui/react";
 export default {
   darkMode: ["class"],
   content: [
-    "./pages/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-    "./app/**/*.{ts,tsx}",
-    "./src/**/*.{ts,tsx}",
-    "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
+    "./index.html",
+    "./src/**/*.{ts,tsx,js,jsx}",
+    "./node_modules/@heroui/theme/dist/**/*.{js,mjs,cjs}",
+    "./node_modules/@heroui/react/dist/**/*.{js,mjs,cjs}",
   ],
   prefix: "",
   theme: {
