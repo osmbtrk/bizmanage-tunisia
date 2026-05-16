@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote,
-  Building2, AlertTriangle, Check, Percent, Hash, ScanBarcode, X
+  Card, CardBody, CardHeader,
+  Button, Input, Select, SelectItem, Autocomplete, AutocompleteItem,
+  Modal, ModalContent, ModalHeader, ModalBody,
+  Drawer, DrawerContent, DrawerHeader, DrawerBody,
+  Chip,
+} from '@heroui/react';
+import {
+  Search, Plus, Minus, Trash2, ShoppingCart, CreditCard,
+  AlertTriangle, Percent, Hash, ScanBarcode, X, UserPlus,
 } from 'lucide-react';
 import { clientsApi, productsApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -31,9 +31,8 @@ interface PosItem {
 type PaymentMethod = 'cash' | 'card' | 'virement';
 type DiscountType = 'percent' | 'fixed';
 
-// ── Main POS Component ──
 export default function PosPage() {
-  const { clients, products, addInvoice, addClient, addProduct, categories, refresh } = useData();
+  const { clients, products, addInvoice, addClient, addProduct, categories } = useData();
   const { role, companyId } = useAuth();
   const { toast } = useToast();
   const isAdmin = role === 'admin';
@@ -41,7 +40,6 @@ export default function PosPage() {
   // State
   const [items, setItems] = useState<PosItem[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const [clientSearch, setClientSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [posCategoryFilter, setPosCategoryFilter] = useState<string>('all');
   const [discountType, setDiscountType] = useState<DiscountType>('percent');
@@ -51,26 +49,25 @@ export default function PosPage() {
   const [amountReceived, setAmountReceived] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [passagerId, setPassagerId] = useState<string | null>(null);
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
 
   const barcodeRef = useRef<HTMLInputElement>(null);
   const productSearchRef = useRef<HTMLInputElement>(null);
   const [newClientOpen, setNewClientOpen] = useState(false);
-  const [clientForm, setClientForm] = useState({
+  const emptyClientForm = {
     name: '', legal_form: 'personne_physique' as string, matricule_fiscal: '', code_tva: '', rne: '',
     address: '', governorate: '', phone: '', email: '', contact_person: '',
     payment_terms: 'Paiement à 30 jours', status: 'active' as string,
-  });
+  };
+  const [clientForm, setClientForm] = useState({ ...emptyClientForm });
+
   const [newProductOpen, setNewProductOpen] = useState(false);
-  const [productForm, setProductForm] = useState({
-    name: '', description: '', selling_price: 0, purchase_price: 0, stock: 0, min_stock: 5, unit: 'pièce', tva_rate: 19,
-    product_type: 'finished_product' as string, category_type: 'normal' as string, supplier_id: null as string | null,
-    category_id: null as string | null,
-  });
   const emptyProductForm = {
     name: '', description: '', selling_price: 0, purchase_price: 0, stock: 0, min_stock: 5, unit: 'pièce', tva_rate: 19,
     product_type: 'finished_product' as string, category_type: 'normal' as string, supplier_id: null as string | null,
     category_id: null as string | null,
   };
+  const [productForm, setProductForm] = useState({ ...emptyProductForm });
 
   const GOVERNORATES = [
     'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan', 'Bizerte',
@@ -87,11 +84,6 @@ export default function PosPage() {
     { value: 'snc', label: 'SNC' },
     { value: 'autre', label: 'Autre' },
   ];
-  const emptyClientForm = {
-    name: '', legal_form: 'personne_physique' as string, matricule_fiscal: '', code_tva: '', rne: '',
-    address: '', governorate: '', phone: '', email: '', contact_person: '',
-    payment_terms: 'Paiement à 30 jours', status: 'active' as string,
-  };
 
   const handleNewClientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,10 +138,7 @@ export default function PosPage() {
   useEffect(() => {
     const ensurePassager = async () => {
       if (!companyId) return;
-
-      // Query DB via API layer to find existing Passager client
       const { data: existingRows } = await clientsApi.findPassagerClient(companyId);
-
       if (existingRows && existingRows.length > 0) {
         setPassagerId(existingRows[0].id);
         if (!selectedClientId) setSelectedClientId(existingRows[0].id);
@@ -157,17 +146,10 @@ export default function PosPage() {
         const result = await addClient({
           name: 'Passager',
           legal_form: 'personne_physique' as any,
-          matricule_fiscal: null,
-          code_tva: null,
-          rne: null,
-          address: null,
-          governorate: null,
-          phone: null,
-          email: null,
-          contact_person: null,
-          payment_terms: null,
-          status: 'active' as any,
-          is_archived: false,
+          matricule_fiscal: null, code_tva: null, rne: null,
+          address: null, governorate: null, phone: null,
+          email: null, contact_person: null, payment_terms: null,
+          status: 'active' as any, is_archived: false,
         });
         if (result) {
           setPassagerId(result.id);
@@ -186,8 +168,6 @@ export default function PosPage() {
     ? (grossTotal * discountValue) / 100
     : discountValue;
   const total = Math.max(0, grossTotal - discountAmount);
-  const change = amountReceived - total;
-  const isPartial = paymentMethod === 'cash' && amountReceived > 0 && amountReceived < total;
 
   const profitMargin = useMemo(() => {
     if (!isAdmin) return 0;
@@ -208,18 +188,10 @@ export default function PosPage() {
     );
   }, [products, productSearch, posCategoryFilter]);
 
-  // ── Client filtering ──
-  const filteredClients = useMemo(() => {
-    if (!clientSearch.trim()) return clients;
-    const q = clientSearch.toLowerCase();
-    return clients.filter(c => c.name.toLowerCase().includes(q));
-  }, [clients, clientSearch]);
-
   // ── Add product to order ──
   const addProductToOrder = useCallback((productId: string) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-
     setItems(prev => {
       const existing = prev.find(i => i.product_id === productId);
       if (existing) {
@@ -274,21 +246,10 @@ export default function PosPage() {
   // ── Keyboard shortcuts ──
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'F2') {
-        e.preventDefault();
-        productSearchRef.current?.focus();
-      }
-      if (e.key === 'F4') {
-        e.preventDefault();
-        barcodeRef.current?.focus();
-      }
-      if (e.key === 'F8' && items.length > 0) {
-        e.preventDefault();
-        setCheckoutOpen(true);
-      }
-      if (e.key === 'Escape') {
-        setCheckoutOpen(false);
-      }
+      if (e.key === 'F2') { e.preventDefault(); productSearchRef.current?.focus(); }
+      if (e.key === 'F4') { e.preventDefault(); barcodeRef.current?.focus(); }
+      if (e.key === 'F8' && items.length > 0) { e.preventDefault(); setCheckoutOpen(true); }
+      if (e.key === 'Escape') { setCheckoutOpen(false); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -297,8 +258,6 @@ export default function PosPage() {
   // ── Checkout ──
   const handleCheckout = async () => {
     if (items.length === 0 || !selectedClientId) return;
-
-    // Fetch fresh stock from DB via API layer before validating
     const productIds = items.filter(i => i.product_id).map(i => i.product_id);
     const { data: freshProducts } = await productsApi.fetchProductsByIds(productIds);
     const freshMap = new Map((freshProducts ?? []).map(p => [p.id, p]));
@@ -351,11 +310,11 @@ export default function PosPage() {
         description: `Total: ${total.toFixed(3)} TND — ${status === 'paid' ? 'Payée' : 'Partielle'}`,
       });
 
-      // Reset
       setItems([]);
       setDiscountValue(0);
       setAmountReceived(0);
       setCheckoutOpen(false);
+      setMobileCartOpen(false);
       setPaymentMethod('cash');
       if (passagerId) setSelectedClientId(passagerId);
     } catch (err) {
@@ -366,186 +325,265 @@ export default function PosPage() {
   };
 
   const formatDT = (n: number) => n.toFixed(3) + ' TND';
+  const totalQty = items.reduce((s, i) => s + i.quantity, 0);
+
+  // ─────────── Order Panel (shared between desktop column and mobile drawer) ───────────
+  const OrderPanelContent = (
+    <>
+      <div className="flex-1 overflow-y-auto px-4 pb-0">
+        {items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <ShoppingCart className="h-10 w-10 mb-3 opacity-30" />
+            <p className="text-sm">Aucun article</p>
+            <p className="text-xs mt-1">Cliquez sur un produit pour l'ajouter</p>
+          </div>
+        ) : (
+          <div className="space-y-2 py-2">
+            {items.map(item => {
+              const overStock = item.quantity > item.stock;
+              return (
+                <div
+                  key={item.product_id}
+                  className={`rounded-lg border p-3 transition-all duration-200 ${
+                    overStock
+                      ? 'border-destructive/50 bg-destructive/5 border-l-4 border-l-destructive'
+                      : 'border-border hover:border-primary/30'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{item.product_name}</p>
+                      <p className="text-xs text-muted-foreground">{formatDT(item.unit_price)} / {item.unit}</p>
+                    </div>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="light"
+                      className="h-6 w-6 min-w-6 text-muted-foreground hover:text-destructive"
+                      onPress={() => removeItem(item.product_id)}
+                      aria-label="Retirer"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-1">
+                      <Button isIconOnly size="sm" variant="bordered" className="h-8 w-8 min-w-8" onPress={() => updateQuantity(item.product_id, -1)} aria-label="Diminuer">
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <input
+                        type="number"
+                        min={1}
+                        value={item.quantity}
+                        onChange={e => {
+                          const val = Math.max(1, parseInt(e.target.value) || 1);
+                          setItems(prev => prev.map(i => i.product_id === item.product_id ? { ...i, quantity: val } : i));
+                        }}
+                        className="h-8 w-14 text-center text-sm px-1 rounded-md border border-border bg-background"
+                      />
+                      <Button isIconOnly size="sm" variant="bordered" className="h-8 w-8 min-w-8" onPress={() => updateQuantity(item.product_id, 1)} aria-label="Augmenter">
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <p className="text-sm font-bold">{formatDT(item.quantity * item.unit_price)}</p>
+                  </div>
+                  {overStock && (
+                    <div className="flex items-center gap-1 mt-1.5 text-[11px] text-destructive">
+                      <AlertTriangle className="h-3 w-3" />
+                      Stock: {item.stock} — Excès: {item.quantity - item.stock}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Totals & Checkout */}
+      <div className="border-t border-border px-4 py-3 mt-auto shrink-0 space-y-2 bg-card">
+        <div className="flex items-center gap-2">
+          <Select
+            aria-label="Type de remise"
+            selectedKeys={[discountType]}
+            onSelectionChange={(keys) => setDiscountType(Array.from(keys)[0] as DiscountType)}
+            variant="bordered"
+            size="sm"
+            className="w-24"
+            classNames={{ trigger: 'h-8 min-h-8' }}
+          >
+            <SelectItem key="percent" startContent={<Percent className="h-3 w-3" />}>%</SelectItem>
+            <SelectItem key="fixed" startContent={<Hash className="h-3 w-3" />}>TND</SelectItem>
+          </Select>
+          <Input
+            type="number"
+            min={0}
+            step={discountType === 'percent' ? 1 : 0.001}
+            max={discountType === 'percent' ? 100 : grossTotal}
+            value={discountValue ? String(discountValue) : ''}
+            onChange={e => setDiscountValue(+e.target.value)}
+            placeholder="Remise"
+            variant="bordered"
+            size="sm"
+            className="flex-1"
+            classNames={{ inputWrapper: 'h-8 min-h-8' }}
+          />
+        </div>
+
+        <div className="space-y-1 text-sm">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Sous-total HT</span>
+            <span>{formatDT(subtotalHT)}</span>
+          </div>
+          <div className="flex justify-between text-muted-foreground">
+            <span>TVA</span>
+            <span>{formatDT(tvaTotal)}</span>
+          </div>
+          {discountAmount > 0 && (
+            <div className="flex justify-between text-success">
+              <span>Remise</span>
+              <span>-{formatDT(discountAmount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
+            <span>Total TTC</span>
+            <span className="text-primary tabular-nums text-xl">{formatDT(total)}</span>
+          </div>
+          {isAdmin && profitMargin > 0 && (
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Marge brute</span>
+              <span className="text-success">{formatDT(profitMargin)}</span>
+            </div>
+          )}
+        </div>
+
+        <Button
+          color="primary"
+          className="w-full h-12 text-base font-semibold"
+          isDisabled={items.length === 0}
+          onPress={() => {
+            setAmountReceived(0);
+            setCheckoutOpen(true);
+          }}
+          startContent={<CreditCard className="h-5 w-5" />}
+        >
+          Encaisser (F8)
+        </Button>
+
+        <p className="text-[10px] text-center text-muted-foreground hidden lg:block">
+          F2: Recherche • F4: Scanner • F8: Encaisser
+        </p>
+      </div>
+    </>
+  );
+
+  const OrderHeader = (
+    <div className="flex items-center justify-between w-full">
+      <div className="text-base font-semibold flex items-center gap-2">
+        <ShoppingCart className="h-4 w-4" />
+        Commande
+        {items.length > 0 && (
+          <Chip size="sm" variant="flat" color="primary" className="ml-1">{totalQty}</Chip>
+        )}
+      </div>
+      {items.length > 0 && (
+        <Button
+          size="sm"
+          variant="light"
+          color="danger"
+          className="text-xs"
+          startContent={<Trash2 className="h-3 w-3" />}
+          onPress={() => setItems([])}
+        >
+          Vider
+        </Button>
+      )}
+    </div>
+  );
 
   return (
-    <div className="animate-fade-in h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4 overflow-auto lg:overflow-hidden">
+    <div className="animate-fade-in h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4 overflow-auto lg:overflow-hidden pb-20 lg:pb-0">
       {/* ═══ LEFT: Product Selection ═══ */}
       <div className="flex-1 flex flex-col min-w-0 min-h-[50vh] lg:min-h-0 overflow-hidden">
-        {/* Client selector */}
-        <Card className="mb-3 shrink-0">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <Label className="text-xs text-muted-foreground mb-1 block">Client</Label>
-                <div className="flex items-center gap-1">
-                  <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Sélectionner un client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="px-2 pb-2">
-                        <Input
-                          placeholder="Rechercher client..."
-                          value={clientSearch}
-                          onChange={e => setClientSearch(e.target.value)}
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                      {filteredClients.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 shrink-0"
-                    onClick={() => setNewClientOpen(true)}
-                    title="Nouveau client"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+        {/* Client + Scanner row */}
+        <Card shadow="sm" className="mb-3 shrink-0 bg-card border border-border">
+          <CardBody className="p-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+              <div className="flex-1 min-w-0 flex items-end gap-1">
+                <Autocomplete
+                  aria-label="Client"
+                  label="Client"
+                  labelPlacement="outside"
+                  placeholder="Sélectionner un client"
+                  variant="bordered"
+                  size="sm"
+                  selectedKey={selectedClientId || null}
+                  onSelectionChange={(key) => setSelectedClientId((key as string) || '')}
+                  defaultItems={clients}
+                  className="flex-1"
+                >
+                  {(c) => <AutocompleteItem key={c.id}>{c.name}</AutocompleteItem>}
+                </Autocomplete>
+                <Button
+                  isIconOnly
+                  variant="bordered"
+                  size="sm"
+                  className="h-10 w-10 min-w-10 shrink-0"
+                  onPress={() => setNewClientOpen(true)}
+                  aria-label="Nouveau client"
+                >
+                  <UserPlus className="h-4 w-4" />
+                </Button>
               </div>
-              {/* Barcode input */}
-              <div className="flex-1 min-w-0">
-                <Label className="text-xs text-muted-foreground mb-1 block">
-                  <ScanBarcode className="h-3 w-3 inline mr-1" />
-                  Scanner / Code (F4)
-                </Label>
-                <Input
-                  ref={barcodeRef}
-                  placeholder="Scanner code-barres..."
-                  className="h-9 text-xs"
-                  onKeyDown={handleBarcodeInput}
-                />
-              </div>
+              <Input
+                ref={barcodeRef}
+                label="Scanner / Code (F4)"
+                labelPlacement="outside"
+                placeholder="Scanner code-barres..."
+                variant="bordered"
+                size="sm"
+                className="flex-1"
+                startContent={<ScanBarcode className="h-4 w-4 text-muted-foreground" />}
+                onKeyDown={handleBarcodeInput}
+              />
             </div>
-          </CardContent>
+          </CardBody>
         </Card>
 
-        {/* New Client Modal */}
-        <Dialog open={newClientOpen} onOpenChange={o => { setNewClientOpen(o); if (!o) setClientForm({ ...emptyClientForm }); }}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Nouveau client</DialogTitle></DialogHeader>
-            <form onSubmit={handleNewClientSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2"><Label>Raison sociale *</Label><Input required value={clientForm.name} onChange={e => setClientForm(f => ({ ...f, name: e.target.value }))} /></div>
-                <div>
-                  <Label>Forme juridique</Label>
-                  <Select value={clientForm.legal_form} onValueChange={v => setClientForm(f => ({ ...f, legal_form: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{LEGAL_FORMS.map(lf => <SelectItem key={lf.value} value={lf.value}>{lf.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Statut</Label>
-                  <Select value={clientForm.status} onValueChange={v => setClientForm(f => ({ ...f, status: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Actif</SelectItem>
-                      <SelectItem value="inactive">Inactif</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Matricule fiscal</Label><Input value={clientForm.matricule_fiscal} onChange={e => setClientForm(f => ({ ...f, matricule_fiscal: e.target.value }))} /></div>
-                <div><Label>Code TVA</Label><Input value={clientForm.code_tva} onChange={e => setClientForm(f => ({ ...f, code_tva: e.target.value }))} /></div>
-                <div className="col-span-2"><Label>RNE</Label><Input value={clientForm.rne} onChange={e => setClientForm(f => ({ ...f, rne: e.target.value }))} /></div>
-                <div className="col-span-2"><Label>Adresse</Label><Input value={clientForm.address} onChange={e => setClientForm(f => ({ ...f, address: e.target.value }))} /></div>
-                <div>
-                  <Label>Gouvernorat</Label>
-                  <Select value={clientForm.governorate} onValueChange={v => setClientForm(f => ({ ...f, governorate: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Choisir..." /></SelectTrigger>
-                    <SelectContent>{GOVERNORATES.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Téléphone</Label><Input value={clientForm.phone} onChange={e => setClientForm(f => ({ ...f, phone: e.target.value }))} /></div>
-                <div><Label>Email</Label><Input type="email" value={clientForm.email} onChange={e => setClientForm(f => ({ ...f, email: e.target.value }))} /></div>
-                <div><Label>Personne de contact</Label><Input value={clientForm.contact_person} onChange={e => setClientForm(f => ({ ...f, contact_person: e.target.value }))} /></div>
-                <div className="col-span-2"><Label>Conditions de paiement</Label><Input value={clientForm.payment_terms} onChange={e => setClientForm(f => ({ ...f, payment_terms: e.target.value }))} /></div>
-              </div>
-              <Button type="submit" className="w-full">Enregistrer</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* New Product Modal */}
-        <Dialog open={newProductOpen} onOpenChange={o => { setNewProductOpen(o); if (!o) setProductForm({ ...emptyProductForm }); }}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Nouveau produit</DialogTitle></DialogHeader>
-            <form onSubmit={handleNewProductSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2"><Label>Nom *</Label><Input required value={productForm.name} onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))} /></div>
-                <div className="col-span-2"><Label>Description</Label><Input value={productForm.description} onChange={e => setProductForm(f => ({ ...f, description: e.target.value }))} /></div>
-                <div><Label>Prix de vente *</Label><Input type="number" step="0.001" min="0" required value={productForm.selling_price || ''} onChange={e => setProductForm(f => ({ ...f, selling_price: parseFloat(e.target.value) || 0 }))} /></div>
-                <div><Label>Prix d'achat</Label><Input type="number" step="0.001" min="0" value={productForm.purchase_price || ''} onChange={e => setProductForm(f => ({ ...f, purchase_price: parseFloat(e.target.value) || 0 }))} /></div>
-                <div><Label>Stock initial</Label><Input type="number" min="0" value={productForm.stock || ''} onChange={e => setProductForm(f => ({ ...f, stock: parseInt(e.target.value) || 0 }))} /></div>
-                <div><Label>Stock minimum</Label><Input type="number" min="0" value={productForm.min_stock || ''} onChange={e => setProductForm(f => ({ ...f, min_stock: parseInt(e.target.value) || 0 }))} /></div>
-                <div>
-                  <Label>Unité</Label>
-                  <Select value={productForm.unit} onValueChange={v => setProductForm(f => ({ ...f, unit: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pièce">Pièce</SelectItem>
-                      <SelectItem value="kg">Kg</SelectItem>
-                      <SelectItem value="litre">Litre</SelectItem>
-                      <SelectItem value="mètre">Mètre</SelectItem>
-                      <SelectItem value="boîte">Boîte</SelectItem>
-                      <SelectItem value="carton">Carton</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>TVA (%)</Label>
-                  <Select value={String(productForm.tva_rate)} onValueChange={v => setProductForm(f => ({ ...f, tva_rate: parseInt(v) }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0%</SelectItem>
-                      <SelectItem value="7">7%</SelectItem>
-                      <SelectItem value="13">13%</SelectItem>
-                      <SelectItem value="19">19%</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button type="submit" className="w-full">Enregistrer</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-
         {/* Product search + category filter */}
-        <div className="relative mb-3 shrink-0 flex items-center gap-1">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              ref={productSearchRef}
-              placeholder="Rechercher un produit... (F2)"
-              className="pl-9 h-10"
-              value={productSearch}
-              onChange={e => setProductSearch(e.target.value)}
-            />
-          </div>
+        <div className="relative mb-3 shrink-0 flex items-center gap-2">
+          <Input
+            ref={productSearchRef}
+            placeholder="Rechercher un produit... (F2)"
+            value={productSearch}
+            onValueChange={setProductSearch}
+            variant="bordered"
+            size="sm"
+            startContent={<Search className="h-4 w-4 text-muted-foreground" />}
+            className="flex-1"
+            classNames={{ inputWrapper: 'h-10' }}
+          />
           {categories.length > 0 && (
-            <Select value={posCategoryFilter} onValueChange={setPosCategoryFilter}>
-              <SelectTrigger className="h-10 w-40 text-xs shrink-0">
-                <SelectValue placeholder="Catégorie" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes</SelectItem>
-                {categories.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
+            <Select
+              aria-label="Catégorie"
+              selectedKeys={[posCategoryFilter]}
+              onSelectionChange={(keys) => setPosCategoryFilter(Array.from(keys)[0] as string)}
+              variant="bordered"
+              size="sm"
+              className="w-36 shrink-0"
+              classNames={{ trigger: 'h-10 min-h-10' }}
+            >
+              {[{ id: 'all', name: 'Toutes' }, ...categories].map(c => (
+                <SelectItem key={c.id}>{c.name}</SelectItem>
+              ))}
             </Select>
           )}
           <Button
-            variant="outline"
-            size="icon"
-            className="h-10 w-10 shrink-0"
-            onClick={() => setNewProductOpen(true)}
-            title="Nouveau produit"
+            isIconOnly
+            variant="bordered"
+            className="h-10 w-10 min-w-10 shrink-0"
+            onPress={() => setNewProductOpen(true)}
+            aria-label="Nouveau produit"
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -575,14 +613,14 @@ export default function PosPage() {
                   <p className="text-sm font-semibold truncate text-foreground">{p.name}</p>
                   <p className="text-lg font-bold text-primary mt-1 tabular-nums">{formatDT(p.selling_price)}</p>
                   <div className="flex items-center justify-between mt-2">
-                    <Badge
-                      variant={isOutOfStock ? 'destructive' : isLowStock ? 'secondary' : 'outline'}
-                      className={`text-[10px] px-2 py-0.5 font-semibold tabular-nums ${
-                        isLowStock && !isOutOfStock ? 'bg-warning/15 text-warning border-warning/30' : ''
-                      }`}
+                    <Chip
+                      size="sm"
+                      variant="flat"
+                      color={isOutOfStock ? 'danger' : isLowStock ? 'warning' : 'default'}
+                      className="text-[10px] h-5 px-2"
                     >
                       {isOutOfStock ? '⛔ Rupture' : `📦 ${p.stock} ${p.unit}`}
-                    </Badge>
+                    </Chip>
                     {isLowStock && !isOutOfStock && (
                       <AlertTriangle className="h-3.5 w-3.5 text-warning animate-pulse" />
                     )}
@@ -604,155 +642,151 @@ export default function PosPage() {
         </div>
       </div>
 
-      {/* ═══ RIGHT: Order Card ═══ */}
-      <Card className="w-full lg:w-[380px] xl:w-[420px] shrink-0 flex flex-col overflow-hidden shadow-lg">
-        <CardHeader className="pb-2 px-4 pt-4 shrink-0">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4" />
-              Commande
-              {items.length > 0 && (
-                <Badge variant="secondary" className="text-xs ml-1">
-                  {items.reduce((s, i) => s + i.quantity, 0)}
-                </Badge>
-              )}
-            </CardTitle>
-            {items.length > 0 && (
-              <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => setItems([])}>
-                <Trash2 className="h-3 w-3 mr-1" /> Vider
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-
-        <CardContent className="flex-1 overflow-y-auto px-4 pb-0">
-          {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <ShoppingCart className="h-10 w-10 mb-3 opacity-30" />
-              <p className="text-sm">Aucun article</p>
-              <p className="text-xs mt-1">Cliquez sur un produit pour l'ajouter</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {items.map(item => {
-                const overStock = item.quantity > item.stock;
-                return (
-                  <div
-                    key={item.product_id}
-                    className={`rounded-lg border p-3 transition-all duration-200 ${overStock ? 'border-destructive/50 bg-destructive/5 border-l-4 border-l-destructive' : 'border-border hover:border-primary/30'}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{item.product_name}</p>
-                        <p className="text-xs text-muted-foreground">{formatDT(item.unit_price)} / {item.unit}</p>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeItem(item.product_id)}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-1">
-                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product_id, -1)}>
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={e => {
-                            const val = Math.max(1, parseInt(e.target.value) || 1);
-                            setItems(prev => prev.map(i => i.product_id === item.product_id ? { ...i, quantity: val } : i));
-                          }}
-                          className="h-7 w-14 text-center text-sm px-1"
-                        />
-                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product_id, 1)}>
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <p className="text-sm font-bold">{formatDT(item.quantity * item.unit_price)}</p>
-                    </div>
-                    {overStock && (
-                      <div className="flex items-center gap-1 mt-1.5 text-[11px] text-destructive">
-                        <AlertTriangle className="h-3 w-3" />
-                        Stock: {item.stock} — Excès: {item.quantity - item.stock}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-
-        {/* ── Totals & Checkout ── */}
-        <div className="border-t border-border px-4 py-3 mt-auto shrink-0 space-y-2 bg-card">
-          {/* Discount */}
-          <div className="flex items-center gap-2">
-            <Select value={discountType} onValueChange={v => setDiscountType(v as DiscountType)}>
-              <SelectTrigger className="h-8 w-24 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="percent"><Percent className="h-3 w-3 inline mr-1" />%</SelectItem>
-                <SelectItem value="fixed"><Hash className="h-3 w-3 inline mr-1" />TND</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input
-              type="number"
-              min={0}
-              step={discountType === 'percent' ? 1 : 0.001}
-              max={discountType === 'percent' ? 100 : grossTotal}
-              value={discountValue || ''}
-              onChange={e => setDiscountValue(+e.target.value)}
-              placeholder="Remise"
-              className="h-8 text-xs flex-1"
-            />
-          </div>
-
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Sous-total HT</span>
-              <span>{formatDT(subtotalHT)}</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>TVA</span>
-              <span>{formatDT(tvaTotal)}</span>
-            </div>
-              {discountAmount > 0 && (
-              <div className="flex justify-between text-success">
-                <span>Remise</span>
-                <span>-{formatDT(discountAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
-              <span>Total TTC</span>
-              <span className="text-primary tabular-nums text-xl">{formatDT(total)}</span>
-            </div>
-            {isAdmin && profitMargin > 0 && (
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Marge brute</span>
-                <span className="text-success">{formatDT(profitMargin)}</span>
-              </div>
-            )}
-          </div>
-
-          <Button
-            className="w-full h-12 text-base font-semibold gap-2"
-            disabled={items.length === 0}
-            onClick={() => {
-              setAmountReceived(0);
-              setCheckoutOpen(true);
-            }}
-          >
-            <CreditCard className="h-5 w-5" />
-            Encaisser (F8)
-          </Button>
-
-          <p className="text-[10px] text-center text-muted-foreground">
-            F2: Recherche • F4: Scanner • F8: Encaisser
-          </p>
-        </div>
+      {/* ═══ RIGHT: Order Card (desktop) ═══ */}
+      <Card
+        shadow="lg"
+        className="hidden lg:flex w-full lg:w-[380px] xl:w-[420px] shrink-0 flex-col overflow-hidden bg-card border border-border"
+      >
+        <CardHeader className="pb-2 px-4 pt-4 shrink-0">{OrderHeader}</CardHeader>
+        <CardBody className="flex flex-col p-0 flex-1 overflow-hidden">
+          {OrderPanelContent}
+        </CardBody>
       </Card>
+
+      {/* ═══ MOBILE: floating cart bar ═══ */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border p-3 flex items-center gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        <Button
+          variant="bordered"
+          className="flex-1 h-12 justify-between"
+          onPress={() => setMobileCartOpen(true)}
+          startContent={
+            <span className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              {totalQty > 0 && <Chip size="sm" color="primary" variant="flat">{totalQty}</Chip>}
+            </span>
+          }
+        >
+          <span className="font-bold text-primary tabular-nums">{formatDT(total)}</span>
+        </Button>
+        <Button
+          color="primary"
+          className="h-12 px-5 font-semibold"
+          isDisabled={items.length === 0}
+          onPress={() => { setAmountReceived(0); setCheckoutOpen(true); }}
+          startContent={<CreditCard className="h-5 w-5" />}
+        >
+          Encaisser
+        </Button>
+      </div>
+
+      {/* ═══ MOBILE: Cart drawer ═══ */}
+      <Drawer
+        isOpen={mobileCartOpen}
+        onOpenChange={setMobileCartOpen}
+        placement="bottom"
+        size="full"
+        classNames={{ base: 'lg:hidden h-[90vh] bg-background', wrapper: 'lg:hidden' }}
+      >
+        <DrawerContent>
+          {() => (
+            <>
+              <DrawerHeader className="border-b border-border">{OrderHeader}</DrawerHeader>
+              <DrawerBody className="p-0 flex flex-col">
+                {OrderPanelContent}
+              </DrawerBody>
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
+
+      {/* ═══ New Client Modal ═══ */}
+      <Modal
+        isOpen={newClientOpen}
+        onOpenChange={(o) => { setNewClientOpen(o); if (!o) setClientForm({ ...emptyClientForm }); }}
+        size="2xl"
+        scrollBehavior="inside"
+        placement="center"
+        classNames={{ base: 'bg-background border border-border' }}
+      >
+        <ModalContent>
+          {() => (
+            <>
+              <ModalHeader>Nouveau client</ModalHeader>
+              <ModalBody className="pb-6">
+                <form onSubmit={handleNewClientSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input className="sm:col-span-2" label="Raison sociale" isRequired variant="bordered" size="sm" value={clientForm.name} onValueChange={v => setClientForm(f => ({ ...f, name: v }))} />
+                    <Select label="Forme juridique" variant="bordered" size="sm" selectedKeys={[clientForm.legal_form]} onSelectionChange={k => setClientForm(f => ({ ...f, legal_form: Array.from(k)[0] as string }))}>
+                      {LEGAL_FORMS.map(lf => <SelectItem key={lf.value}>{lf.label}</SelectItem>)}
+                    </Select>
+                    <Select label="Statut" variant="bordered" size="sm" selectedKeys={[clientForm.status]} onSelectionChange={k => setClientForm(f => ({ ...f, status: Array.from(k)[0] as string }))}>
+                      <SelectItem key="active">Actif</SelectItem>
+                      <SelectItem key="inactive">Inactif</SelectItem>
+                    </Select>
+                    <Input label="Matricule fiscal" variant="bordered" size="sm" value={clientForm.matricule_fiscal} onValueChange={v => setClientForm(f => ({ ...f, matricule_fiscal: v }))} />
+                    <Input label="Code TVA" variant="bordered" size="sm" value={clientForm.code_tva} onValueChange={v => setClientForm(f => ({ ...f, code_tva: v }))} />
+                    <Input className="sm:col-span-2" label="RNE" variant="bordered" size="sm" value={clientForm.rne} onValueChange={v => setClientForm(f => ({ ...f, rne: v }))} />
+                    <Input className="sm:col-span-2" label="Adresse" variant="bordered" size="sm" value={clientForm.address} onValueChange={v => setClientForm(f => ({ ...f, address: v }))} />
+                    <Select label="Gouvernorat" variant="bordered" size="sm" placeholder="Choisir..." selectedKeys={clientForm.governorate ? [clientForm.governorate] : []} onSelectionChange={k => setClientForm(f => ({ ...f, governorate: Array.from(k)[0] as string }))}>
+                      {GOVERNORATES.map(g => <SelectItem key={g}>{g}</SelectItem>)}
+                    </Select>
+                    <Input label="Téléphone" variant="bordered" size="sm" value={clientForm.phone} onValueChange={v => setClientForm(f => ({ ...f, phone: v }))} />
+                    <Input label="Email" type="email" variant="bordered" size="sm" value={clientForm.email} onValueChange={v => setClientForm(f => ({ ...f, email: v }))} />
+                    <Input label="Personne de contact" variant="bordered" size="sm" value={clientForm.contact_person} onValueChange={v => setClientForm(f => ({ ...f, contact_person: v }))} />
+                    <Input className="sm:col-span-2" label="Conditions de paiement" variant="bordered" size="sm" value={clientForm.payment_terms} onValueChange={v => setClientForm(f => ({ ...f, payment_terms: v }))} />
+                  </div>
+                  <Button type="submit" color="primary" className="w-full">Enregistrer</Button>
+                </form>
+              </ModalBody>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* ═══ New Product Modal ═══ */}
+      <Modal
+        isOpen={newProductOpen}
+        onOpenChange={(o) => { setNewProductOpen(o); if (!o) setProductForm({ ...emptyProductForm }); }}
+        size="2xl"
+        scrollBehavior="inside"
+        placement="center"
+        classNames={{ base: 'bg-background border border-border' }}
+      >
+        <ModalContent>
+          {() => (
+            <>
+              <ModalHeader>Nouveau produit</ModalHeader>
+              <ModalBody className="pb-6">
+                <form onSubmit={handleNewProductSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input className="sm:col-span-2" label="Nom" isRequired variant="bordered" size="sm" value={productForm.name} onValueChange={v => setProductForm(f => ({ ...f, name: v }))} />
+                    <Input className="sm:col-span-2" label="Description" variant="bordered" size="sm" value={productForm.description} onValueChange={v => setProductForm(f => ({ ...f, description: v }))} />
+                    <Input label="Prix de vente" type="number" step="0.001" min="0" isRequired variant="bordered" size="sm" value={productForm.selling_price ? String(productForm.selling_price) : ''} onChange={e => setProductForm(f => ({ ...f, selling_price: parseFloat(e.target.value) || 0 }))} />
+                    <Input label="Prix d'achat" type="number" step="0.001" min="0" variant="bordered" size="sm" value={productForm.purchase_price ? String(productForm.purchase_price) : ''} onChange={e => setProductForm(f => ({ ...f, purchase_price: parseFloat(e.target.value) || 0 }))} />
+                    <Input label="Stock initial" type="number" min="0" variant="bordered" size="sm" value={productForm.stock ? String(productForm.stock) : ''} onChange={e => setProductForm(f => ({ ...f, stock: parseInt(e.target.value) || 0 }))} />
+                    <Input label="Stock minimum" type="number" min="0" variant="bordered" size="sm" value={productForm.min_stock ? String(productForm.min_stock) : ''} onChange={e => setProductForm(f => ({ ...f, min_stock: parseInt(e.target.value) || 0 }))} />
+                    <Select label="Unité" variant="bordered" size="sm" selectedKeys={[productForm.unit]} onSelectionChange={k => setProductForm(f => ({ ...f, unit: Array.from(k)[0] as string }))}>
+                      <SelectItem key="pièce">Pièce</SelectItem>
+                      <SelectItem key="kg">Kg</SelectItem>
+                      <SelectItem key="litre">Litre</SelectItem>
+                      <SelectItem key="mètre">Mètre</SelectItem>
+                      <SelectItem key="boîte">Boîte</SelectItem>
+                      <SelectItem key="carton">Carton</SelectItem>
+                    </Select>
+                    <Select label="TVA (%)" variant="bordered" size="sm" selectedKeys={[String(productForm.tva_rate)]} onSelectionChange={k => setProductForm(f => ({ ...f, tva_rate: parseInt(Array.from(k)[0] as string) }))}>
+                      <SelectItem key="0">0%</SelectItem>
+                      <SelectItem key="7">7%</SelectItem>
+                      <SelectItem key="13">13%</SelectItem>
+                      <SelectItem key="19">19%</SelectItem>
+                    </Select>
+                  </div>
+                  <Button type="submit" color="primary" className="w-full">Enregistrer</Button>
+                </form>
+              </ModalBody>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
 
       {/* ═══ Checkout Dialog ═══ */}
       <CheckoutDialog
@@ -760,7 +794,7 @@ export default function PosPage() {
         onOpenChange={setCheckoutOpen}
         total={total}
         tvaTotal={tvaTotal}
-        itemCount={items.reduce((s, i) => s + i.quantity, 0)}
+        itemCount={totalQty}
         paymentMethod={paymentMethod}
         setPaymentMethod={setPaymentMethod}
         amountReceived={amountReceived}
