@@ -151,6 +151,13 @@ export default function AppLayout() {
   }
 
   const closeSidebar = () => setSidebarOpen(false);
+  // Defer dialog opening until after the dropdown finishes closing.
+  // Without this, the dropdown's focus-restore and the modal's focus-trap can
+  // race and leave the page with body[pointer-events:none], causing the
+  // "Quick Action freeze" symptom.
+  const openCreateDialog = (type: GlobalDialogType) => {
+    setTimeout(() => setCreateDialog(type), 0);
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
