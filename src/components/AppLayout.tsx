@@ -269,12 +269,12 @@ export default function AppLayout() {
               <DropdownSection showDivider title="Documents">
                 <>
                   {canAccess('/factures') ? (
-                    <DropdownItem key="facture" startContent={<FileText className="h-4 w-4" />} onPress={() => setCreateDialog('facture')}>
+                    <DropdownItem key="facture" startContent={<FileText className="h-4 w-4" />} onPress={() => openCreateDialog('facture')}>
                       Nouvelle Facture
                     </DropdownItem>
                   ) : null}
                   {canAccess('/devis') ? (
-                    <DropdownItem key="devis" startContent={<FileText className="h-4 w-4" />} onPress={() => setCreateDialog('devis')}>
+                    <DropdownItem key="devis" startContent={<FileText className="h-4 w-4" />} onPress={() => openCreateDialog('devis')}>
                       Nouveau Devis
                     </DropdownItem>
                   ) : null}
@@ -283,12 +283,12 @@ export default function AppLayout() {
               <DropdownSection title="Données">
                 <>
                   {canAccess('/clients') ? (
-                    <DropdownItem key="client" startContent={<Users className="h-4 w-4" />} onPress={() => setCreateDialog('client')}>
+                    <DropdownItem key="client" startContent={<Users className="h-4 w-4" />} onPress={() => openCreateDialog('client')}>
                       Nouveau Client
                     </DropdownItem>
                   ) : null}
                   {canAccess('/produits') ? (
-                    <DropdownItem key="product" startContent={<PackageIcon className="h-4 w-4" />} onPress={() => setCreateDialog('product')}>
+                    <DropdownItem key="product" startContent={<PackageIcon className="h-4 w-4" />} onPress={() => openCreateDialog('product')}>
                       Nouveau Produit
                     </DropdownItem>
                   ) : null}
