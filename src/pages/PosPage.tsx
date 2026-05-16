@@ -537,12 +537,13 @@ export default function PosPage() {
               </div>
               <Input
                 ref={barcodeRef}
-                label={<span className="flex items-center gap-1"><ScanBarcode className="h-3 w-3" />Scanner / Code (F4)</span> as any}
+                label="Scanner / Code (F4)"
                 labelPlacement="outside"
                 placeholder="Scanner code-barres..."
                 variant="bordered"
                 size="sm"
                 className="flex-1"
+                startContent={<ScanBarcode className="h-4 w-4 text-muted-foreground" />}
                 onKeyDown={handleBarcodeInput}
               />
             </div>
