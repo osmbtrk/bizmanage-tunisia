@@ -1,13 +1,26 @@
 import { useMemo, useState } from 'react';
 import { useData } from '@/contexts/DataContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  Select,
+  SelectItem,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  Chip,
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+} from '@heroui/react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Package, Users } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 
 export default function AnalyticsPage() {
   const { invoices, expenses, products, clients } = useData();
@@ -16,7 +29,6 @@ export default function AnalyticsPage() {
 
   const formatDT = (n: number) => n.toLocaleString('fr-TN', { style: 'currency', currency: 'TND' });
 
-  // Revenue & Expenses over time
   const timeData = useMemo(() => {
     const now = new Date();
     if (view === 'monthly') {
@@ -51,7 +63,6 @@ export default function AnalyticsPage() {
     return { revenue: totalRevenue, expenses: totalExpenses, profit: totalRevenue - totalExpenses };
   }, [invoices, expenses]);
 
-  // Best selling products (by qty and revenue)
   const bestProducts = useMemo(() => {
     const productSales: Record<string, { name: string; qty: number; revenue: number }> = {};
     invoices.filter(i => i.type === 'facture').forEach(inv => {
@@ -65,7 +76,6 @@ export default function AnalyticsPage() {
     return Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
   }, [invoices]);
 
-  // Profit per product (revenue - cost)
   const profitPerProduct = useMemo(() => {
     const productMap: Record<string, { name: string; revenue: number; cost: number; qty: number }> = {};
     invoices.filter(i => i.type === 'facture').forEach(inv => {
@@ -74,7 +84,6 @@ export default function AnalyticsPage() {
         if (!productMap[key]) productMap[key] = { name: key, revenue: 0, cost: 0, qty: 0 };
         productMap[key].revenue += Number(item.total);
         productMap[key].qty += item.quantity;
-        // Find product purchase price
         const prod = products.find(p => p.id === item.product_id);
         if (prod) {
           productMap[key].cost += item.quantity * Number(prod.purchase_price);
@@ -87,7 +96,6 @@ export default function AnalyticsPage() {
       .slice(0, 10);
   }, [invoices, products]);
 
-  // Top clients by revenue
   const topClients = useMemo(() => {
     const clientRevenue: Record<string, { name: string; revenue: number; invoiceCount: number }> = {};
     invoices.filter(i => i.type === 'facture').forEach(inv => {
@@ -99,7 +107,6 @@ export default function AnalyticsPage() {
     return Object.values(clientRevenue).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
   }, [invoices]);
 
-  // Expense by category
   const expenseByCategory = useMemo(() => {
     const cats: Record<string, number> = {};
     expenses.forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount); });
@@ -107,7 +114,6 @@ export default function AnalyticsPage() {
     return Object.entries(cats).map(([name, value], i) => ({ name, value, fill: colors[i % colors.length] }));
   }, [expenses]);
 
-  // Client analytics (detailed)
   const clientAnalytics = useMemo(() => {
     return clients.map(client => {
       const clientInvoices = invoices.filter(i => i.client_id === client.id && i.type === 'facture');
@@ -130,54 +136,58 @@ export default function AnalyticsPage() {
           <h1 className="page-title">Analytiques</h1>
           <p className="text-sm text-muted-foreground mt-1">Vue globale de la performance</p>
         </div>
-        <Select value={view} onValueChange={v => setView(v as any)}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="monthly">Mensuel</SelectItem>
-            <SelectItem value="daily">Quotidien</SelectItem>
-          </SelectContent>
+        <Select
+          aria-label="Vue"
+          variant="bordered"
+          selectedKeys={[view]}
+          onSelectionChange={(keys) => {
+            const v = Array.from(keys)[0] as string;
+            if (v) setView(v as any);
+          }}
+          className="w-36"
+        >
+          <SelectItem key="monthly">Mensuel</SelectItem>
+          <SelectItem key="daily">Quotidien</SelectItem>
         </Select>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardContent className="p-4">
+        <Card>
+          <CardBody className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-4 w-4 text-primary" />
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Revenus totaux</p>
             </div>
             <p className="text-2xl font-bold tabular-nums">{formatDT(totals.revenue)}</p>
-          </CardContent>
+          </CardBody>
         </Card>
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardContent className="p-4">
+        <Card>
+          <CardBody className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <TrendingDown className="h-4 w-4 text-destructive" />
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Dépenses totales</p>
             </div>
             <p className="text-2xl font-bold tabular-nums">{formatDT(totals.expenses)}</p>
-          </CardContent>
+          </CardBody>
         </Card>
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardContent className="p-4">
+        <Card>
+          <CardBody className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <DollarSign className={`h-4 w-4 ${totals.profit >= 0 ? 'text-success' : 'text-destructive'}`} />
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Bénéfice net</p>
             </div>
             <p className={`text-2xl font-bold tabular-nums ${totals.profit >= 0 ? 'text-success' : 'text-destructive'}`}>{formatDT(totals.profit)}</p>
-          </CardContent>
+          </CardBody>
         </Card>
       </div>
 
-      {/* Revenue vs Expenses Chart */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Revenus vs Dépenses ({view === 'monthly' ? '12 mois' : '30 jours'})
-          </CardTitle>
+          </h3>
         </CardHeader>
-        <CardContent>
+        <CardBody>
           <ChartContainer config={{ revenue: { label: 'Revenus', color: 'hsl(var(--accent))' }, expenses: { label: 'Dépenses', color: 'hsl(var(--destructive))' } }} className="h-[300px] w-full">
             <BarChart data={timeData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -188,17 +198,16 @@ export default function AnalyticsPage() {
               <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Dépenses" />
             </BarChart>
           </ChartContainer>
-        </CardContent>
+        </CardBody>
       </Card>
 
-      {/* Net Profit Evolution */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Évolution du bénéfice net
-          </CardTitle>
+          </h3>
         </CardHeader>
-        <CardContent>
+        <CardBody>
           <ChartContainer config={{ profit: { label: 'Bénéfice', color: 'hsl(var(--success))' } }} className="h-[250px] w-full">
             <LineChart data={timeData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -208,18 +217,17 @@ export default function AnalyticsPage() {
               <Line type="monotone" dataKey="profit" stroke="hsl(var(--success))" strokeWidth={2} dot={{ r: 3 }} name="Bénéfice" />
             </LineChart>
           </ChartContainer>
-        </CardContent>
+        </CardBody>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Best Selling Products */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               <Package className="h-4 w-4 inline mr-1" /> Meilleures ventes
-            </CardTitle>
+            </h3>
           </CardHeader>
-          <CardContent>
+          <CardBody>
             {bestProducts.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">Aucune vente</p>
             ) : (
@@ -238,17 +246,16 @@ export default function AnalyticsPage() {
                 ))}
               </div>
             )}
-          </CardContent>
+          </CardBody>
         </Card>
 
-        {/* Profit per Product */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               <DollarSign className="h-4 w-4 inline mr-1" /> Bénéfice par produit
-            </CardTitle>
+            </h3>
           </CardHeader>
-          <CardContent>
+          <CardBody>
             {profitPerProduct.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">Aucune donnée</p>
             ) : (
@@ -274,19 +281,18 @@ export default function AnalyticsPage() {
                 ))}
               </div>
             )}
-          </CardContent>
+          </CardBody>
         </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Top Clients */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               <Users className="h-4 w-4 inline mr-1" /> Top clients (par revenus)
-            </CardTitle>
+            </h3>
           </CardHeader>
-          <CardContent>
+          <CardBody>
             {topClients.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">Aucun client</p>
             ) : (
@@ -305,17 +311,16 @@ export default function AnalyticsPage() {
                 ))}
               </div>
             )}
-          </CardContent>
+          </CardBody>
         </Card>
 
-        {/* Expenses by Category */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Répartition des dépenses
-            </CardTitle>
+            </h3>
           </CardHeader>
-          <CardContent className="flex flex-col items-center">
+          <CardBody className="flex flex-col items-center">
             {expenseByCategory.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">Aucune dépense</p>
             ) : (
@@ -343,67 +348,59 @@ export default function AnalyticsPage() {
                 </div>
               </>
             )}
-          </CardContent>
+          </CardBody>
         </Card>
       </div>
 
-      {/* Client Analytics Table */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <Users className="h-4 w-4 inline mr-1" /> Analytique par client
-          </CardTitle>
+          </h3>
         </CardHeader>
-        <CardContent>
+        <CardBody>
           {clientAnalytics.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Aucune donnée client</p>
           ) : (
-            <div className="rounded-lg border border-border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Client</TableHead>
-                    <TableHead className="text-right">Revenus</TableHead>
-                    <TableHead className="text-right">Factures</TableHead>
-                    <TableHead className="text-right">Produits achetés</TableHead>
-                    <TableHead className="text-right">Panier moyen</TableHead>
-                    <TableHead className="text-right">Taux paiement</TableHead>
+            <Table aria-label="Analytique par client" removeWrapper isStriped selectionMode="single" onRowAction={(key) => setSelectedClientId(String(key))}>
+              <TableHeader>
+                <TableColumn>CLIENT</TableColumn>
+                <TableColumn align="end">REVENUS</TableColumn>
+                <TableColumn align="end">FACTURES</TableColumn>
+                <TableColumn align="end">PRODUITS</TableColumn>
+                <TableColumn align="end">PANIER MOYEN</TableColumn>
+                <TableColumn align="end">TAUX PAIEMENT</TableColumn>
+              </TableHeader>
+              <TableBody>
+                {clientAnalytics.map(c => (
+                  <TableRow key={c.id} className="cursor-pointer">
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatDT(c.totalRevenue)}</TableCell>
+                    <TableCell className="text-right">{c.invoiceCount}</TableCell>
+                    <TableCell className="text-right">{c.totalProducts}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatDT(c.avgOrder)}</TableCell>
+                    <TableCell className="text-right">
+                      <Chip size="sm" variant="flat" color={c.paymentRate >= 80 ? 'success' : c.paymentRate >= 50 ? 'warning' : 'danger'}>
+                        {c.paymentRate.toFixed(0)}%
+                      </Chip>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {clientAnalytics.map(c => (
-                    <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedClientId(c.id)}>
-                      <TableCell className="font-medium">{c.name}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatDT(c.totalRevenue)}</TableCell>
-                      <TableCell className="text-right">{c.invoiceCount}</TableCell>
-                      <TableCell className="text-right">{c.totalProducts}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatDT(c.avgOrder)}</TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant={c.paymentRate >= 80 ? 'default' : c.paymentRate >= 50 ? 'secondary' : 'destructive'}>
-                          {c.paymentRate.toFixed(0)}%
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                ))}
+              </TableBody>
+            </Table>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
-      {/* Client Detail Dialog */}
-      <Dialog open={!!selectedClient} onOpenChange={o => { if (!o) setSelectedClientId(null); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Modal isDismissable={false} isOpen={!!selectedClient} onOpenChange={(o) => { if (!o) setSelectedClientId(null); }} size="2xl" scrollBehavior="inside" backdrop="blur">
+        <ModalContent>
           {selectedClient && (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  {selectedClient.name} — Détails
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
+              <ModalHeader className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                {selectedClient.name} — Détails
+              </ModalHeader>
+              <ModalBody className="pb-6 space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="rounded-lg border border-border p-3 text-center">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Revenus</p>
@@ -425,64 +422,56 @@ export default function AnalyticsPage() {
 
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Historique des factures</h3>
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Numéro</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                          <TableHead>Statut</TableHead>
+                  <Table aria-label="Factures client" removeWrapper isStriped>
+                    <TableHeader>
+                      <TableColumn>NUMÉRO</TableColumn>
+                      <TableColumn>DATE</TableColumn>
+                      <TableColumn align="end">TOTAL</TableColumn>
+                      <TableColumn>STATUT</TableColumn>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedClient.invoices.map(inv => (
+                        <TableRow key={inv.id}>
+                          <TableCell className="font-mono text-sm">{inv.number}</TableCell>
+                          <TableCell>{new Date(inv.date).toLocaleDateString('fr-TN')}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatDT(Number(inv.total))}</TableCell>
+                          <TableCell>
+                            <Chip size="sm" variant="flat" color={inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}>
+                              {inv.status === 'paid' ? 'Payée' : inv.status === 'partial' ? 'Partielle' : 'Impayée'}
+                            </Chip>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedClient.invoices.map(inv => (
-                          <TableRow key={inv.id}>
-                            <TableCell className="font-mono text-sm">{inv.number}</TableCell>
-                            <TableCell>{new Date(inv.date).toLocaleDateString('fr-TN')}</TableCell>
-                            <TableCell className="text-right tabular-nums">{formatDT(Number(inv.total))}</TableCell>
-                            <TableCell>
-                              <Badge variant={inv.status === 'paid' ? 'default' : inv.status === 'partial' ? 'secondary' : 'destructive'}>
-                                {inv.status === 'paid' ? 'Payée' : inv.status === 'partial' ? 'Partielle' : 'Impayée'}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
 
                 {selectedClient.devis.length > 0 && (
                   <div>
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Devis</h3>
-                    <div className="rounded-lg border border-border overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Numéro</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
+                    <Table aria-label="Devis client" removeWrapper isStriped>
+                      <TableHeader>
+                        <TableColumn>NUMÉRO</TableColumn>
+                        <TableColumn>DATE</TableColumn>
+                        <TableColumn align="end">TOTAL</TableColumn>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedClient.devis.map(d => (
+                          <TableRow key={d.id}>
+                            <TableCell className="font-mono text-sm">{d.number}</TableCell>
+                            <TableCell>{new Date(d.date).toLocaleDateString('fr-TN')}</TableCell>
+                            <TableCell className="text-right tabular-nums">{formatDT(Number(d.total))}</TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedClient.devis.map(d => (
-                            <TableRow key={d.id}>
-                              <TableCell className="font-mono text-sm">{d.number}</TableCell>
-                              <TableCell>{new Date(d.date).toLocaleDateString('fr-TN')}</TableCell>
-                              <TableCell className="text-right tabular-nums">{formatDT(Number(d.total))}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
-              </div>
+              </ModalBody>
             </>
           )}
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }
