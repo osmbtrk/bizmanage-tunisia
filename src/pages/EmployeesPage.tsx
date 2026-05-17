@@ -585,7 +585,7 @@ export default function EmployeesPage() {
       </Tabs>
 
       {/* ADD/EDIT MODAL */}
-      <Modal isOpen={formModal.isOpen} onOpenChange={formModal.onOpenChange} size="lg" scrollBehavior="inside" onClose={resetForm}>
+      <Modal isDismissable={false} isOpen={formModal.isOpen} onOpenChange={formModal.onOpenChange} size="lg" scrollBehavior="inside" onClose={resetForm}>
         <ModalContent>
           {(onClose) => (
             <form onSubmit={handleSubmit}>
@@ -645,7 +645,7 @@ export default function EmployeesPage() {
       </Modal>
 
       {/* DETAIL MODAL */}
-      <Modal isOpen={detailModal.isOpen} onOpenChange={detailModal.onOpenChange} size="lg" scrollBehavior="inside">
+      <Modal isDismissable={false} isOpen={detailModal.isOpen} onOpenChange={detailModal.onOpenChange} size="lg" scrollBehavior="inside">
         <ModalContent>
           {selectedEmployee && (() => {
             const perf = performance.find(p => p.id === selectedEmployee.id);

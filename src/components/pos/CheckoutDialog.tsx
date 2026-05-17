@@ -36,7 +36,7 @@ export default function CheckoutDialog({
   ];
 
   return (
-    <Modal
+    <Modal isDismissable={false}
       isOpen={open}
       onOpenChange={onOpenChange}
       size="md"

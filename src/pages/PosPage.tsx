@@ -700,7 +700,7 @@ export default function PosPage() {
       </Drawer>
 
       {/* ═══ New Client Modal ═══ */}
-      <Modal
+      <Modal isDismissable={false}
         isOpen={newClientOpen}
         onOpenChange={(o) => { setNewClientOpen(o); if (!o) setClientForm({ ...emptyClientForm }); }}
         size="2xl"
@@ -744,7 +744,7 @@ export default function PosPage() {
       </Modal>
 
       {/* ═══ New Product Modal ═══ */}
-      <Modal
+      <Modal isDismissable={false}
         isOpen={newProductOpen}
         onOpenChange={(o) => { setNewProductOpen(o); if (!o) setProductForm({ ...emptyProductForm }); }}
         size="2xl"

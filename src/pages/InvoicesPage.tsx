@@ -152,7 +152,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
         </Button>
       </div>
 
-      <Modal
+      <Modal isDismissable={false}
         isOpen={open}
         onOpenChange={setOpen}
         size="2xl"
@@ -421,7 +421,7 @@ export default function InvoicesPage({ docType, title }: InvoicesPageProps) {
       )}
 
       {/* Invoice Detail Modal */}
-      <Modal
+      <Modal isDismissable={false}
         isOpen={!!detailInvoice}
         onOpenChange={(o) => { if (!o) setDetailInvoice(null); }}
         size="2xl"

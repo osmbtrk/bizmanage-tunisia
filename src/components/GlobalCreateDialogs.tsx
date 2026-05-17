@@ -43,7 +43,7 @@ export default function GlobalCreateDialogs({ openDialog, onClose }: GlobalCreat
 
   return (
     <>
-      <Modal
+      <Modal isDismissable={false}
         isOpen={isInvoice}
         onClose={onClose}
         size="3xl"
@@ -69,7 +69,7 @@ export default function GlobalCreateDialogs({ openDialog, onClose }: GlobalCreat
         </ModalContent>
       </Modal>
 
-      <Modal
+      <Modal isDismissable={false}
         isOpen={openDialog === 'client'}
         onClose={onClose}
         size="2xl"
@@ -87,7 +87,7 @@ export default function GlobalCreateDialogs({ openDialog, onClose }: GlobalCreat
         </ModalContent>
       </Modal>
 
-      <Modal
+      <Modal isDismissable={false}
         isOpen={openDialog === 'product'}
         onClose={onClose}
         size="lg"
