@@ -257,7 +257,7 @@ export default function Dashboard() {
       </div>
 
       {/* Invoice Detail Modal */}
-      <Modal
+      <Modal isDismissable={false}
         isOpen={!!detailInvoice}
         onOpenChange={(o) => { if (!o) setDetailInvoice(null); }}
         size="lg"
