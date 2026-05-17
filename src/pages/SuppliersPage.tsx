@@ -1,18 +1,27 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { purchaseInvoicesApi, productsApi, stockMovementsApi, expensesApi } from '@/services/api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { purchaseInvoicesApi } from '@/services/api';
+import {
+  Button,
+  Input,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  Card,
+  CardBody,
+  Chip,
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+  Tooltip,
+} from '@heroui/react';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import { toast } from '@/hooks/use-toast';
 import { Plus, Trash2, Search, Truck, Eye, FileText, DollarSign, Package, Clock } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function SuppliersPage() {
   const { suppliers, addSupplier, deleteSupplier } = useData();
@@ -52,7 +61,6 @@ export default function SuppliersPage() {
     setSelectedSupplier(supplierId);
     const { data: invs } = await purchaseInvoicesApi.fetchPurchaseInvoices(companyId);
     const filtered = (invs ?? []).filter((i: any) => i.supplier_id === supplierId);
-    
     if (filtered.length > 0) {
       const ids = filtered.map((i: any) => i.id);
       const { data: items } = await purchaseInvoicesApi.fetchPurchaseInvoiceItems(ids);
@@ -70,13 +78,8 @@ export default function SuppliersPage() {
   const totalSpent = supplierInvoices.reduce((s, i) => s + Number(i.total), 0);
   const totalPaid = supplierInvoices.reduce((s, i) => s + Number(i.paid_amount), 0);
 
-  // Products supplied (from invoice items)
   const productsSupplied = supplierInvoices.flatMap((inv: any) =>
-    (inv.items || []).map((it: any) => ({
-      name: it.product_name,
-      qty: it.quantity,
-      total: it.quantity * it.unit_price,
-    }))
+    (inv.items || []).map((it: any) => ({ name: it.product_name, qty: it.quantity, total: it.quantity * it.unit_price }))
   );
   const uniqueProducts: Record<string, { name: string; qty: number; total: number }> = {};
   productsSupplied.forEach(p => {
@@ -91,28 +94,37 @@ export default function SuppliersPage() {
     <div className="animate-fade-in">
       <div className="page-header">
         <h1 className="page-title">Fournisseurs</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> Nouveau fournisseur</Button>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Ajouter un fournisseur</DialogTitle></DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div><Label>Nom *</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-              <div><Label>Adresse</Label><Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>Téléphone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
-                <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
-              </div>
-              <div><Label>Matricule fiscal</Label><Input value={form.tax_id} onChange={e => setForm(f => ({ ...f, tax_id: e.target.value }))} /></div>
-              <Button type="submit" className="w-full" disabled={submitting}>{submitting ? 'Enregistrement...' : 'Enregistrer'}</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button color="primary" startContent={<Plus className="h-4 w-4" />} onPress={() => setOpen(true)}>
+          Nouveau fournisseur
+        </Button>
       </div>
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Rechercher un fournisseur..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-      </div>
+      <Modal isDismissable={false} isOpen={open} onOpenChange={setOpen} size="md" scrollBehavior="inside" backdrop="blur">
+        <ModalContent>
+          <ModalHeader>Ajouter un fournisseur</ModalHeader>
+          <ModalBody className="pb-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input label="Nom" labelPlacement="outside" placeholder="Nom du fournisseur" isRequired value={form.name} onValueChange={v => setForm(f => ({ ...f, name: v }))} />
+              <Input label="Adresse" labelPlacement="outside" placeholder="Adresse" value={form.address} onValueChange={v => setForm(f => ({ ...f, address: v }))} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input label="Téléphone" labelPlacement="outside" placeholder="+216 ..." value={form.phone} onValueChange={v => setForm(f => ({ ...f, phone: v }))} />
+                <Input label="Email" labelPlacement="outside" type="email" placeholder="email@..." value={form.email} onValueChange={v => setForm(f => ({ ...f, email: v }))} />
+              </div>
+              <Input label="Matricule fiscal" labelPlacement="outside" placeholder="MF" value={form.tax_id} onValueChange={v => setForm(f => ({ ...f, tax_id: v }))} />
+              <Button type="submit" color="primary" className="w-full" isLoading={submitting}>Enregistrer</Button>
+            </form>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      <Input
+        placeholder="Rechercher un fournisseur..."
+        startContent={<Search className="h-4 w-4 text-muted-foreground" />}
+        value={search}
+        onValueChange={setSearch}
+        variant="bordered"
+        className="mb-4"
+      />
 
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
@@ -122,41 +134,39 @@ export default function SuppliersPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(s => (
-            <div key={s.id} className="stat-card cursor-pointer hover:shadow-md transition-shadow" onClick={() => loadSupplierHistory(s.id)}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold">{s.name}</h3>
-                  {s.phone && <p className="text-sm text-muted-foreground mt-1">{s.phone}</p>}
-                  {s.email && <p className="text-sm text-muted-foreground">{s.email}</p>}
-                  {s.tax_id && <p className="text-xs text-muted-foreground mt-1">MF: {s.tax_id}</p>}
+            <Card key={s.id} isPressable onPress={() => loadSupplierHistory(s.id)} className="w-full">
+              <CardBody className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 text-left">
+                    <h3 className="font-semibold truncate">{s.name}</h3>
+                    {s.phone && <p className="text-sm text-muted-foreground mt-1">{s.phone}</p>}
+                    {s.email && <p className="text-sm text-muted-foreground truncate">{s.email}</p>}
+                    {s.tax_id && <p className="text-xs text-muted-foreground mt-1">MF: {s.tax_id}</p>}
+                  </div>
+                  <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Button isIconOnly variant="light" size="sm" onPress={() => loadSupplierHistory(s.id)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button isIconOnly variant="light" size="sm" color="danger" onPress={() => setDeleteTarget(s.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); loadSupplierHistory(s.id); }}>
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteTarget(s.id); }} className="text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+              </CardBody>
+            </Card>
           ))}
         </div>
       )}
 
-      {/* Supplier History Dialog */}
-      <Dialog open={!!selectedSupplier} onOpenChange={o => { if (!o) setSelectedSupplier(null); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Modal isDismissable={false} isOpen={!!selectedSupplier} onOpenChange={(o) => { if (!o) setSelectedSupplier(null); }} size="2xl" scrollBehavior="inside" backdrop="blur">
+        <ModalContent>
           {selectedSupplierObj && (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5" />
-                  {selectedSupplierObj.name} — Historique
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                {/* KPIs */}
+              <ModalHeader className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                {selectedSupplierObj.name} — Historique
+              </ModalHeader>
+              <ModalBody className="pb-6 space-y-4">
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-lg border border-border p-3 text-center">
                     <DollarSign className="h-4 w-4 mx-auto text-primary mb-1" />
@@ -175,7 +185,6 @@ export default function SuppliersPage() {
                   </div>
                 </div>
 
-                {/* Products Supplied */}
                 {Object.keys(uniqueProducts).length > 0 && (
                   <div>
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
@@ -192,7 +201,6 @@ export default function SuppliersPage() {
                   </div>
                 )}
 
-                {/* Invoice Timeline */}
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Historique des factures</h3>
                   {loadingHistory ? (
@@ -200,41 +208,37 @@ export default function SuppliersPage() {
                   ) : supplierInvoices.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">Aucune facture</p>
                   ) : (
-                    <div className="rounded-lg border border-border overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Numéro</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                            <TableHead>Statut</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {supplierInvoices
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map(inv => (
-                              <TableRow key={inv.id}>
-                                <TableCell className="font-mono text-sm">{inv.number}</TableCell>
-                                <TableCell>{new Date(inv.date).toLocaleDateString('fr-TN')}</TableCell>
-                                <TableCell className="text-right tabular-nums">{formatTND(Number(inv.total))}</TableCell>
-                                <TableCell>
-                                  <Badge variant={inv.status === 'paid' ? 'default' : inv.status === 'partial' ? 'secondary' : 'destructive'}>
-                                    {inv.status === 'paid' ? 'Payée' : inv.status === 'partial' ? 'Partielle' : 'Impayée'}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                    <Table aria-label="Factures fournisseur" removeWrapper isStriped>
+                      <TableHeader>
+                        <TableColumn>NUMÉRO</TableColumn>
+                        <TableColumn>DATE</TableColumn>
+                        <TableColumn align="end">TOTAL</TableColumn>
+                        <TableColumn>STATUT</TableColumn>
+                      </TableHeader>
+                      <TableBody>
+                        {supplierInvoices
+                          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                          .map(inv => (
+                            <TableRow key={inv.id}>
+                              <TableCell className="font-mono text-sm">{inv.number}</TableCell>
+                              <TableCell>{new Date(inv.date).toLocaleDateString('fr-TN')}</TableCell>
+                              <TableCell className="text-right tabular-nums">{formatTND(Number(inv.total))}</TableCell>
+                              <TableCell>
+                                <Chip size="sm" variant="flat" color={inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}>
+                                  {inv.status === 'paid' ? 'Payée' : inv.status === 'partial' ? 'Partielle' : 'Impayée'}
+                                </Chip>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
                   )}
                 </div>
-              </div>
+              </ModalBody>
             </>
           )}
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
 
       <ConfirmDialog
         open={!!deleteTarget}

@@ -1,11 +1,19 @@
 import { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, Users, Eye, Pencil, Archive, DollarSign } from 'lucide-react';
+import {
+  Button,
+  Input,
+  Select,
+  SelectItem,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  Card,
+  CardBody,
+  Chip,
+} from '@heroui/react';
+import { Plus, Search, Users, Eye, Pencil, Archive } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 const GOVERNORATES = [
@@ -51,37 +59,24 @@ export default function ClientsPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const payload = {
+        name: form.name,
+        legal_form: form.legal_form as any,
+        matricule_fiscal: form.matricule_fiscal || null,
+        code_tva: form.code_tva || null,
+        rne: form.rne || null,
+        address: form.address || null,
+        governorate: form.governorate || null,
+        phone: form.phone || null,
+        email: form.email || null,
+        contact_person: form.contact_person || null,
+        payment_terms: form.payment_terms || null,
+        status: form.status as any,
+      };
       if (editId) {
-        await updateClient(editId, {
-          name: form.name,
-          legal_form: form.legal_form as any,
-          matricule_fiscal: form.matricule_fiscal || null,
-          code_tva: form.code_tva || null,
-          rne: form.rne || null,
-          address: form.address || null,
-          governorate: form.governorate || null,
-          phone: form.phone || null,
-          email: form.email || null,
-          contact_person: form.contact_person || null,
-          payment_terms: form.payment_terms || null,
-          status: form.status as any,
-        });
+        await updateClient(editId, payload);
       } else {
-        await addClient({
-          name: form.name,
-          legal_form: form.legal_form as any,
-          matricule_fiscal: form.matricule_fiscal || null,
-          code_tva: form.code_tva || null,
-          rne: form.rne || null,
-          address: form.address || null,
-          governorate: form.governorate || null,
-          phone: form.phone || null,
-          email: form.email || null,
-          contact_person: form.contact_person || null,
-          payment_terms: form.payment_terms || null,
-          status: form.status as any,
-          is_archived: false,
-        });
+        await addClient({ ...payload, is_archived: false } as any);
       }
       setForm({ ...emptyForm });
       setEditId(null);
@@ -121,67 +116,102 @@ export default function ClientsPage() {
     <div className="animate-fade-in">
       <div className="page-header">
         <h1 className="page-title">Gestion des clients</h1>
-        <Dialog open={open} onOpenChange={o => { setOpen(o); if (!o) { setEditId(null); setForm({ ...emptyForm }); } }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Nouveau client</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editId ? 'Modifier le client' : 'Ajouter un client'}</DialogTitle></DialogHeader>
+        <Button color="primary" startContent={<Plus className="h-4 w-4" />} onPress={() => { setEditId(null); setForm({ ...emptyForm }); setOpen(true); }}>
+          Nouveau client
+        </Button>
+      </div>
+
+      <Modal
+        isDismissable={false}
+        isOpen={open}
+        onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm({ ...emptyForm }); } }}
+        size="2xl"
+        scrollBehavior="inside"
+        backdrop="blur"
+      >
+        <ModalContent>
+          <ModalHeader>{editId ? 'Modifier le client' : 'Ajouter un client'}</ModalHeader>
+          <ModalBody className="pb-6">
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2"><Label>Raison sociale *</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-                <div>
-                  <Label>Forme juridique</Label>
-                  <Select value={form.legal_form} onValueChange={v => setForm(f => ({ ...f, legal_form: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{LEGAL_FORMS.map(lf => <SelectItem key={lf.value} value={lf.value}>{lf.label}</SelectItem>)}</SelectContent>
-                  </Select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <Input label="Raison sociale" labelPlacement="outside" placeholder="Nom" isRequired value={form.name} onValueChange={v => setForm(f => ({ ...f, name: v }))} />
                 </div>
-                <div>
-                  <Label>Statut</Label>
-                  <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Actif</SelectItem>
-                      <SelectItem value="inactive">Inactif</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <Select
+                  label="Forme juridique"
+                  labelPlacement="outside"
+                  placeholder="Choisir..."
+                  selectedKeys={[form.legal_form]}
+                  onSelectionChange={(keys) => {
+                    const v = Array.from(keys)[0] as string;
+                    if (v) setForm(f => ({ ...f, legal_form: v }));
+                  }}
+                >
+                  {LEGAL_FORMS.map(lf => <SelectItem key={lf.value}>{lf.label}</SelectItem>)}
+                </Select>
+                <Select
+                  label="Statut"
+                  labelPlacement="outside"
+                  selectedKeys={[form.status]}
+                  onSelectionChange={(keys) => {
+                    const v = Array.from(keys)[0] as string;
+                    if (v) setForm(f => ({ ...f, status: v }));
+                  }}
+                >
+                  <SelectItem key="active">Actif</SelectItem>
+                  <SelectItem key="inactive">Inactif</SelectItem>
+                </Select>
+                <Input label="Matricule fiscal" labelPlacement="outside" value={form.matricule_fiscal} onValueChange={v => setForm(f => ({ ...f, matricule_fiscal: v }))} />
+                <Input label="Code TVA" labelPlacement="outside" value={form.code_tva} onValueChange={v => setForm(f => ({ ...f, code_tva: v }))} />
+                <div className="sm:col-span-2">
+                  <Input label="RNE" labelPlacement="outside" value={form.rne} onValueChange={v => setForm(f => ({ ...f, rne: v }))} />
                 </div>
-                <div><Label>Matricule fiscal</Label><Input value={form.matricule_fiscal} onChange={e => setForm(f => ({ ...f, matricule_fiscal: e.target.value }))} /></div>
-                <div><Label>Code TVA</Label><Input value={form.code_tva} onChange={e => setForm(f => ({ ...f, code_tva: e.target.value }))} /></div>
-                <div className="col-span-2"><Label>RNE</Label><Input value={form.rne} onChange={e => setForm(f => ({ ...f, rne: e.target.value }))} /></div>
-                <div className="col-span-2"><Label>Adresse</Label><Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
-                <div>
-                  <Label>Gouvernorat</Label>
-                  <Select value={form.governorate} onValueChange={v => setForm(f => ({ ...f, governorate: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Choisir..." /></SelectTrigger>
-                    <SelectContent>{GOVERNORATES.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
-                  </Select>
+                <div className="sm:col-span-2">
+                  <Input label="Adresse" labelPlacement="outside" value={form.address} onValueChange={v => setForm(f => ({ ...f, address: v }))} />
                 </div>
-                <div><Label>Téléphone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
-                <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
-                <div><Label>Personne de contact</Label><Input value={form.contact_person} onChange={e => setForm(f => ({ ...f, contact_person: e.target.value }))} /></div>
-                <div className="col-span-2"><Label>Conditions de paiement</Label><Input value={form.payment_terms} onChange={e => setForm(f => ({ ...f, payment_terms: e.target.value }))} /></div>
+                <Select
+                  label="Gouvernorat"
+                  labelPlacement="outside"
+                  placeholder="Choisir..."
+                  selectedKeys={form.governorate ? [form.governorate] : []}
+                  onSelectionChange={(keys) => {
+                    const v = Array.from(keys)[0] as string;
+                    setForm(f => ({ ...f, governorate: v || '' }));
+                  }}
+                >
+                  {GOVERNORATES.map(g => <SelectItem key={g}>{g}</SelectItem>)}
+                </Select>
+                <Input label="Téléphone" labelPlacement="outside" value={form.phone} onValueChange={v => setForm(f => ({ ...f, phone: v }))} />
+                <Input label="Email" labelPlacement="outside" type="email" value={form.email} onValueChange={v => setForm(f => ({ ...f, email: v }))} />
+                <Input label="Personne de contact" labelPlacement="outside" value={form.contact_person} onValueChange={v => setForm(f => ({ ...f, contact_person: v }))} />
+                <div className="sm:col-span-2">
+                  <Input label="Conditions de paiement" labelPlacement="outside" value={form.payment_terms} onValueChange={v => setForm(f => ({ ...f, payment_terms: v }))} />
+                </div>
               </div>
-              <Button type="submit" className="w-full" disabled={submitting}>{submitting ? 'Enregistrement...' : editId ? 'Mettre à jour' : 'Enregistrer'}</Button>
+              <Button type="submit" color="primary" className="w-full" isLoading={submitting}>
+                {editId ? 'Mettre à jour' : 'Enregistrer'}
+              </Button>
             </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Rechercher un client..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-      </div>
+      <Input
+        placeholder="Rechercher un client..."
+        startContent={<Search className="h-4 w-4 text-muted-foreground" />}
+        value={search}
+        onValueChange={setSearch}
+        variant="bordered"
+        className="mb-4"
+      />
 
-      {/* Client detail dialog */}
-      <Dialog open={!!viewId} onOpenChange={o => { if (!o) setViewId(null); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <Modal isDismissable={false} isOpen={!!viewId} onOpenChange={(o) => { if (!o) setViewId(null); }} size="2xl" scrollBehavior="inside" backdrop="blur">
+        <ModalContent>
           {viewClient && (
             <>
-              <DialogHeader><DialogTitle>{viewClient.name}</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
+              <ModalHeader>{viewClient.name}</ModalHeader>
+              <ModalBody className="pb-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   {viewClient.legal_form && <div><span className="text-muted-foreground">Forme juridique:</span> {LEGAL_FORMS.find(l => l.value === viewClient.legal_form)?.label}</div>}
                   {viewClient.matricule_fiscal && <div><span className="text-muted-foreground">Mat. fiscal:</span> {viewClient.matricule_fiscal}</div>}
                   {viewClient.code_tva && <div><span className="text-muted-foreground">Code TVA:</span> {viewClient.code_tva}</div>}
@@ -192,13 +222,13 @@ export default function ClientsPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="stat-card">
+                  <div className="rounded-lg border border-border p-3">
                     <p className="text-xs text-muted-foreground">CA total</p>
-                    <p className="text-lg font-bold">{formatDT(clientRevenue)}</p>
+                    <p className="text-lg font-bold tabular-nums">{formatDT(clientRevenue)}</p>
                   </div>
-                  <div className="stat-card">
+                  <div className="rounded-lg border border-border p-3">
                     <p className="text-xs text-muted-foreground">Impayés</p>
-                    <p className="text-lg font-bold text-destructive">{formatDT(clientUnpaid)}</p>
+                    <p className="text-lg font-bold text-destructive tabular-nums">{formatDT(clientUnpaid)}</p>
                   </div>
                 </div>
 
@@ -207,24 +237,24 @@ export default function ClientsPage() {
                   {clientInvoices.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Aucune facture</p>
                   ) : (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
                       {clientInvoices.map(inv => (
                         <div key={inv.id} className="flex items-center justify-between text-sm border-b border-border pb-2">
                           <div>
                             <span className="font-medium">{inv.number}</span>
                             <span className="text-muted-foreground ml-2">{new Date(inv.date).toLocaleDateString('fr-TN')}</span>
                           </div>
-                          <span className="font-semibold">{formatDT(inv.total)}</span>
+                          <span className="font-semibold tabular-nums">{formatDT(inv.total)}</span>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              </div>
+              </ModalBody>
             </>
           )}
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
 
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
@@ -234,32 +264,34 @@ export default function ClientsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(client => (
-            <div key={client.id} className="stat-card">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold truncate">{client.name}</h3>
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      client.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
-                    }`}>{client.status === 'active' ? 'Actif' : 'Inactif'}</span>
+            <Card key={client.id} className="w-full">
+              <CardBody className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold truncate">{client.name}</h3>
+                      <Chip size="sm" variant="flat" color={client.status === 'active' ? 'success' : 'default'}>
+                        {client.status === 'active' ? 'Actif' : 'Inactif'}
+                      </Chip>
+                    </div>
+                    {client.matricule_fiscal && <p className="text-xs text-muted-foreground mt-0.5">MF: {client.matricule_fiscal}</p>}
+                    {client.phone && <p className="text-sm text-muted-foreground mt-1">{client.phone}</p>}
+                    {client.email && <p className="text-sm text-muted-foreground truncate">{client.email}</p>}
                   </div>
-                  {client.matricule_fiscal && <p className="text-xs text-muted-foreground mt-0.5">MF: {client.matricule_fiscal}</p>}
-                  {client.phone && <p className="text-sm text-muted-foreground mt-1">{client.phone}</p>}
-                  {client.email && <p className="text-sm text-muted-foreground">{client.email}</p>}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button isIconOnly variant="light" size="sm" onPress={() => setViewId(client.id)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button isIconOnly variant="light" size="sm" onPress={() => openEdit(client)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button isIconOnly variant="light" size="sm" color="danger" onPress={() => setDeleteTarget(client.id)}>
+                      <Archive className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setViewId(client.id)}>
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => openEdit(client)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(client.id)}>
-                    <Archive className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+              </CardBody>
+            </Card>
           ))}
         </div>
       )}
