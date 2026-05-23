@@ -18,4 +18,9 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Disable CSS code splitting so HeroUI styles are in a single file
+    // and not subject to load-order race conditions on Netlify
+    cssCodeSplit: false,
+  },
 }));

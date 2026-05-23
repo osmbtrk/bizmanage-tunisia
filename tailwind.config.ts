@@ -6,8 +6,11 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{ts,tsx,js,jsx}",
+    // @heroui/theme is nested inside @heroui/react (not hoisted to root node_modules)
+    // Include both paths to cover hoisted and nested npm install layouts
     "./node_modules/@heroui/theme/dist/**/*.{js,mjs,cjs}",
-    "./node_modules/@heroui/react/dist/**/*.{js,mjs,cjs}",
+    "./node_modules/@heroui/react/node_modules/@heroui/theme/dist/**/*.{js,mjs,cjs}",
+    "./node_modules/@heroui/system/node_modules/@heroui/theme/dist/**/*.{js,mjs,cjs}",
   ],
   prefix: "",
   theme: {
