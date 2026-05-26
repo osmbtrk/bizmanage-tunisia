@@ -63,8 +63,18 @@ export async function createEmployeeAccount(payload: {
   full_name: string;
   role: 'admin' | 'cashier' | 'accountant' | 'employee';
 }) {
-  // Calls the edge function with the admin's session so the admin stays logged in.
-  return supabase.functions.invoke('create-employee-account', { body: payload });
+  const res = await supabase.functions.invoke('create-employee-account', { body: payload });
+  // When the edge fn returns non-2xx, supabase-js puts a FunctionsHttpError in res.error.
+  // Try to read the actual server message from the response body for clearer UI feedback.
+  if (res.error && (res.error as any).context?.json) {
+    try {
+      const body = await (res.error as any).context.json();
+      if (body?.error) {
+        return { data: null, error: { ...res.error, message: body.error } } as any;
+      }
+    } catch { /* ignore */ }
+  }
+  return res;
 }
 
 export async function fetchEmployeeByUserId(userId: string) {
