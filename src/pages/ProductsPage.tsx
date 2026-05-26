@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Button,
   Input,
@@ -18,10 +19,14 @@ import {
   TableCell,
   Tooltip,
 } from '@heroui/react';
-import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Layers, BoxIcon } from 'lucide-react';
+import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Layers, BoxIcon, Settings2, FileSpreadsheet } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StockAdjustDialog from '@/components/products/StockAdjustDialog';
-import { bomApi } from '@/services/api';
+import CustomAttributesEditor from '@/components/products/CustomAttributesEditor';
+import AttributeSchemaManager from '@/components/products/AttributeSchemaManager';
+import ProductExcelImport from '@/components/products/ProductExcelImport';
+import { bomApi, productAttributesApi } from '@/services/api';
+import type { DbAttributeSchema } from '@/services/api/productAttributes';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -33,6 +38,7 @@ const emptyForm = {
   tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
   product_type: 'finished_product' as string, category_type: 'normal' as string,
   supplier_id: '' as string, category_id: '' as string,
+  custom_attributes: {} as Record<string, any>,
 };
 
 function HierarchicalCategorySelect({
