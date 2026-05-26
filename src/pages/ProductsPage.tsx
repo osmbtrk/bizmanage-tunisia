@@ -268,6 +268,7 @@ export default function ProductsPage() {
       category_type: editForm.category_type as any,
       supplier_id: editForm.supplier_id || null,
       category_id: editForm.category_id || null,
+      custom_attributes: editForm.custom_attributes,
     } as any);
     toast({ title: 'Produit mis à jour' });
     setEditOpen(false);
