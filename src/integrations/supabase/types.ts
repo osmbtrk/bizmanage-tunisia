@@ -626,6 +626,51 @@ export type Database = {
           },
         ]
       }
+      product_attribute_schemas: {
+        Row: {
+          category_id: string | null
+          company_id: string
+          created_at: string
+          field_key: string
+          field_type: string
+          id: string
+          is_required: boolean
+          is_searchable: boolean
+          label: string
+          options: Json
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          company_id: string
+          created_at?: string
+          field_key: string
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          is_searchable?: boolean
+          label: string
+          options?: Json
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          company_id?: string
+          created_at?: string
+          field_key?: string
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          is_searchable?: boolean
+          label?: string
+          options?: Json
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           company_id: string
@@ -741,6 +786,7 @@ export type Database = {
           category_type: Database["public"]["Enums"]["category_type"]
           company_id: string
           created_at: string
+          custom_attributes: Json
           description: string | null
           id: string
           min_stock: number
@@ -759,6 +805,7 @@ export type Database = {
           category_type?: Database["public"]["Enums"]["category_type"]
           company_id: string
           created_at?: string
+          custom_attributes?: Json
           description?: string | null
           id?: string
           min_stock?: number
@@ -777,6 +824,7 @@ export type Database = {
           category_type?: Database["public"]["Enums"]["category_type"]
           company_id?: string
           created_at?: string
+          custom_attributes?: Json
           description?: string | null
           id?: string
           min_stock?: number

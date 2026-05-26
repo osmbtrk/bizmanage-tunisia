@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Button,
   Input,
@@ -18,10 +19,14 @@ import {
   TableCell,
   Tooltip,
 } from '@heroui/react';
-import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Layers, BoxIcon } from 'lucide-react';
+import { Plus, Trash2, Search, AlertTriangle, Package, Pencil, Layers, BoxIcon, Settings2, FileSpreadsheet } from 'lucide-react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StockAdjustDialog from '@/components/products/StockAdjustDialog';
-import { bomApi } from '@/services/api';
+import CustomAttributesEditor from '@/components/products/CustomAttributesEditor';
+import AttributeSchemaManager from '@/components/products/AttributeSchemaManager';
+import ProductExcelImport from '@/components/products/ProductExcelImport';
+import { bomApi, productAttributesApi } from '@/services/api';
+import type { DbAttributeSchema } from '@/services/api/productAttributes';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -33,6 +38,7 @@ const emptyForm = {
   tva_rate: 19, stock: 0, min_stock: 5, unit: 'pièce',
   product_type: 'finished_product' as string, category_type: 'normal' as string,
   supplier_id: '' as string, category_id: '' as string,
+  custom_attributes: {} as Record<string, any>,
 };
 
 function HierarchicalCategorySelect({
@@ -86,11 +92,13 @@ function ProductFormFields({
   setForm,
   categories,
   suppliers,
+  attributeSchemas,
 }: {
   form: typeof emptyForm;
   setForm: (fn: (f: typeof emptyForm) => typeof emptyForm) => void;
   categories: DbProductCategory[];
   suppliers: { id: string; name: string }[];
+  attributeSchemas: DbAttributeSchema[];
 }) {
   return (
     <>
@@ -154,12 +162,19 @@ function ProductFormFields({
         <Input label="Stock min" labelPlacement="outside" type="number" min={0} value={String(form.min_stock)} onValueChange={v => setForm(f => ({ ...f, min_stock: +v }))} />
       </div>
       <Input label="Unité" labelPlacement="outside" value={form.unit} onValueChange={v => setForm(f => ({ ...f, unit: v }))} />
+      <CustomAttributesEditor
+        schemas={attributeSchemas}
+        values={form.custom_attributes}
+        onChange={(next) => setForm(f => ({ ...f, custom_attributes: next }))}
+        categoryId={form.category_id || null}
+      />
     </>
   );
 }
 
 export default function ProductsPage() {
   const { products, addProduct, deleteProduct, updateProduct, suppliers, categories } = useData();
+  const { companyId, role } = useAuth();
   const { toast } = useToast();
   const [stockAdjustProduct, setStockAdjustProduct] = useState<DbProduct | null>(null);
   const [open, setOpen] = useState(false);
@@ -174,6 +189,16 @@ export default function ProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [editForm, setEditForm] = useState({ ...emptyForm });
+  const [attributeSchemas, setAttributeSchemas] = useState<DbAttributeSchema[]>([]);
+  const [schemaManagerOpen, setSchemaManagerOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const loadSchemas = async () => {
+    if (!companyId) return;
+    const { data } = await productAttributesApi.fetchAttributeSchemas(companyId);
+    setAttributeSchemas((data as any) || []);
+  };
+  useEffect(() => { loadSchemas(); }, [companyId]);
 
   const filtered = products
     .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
@@ -222,6 +247,7 @@ export default function ProductsPage() {
       category_type: p.category_type,
       supplier_id: p.supplier_id || '',
       category_id: p.category_id || '',
+      custom_attributes: (p.custom_attributes as Record<string, any>) || {},
     });
     setEditOpen(true);
   };
@@ -242,6 +268,7 @@ export default function ProductsPage() {
       category_type: editForm.category_type as any,
       supplier_id: editForm.supplier_id || null,
       category_id: editForm.category_id || null,
+      custom_attributes: editForm.custom_attributes,
     } as any);
     toast({ title: 'Produit mis à jour' });
     setEditOpen(false);
@@ -271,9 +298,21 @@ export default function ProductsPage() {
     <div className="animate-fade-in">
       <div className="page-header">
         <h1 className="page-title">Produits & Stock</h1>
-        <Button color="primary" startContent={<Plus className="h-4 w-4" />} onPress={() => setOpen(true)}>
-          Nouveau produit
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {role === 'admin' && (
+            <>
+              <Button variant="bordered" startContent={<Settings2 className="h-4 w-4" />} onPress={() => setSchemaManagerOpen(true)}>
+                Attributs
+              </Button>
+              <Button variant="bordered" startContent={<FileSpreadsheet className="h-4 w-4" />} onPress={() => setImportOpen(true)}>
+                Importer Excel
+              </Button>
+            </>
+          )}
+          <Button color="primary" startContent={<Plus className="h-4 w-4" />} onPress={() => setOpen(true)}>
+            Nouveau produit
+          </Button>
+        </div>
       </div>
 
       <Modal isDismissable={false} isOpen={open} onOpenChange={setOpen} size="lg" scrollBehavior="inside" backdrop="blur">
@@ -281,12 +320,19 @@ export default function ProductsPage() {
           <ModalHeader>Ajouter un produit</ModalHeader>
           <ModalBody className="pb-6">
             <form onSubmit={handleSubmit} className="space-y-4">
-              <ProductFormFields form={form} setForm={setForm} categories={categories} suppliers={suppliers} />
+              <ProductFormFields form={form} setForm={setForm} categories={categories} suppliers={suppliers} attributeSchemas={attributeSchemas} />
               <Button type="submit" color="primary" className="w-full">Enregistrer</Button>
             </form>
           </ModalBody>
         </ModalContent>
       </Modal>
+
+      {companyId && (
+        <>
+          <AttributeSchemaManager open={schemaManagerOpen} onOpenChange={setSchemaManagerOpen} companyId={companyId} onChanged={loadSchemas} />
+          <ProductExcelImport open={importOpen} onOpenChange={setImportOpen} companyId={companyId} attributeSchemas={attributeSchemas} />
+        </>
+      )}
 
       <div className="flex flex-wrap gap-3 mb-4 items-end">
         <Input
@@ -398,7 +444,7 @@ export default function ProductsPage() {
           <ModalHeader>Modifier le produit</ModalHeader>
           <ModalBody className="pb-6">
             <form onSubmit={handleEditSubmit} className="space-y-4">
-              <ProductFormFields form={editForm} setForm={setEditForm} categories={categories} suppliers={suppliers} />
+              <ProductFormFields form={editForm} setForm={setEditForm} categories={categories} suppliers={suppliers} attributeSchemas={attributeSchemas} />
               <Button type="submit" color="primary" className="w-full">Enregistrer les modifications</Button>
             </form>
           </ModalBody>
