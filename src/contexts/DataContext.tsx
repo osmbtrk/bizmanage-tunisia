@@ -150,7 +150,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [refresh]);
 
-  const addProduct = useCallback(async (data: Omit<DbProduct, 'id' | 'company_id' | 'created_at' | 'updated_at'>) => {
+  const addProduct = useCallback(async (data: Partial<Omit<DbProduct, 'id' | 'company_id' | 'created_at' | 'updated_at'>> & { name: string }) => {
     if (!companyId) return null;
     const { data: result, error } = await productsApi.insertProduct(companyId, data);
     if (error) { toast({ title: 'Erreur ajout produit', description: error.message, variant: 'destructive' }); return null; }
