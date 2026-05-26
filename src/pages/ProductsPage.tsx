@@ -297,9 +297,21 @@ export default function ProductsPage() {
     <div className="animate-fade-in">
       <div className="page-header">
         <h1 className="page-title">Produits & Stock</h1>
-        <Button color="primary" startContent={<Plus className="h-4 w-4" />} onPress={() => setOpen(true)}>
-          Nouveau produit
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {role === 'admin' && (
+            <>
+              <Button variant="bordered" startContent={<Settings2 className="h-4 w-4" />} onPress={() => setSchemaManagerOpen(true)}>
+                Attributs
+              </Button>
+              <Button variant="bordered" startContent={<FileSpreadsheet className="h-4 w-4" />} onPress={() => setImportOpen(true)}>
+                Importer Excel
+              </Button>
+            </>
+          )}
+          <Button color="primary" startContent={<Plus className="h-4 w-4" />} onPress={() => setOpen(true)}>
+            Nouveau produit
+          </Button>
+        </div>
       </div>
 
       <Modal isDismissable={false} isOpen={open} onOpenChange={setOpen} size="lg" scrollBehavior="inside" backdrop="blur">
@@ -307,12 +319,19 @@ export default function ProductsPage() {
           <ModalHeader>Ajouter un produit</ModalHeader>
           <ModalBody className="pb-6">
             <form onSubmit={handleSubmit} className="space-y-4">
-              <ProductFormFields form={form} setForm={setForm} categories={categories} suppliers={suppliers} />
+              <ProductFormFields form={form} setForm={setForm} categories={categories} suppliers={suppliers} attributeSchemas={attributeSchemas} />
               <Button type="submit" color="primary" className="w-full">Enregistrer</Button>
             </form>
           </ModalBody>
         </ModalContent>
       </Modal>
+
+      {companyId && (
+        <>
+          <AttributeSchemaManager open={schemaManagerOpen} onOpenChange={setSchemaManagerOpen} companyId={companyId} onChanged={loadSchemas} />
+          <ProductExcelImport open={importOpen} onOpenChange={setImportOpen} companyId={companyId} attributeSchemas={attributeSchemas} />
+        </>
+      )}
 
       <div className="flex flex-wrap gap-3 mb-4 items-end">
         <Input
