@@ -443,7 +443,7 @@ export default function ProductsPage() {
           <ModalHeader>Modifier le produit</ModalHeader>
           <ModalBody className="pb-6">
             <form onSubmit={handleEditSubmit} className="space-y-4">
-              <ProductFormFields form={editForm} setForm={setEditForm} categories={categories} suppliers={suppliers} />
+              <ProductFormFields form={editForm} setForm={setEditForm} categories={categories} suppliers={suppliers} attributeSchemas={attributeSchemas} />
               <Button type="submit" color="primary" className="w-full">Enregistrer les modifications</Button>
             </form>
           </ModalBody>
