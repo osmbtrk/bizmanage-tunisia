@@ -174,6 +174,7 @@ function ProductFormFields({
 
 export default function ProductsPage() {
   const { products, addProduct, deleteProduct, updateProduct, suppliers, categories } = useData();
+  const { companyId, role } = useAuth();
   const { toast } = useToast();
   const [stockAdjustProduct, setStockAdjustProduct] = useState<DbProduct | null>(null);
   const [open, setOpen] = useState(false);
@@ -188,6 +189,16 @@ export default function ProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [editForm, setEditForm] = useState({ ...emptyForm });
+  const [attributeSchemas, setAttributeSchemas] = useState<DbAttributeSchema[]>([]);
+  const [schemaManagerOpen, setSchemaManagerOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const loadSchemas = async () => {
+    if (!companyId) return;
+    const { data } = await productAttributesApi.fetchAttributeSchemas(companyId);
+    setAttributeSchemas((data as any) || []);
+  };
+  useEffect(() => { loadSchemas(); }, [companyId]);
 
   const filtered = products
     .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
