@@ -162,6 +162,12 @@ function ProductFormFields({
         <Input label="Stock min" labelPlacement="outside" type="number" min={0} value={String(form.min_stock)} onValueChange={v => setForm(f => ({ ...f, min_stock: +v }))} />
       </div>
       <Input label="Unité" labelPlacement="outside" value={form.unit} onValueChange={v => setForm(f => ({ ...f, unit: v }))} />
+      <CustomAttributesEditor
+        schemas={attributeSchemas}
+        values={form.custom_attributes}
+        onChange={(next) => setForm(f => ({ ...f, custom_attributes: next }))}
+        categoryId={form.category_id || null}
+      />
     </>
   );
 }
