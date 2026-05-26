@@ -228,6 +228,7 @@ export default function ProductsPage() {
       category_type: p.category_type,
       supplier_id: p.supplier_id || '',
       category_id: p.category_id || '',
+      custom_attributes: (p.custom_attributes as Record<string, any>) || {},
     });
     setEditOpen(true);
   };
