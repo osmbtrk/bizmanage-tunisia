@@ -23,3 +23,4 @@ export * as documentsApi from './documents';
 export * as returnsApi from './returns';
 export * as employeesApi from './employees';
 export * as activityLogsApi from './activityLogs';
+export * as productAttributesApi from './productAttributes';
