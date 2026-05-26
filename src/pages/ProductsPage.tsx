@@ -92,11 +92,13 @@ function ProductFormFields({
   setForm,
   categories,
   suppliers,
+  attributeSchemas,
 }: {
   form: typeof emptyForm;
   setForm: (fn: (f: typeof emptyForm) => typeof emptyForm) => void;
   categories: DbProductCategory[];
   suppliers: { id: string; name: string }[];
+  attributeSchemas: DbAttributeSchema[];
 }) {
   return (
     <>
