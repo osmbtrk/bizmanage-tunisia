@@ -174,7 +174,7 @@ export default function PosPage() {
     return items.reduce((s, i) => s + (i.unit_price - i.purchase_price) * i.quantity, 0);
   }, [items, isAdmin]);
 
-  // ── Product filtering ──
+  // ── Product filtering (name, description, code, IMEI/serial via searchable custom attributes) ──
   const filteredProducts = useMemo(() => {
     let result = products;
     if (posCategoryFilter !== 'all') {
@@ -182,11 +182,29 @@ export default function PosPage() {
     }
     if (!productSearch.trim()) return result;
     const q = productSearch.toLowerCase();
-    return result.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.description?.toLowerCase().includes(q)
-    );
-  }, [products, productSearch, posCategoryFilter]);
+    return result.filter((p: any) => {
+      if (p.name?.toLowerCase().includes(q)) return true;
+      if (p.description?.toLowerCase().includes(q)) return true;
+      // Search across custom attributes flagged is_searchable in the schema.
+      // Falls back to scanning every custom attribute value so IMEI/serial/SKU
+      // codes typed or scanned in the search bar always match.
+      const attrs = p.custom_attributes as Record<string, any> | null | undefined;
+      if (attrs) {
+        for (const key of Object.keys(attrs)) {
+          const schema = attributeSchemas.find((s: any) => s.field_key === key);
+          if (schema && !schema.is_searchable) continue;
+          const v = attrs[key];
+          if (v == null) continue;
+          if (Array.isArray(v)) {
+            if (v.some(x => String(x).toLowerCase().includes(q))) return true;
+          } else if (String(v).toLowerCase().includes(q)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+  }, [products, productSearch, posCategoryFilter, attributeSchemas]);
 
   // ── Add product to order ──
   const addProductToOrder = useCallback((productId: string) => {
