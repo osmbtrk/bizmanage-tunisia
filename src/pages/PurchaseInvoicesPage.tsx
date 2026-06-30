@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { purchaseInvoicesApi, productsApi, stockMovementsApi, documentsApi, archivesApi, expensesApi } from '@/services/api';
@@ -63,6 +64,17 @@ export default function PurchaseInvoicesPage() {
   const [editingInvoice, setEditingInvoice] = useState<PurchaseInvoice | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [counter, setCounter] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-open create dialog when navigated with ?new=1 (e.g. from Quick Actions)
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setEditingInvoice(null);
+      setDialogOpen(true);
+      searchParams.delete('new');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const loadInvoices = useCallback(async () => {
     if (!companyId) return;

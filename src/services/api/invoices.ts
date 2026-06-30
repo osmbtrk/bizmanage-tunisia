@@ -35,6 +35,24 @@ export async function insertInvoiceItems(items: Omit<DbInvoiceItem, 'id'>[]) {
   return supabase.from('invoice_items').insert(items);
 }
 
+export async function updateInvoiceItem(id: string, data: { quantity: number; total: number }) {
+  return supabase.from('invoice_items').update(data).eq('id', id);
+}
+
+export async function deleteInvoiceItem(id: string) {
+  return supabase.from('invoice_items').delete().eq('id', id);
+}
+
+export async function updateInvoiceTotals(id: string, data: {
+  subtotal: number;
+  tva_total: number;
+  total: number;
+  status?: string;
+  paid_amount?: number;
+}) {
+  return supabase.from('invoices').update(data).eq('id', id);
+}
+
 export async function updateInvoiceStatus(id: string, status: string, paidAmount: number) {
   return supabase.from('invoices').update({ status, paid_amount: paidAmount }).eq('id', id);
 }

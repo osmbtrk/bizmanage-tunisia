@@ -3,7 +3,7 @@ import {
   LayoutDashboard, FileText, Users, Package, Truck,
   Receipt, Menu, X, Settings, LogOut, User, ChevronDown, Plus, ShoppingCart, BarChart3,
   Warehouse, Archive, FolderTree, CreditCard, ArrowLeftRight, Calculator, ChevronRight,
-  RotateCcw, UserCheck
+  RotateCcw, UserCheck, Wallet
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +36,7 @@ const navGroups: NavGroup[] = [
     icon: ShoppingCart,
     items: [
       { to: '/pos', icon: ShoppingCart, label: 'Point de Vente' },
+      { to: '/caisse', icon: Wallet, label: 'Caisse' },
       { to: '/factures', icon: FileText, label: 'Factures' },
       { to: '/devis', icon: FileText, label: 'Devis' },
       { to: '/paiements', icon: CreditCard, label: 'Paiements' },
@@ -276,6 +277,15 @@ export default function AppLayout() {
                   {canAccess('/devis') ? (
                     <DropdownItem key="devis" startContent={<FileText className="h-4 w-4" />} onPress={() => openCreateDialog('devis')}>
                       Nouveau Devis
+                    </DropdownItem>
+                  ) : null}
+                </>
+              </DropdownSection>
+              <DropdownSection showDivider title="Achats">
+                <>
+                  {canAccess('/factures-fournisseurs') ? (
+                    <DropdownItem key="purchase-invoice" startContent={<Truck className="h-4 w-4" />} onPress={() => navigate('/factures-fournisseurs?new=1')}>
+                      Nouvelle Facture Fournisseur
                     </DropdownItem>
                   ) : null}
                 </>

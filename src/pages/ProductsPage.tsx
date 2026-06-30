@@ -295,7 +295,8 @@ export default function ProductsPage() {
   const typeLabels: Record<string, string> = { finished_product: 'Produit fini', raw_material: 'Matière 1ère', service: 'Service' };
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in w-full max-w-full min-w-0 overflow-x-hidden">
+
       <div className="page-header">
         <h1 className="page-title">Produits & Stock</h1>
         <div className="flex flex-wrap gap-2">
@@ -374,6 +375,7 @@ export default function ProductsPage() {
           <p>Aucun produit trouvé</p>
         </div>
       ) : (
+        <div className="w-full overflow-x-auto">
         <Table aria-label="Produits" removeWrapper isStriped>
           <TableHeader>
             <TableColumn>PRODUIT</TableColumn>
@@ -436,6 +438,7 @@ export default function ProductsPage() {
             })}
           </TableBody>
         </Table>
+        </div>
       )}
 
       {/* Edit Product Modal */}
