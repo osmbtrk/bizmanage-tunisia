@@ -12,7 +12,8 @@ import {
   Search, Plus, Minus, Trash2, ShoppingCart, CreditCard,
   AlertTriangle, Percent, Hash, ScanBarcode, X, UserPlus,
 } from 'lucide-react';
-import { clientsApi, productsApi } from '@/services/api';
+import { clientsApi, productsApi, productAttributesApi } from '@/services/api';
+import type { DbAttributeSchema } from '@/services/api/productAttributes';
 import { useToast } from '@/hooks/use-toast';
 import CheckoutDialog from '@/components/pos/CheckoutDialog';
 
@@ -50,6 +51,15 @@ export default function PosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [passagerId, setPassagerId] = useState<string | null>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [attributeSchemas, setAttributeSchemas] = useState<DbAttributeSchema[]>([]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    productAttributesApi.fetchAttributeSchemas(companyId).then(({ data }) => {
+      setAttributeSchemas((data as any) || []);
+    });
+  }, [companyId]);
+
 
   const barcodeRef = useRef<HTMLInputElement>(null);
   const productSearchRef = useRef<HTMLInputElement>(null);
