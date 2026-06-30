@@ -438,6 +438,7 @@ export default function ProductsPage() {
             })}
           </TableBody>
         </Table>
+        </div>
       )}
 
       {/* Edit Product Modal */}
