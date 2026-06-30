@@ -134,14 +134,57 @@ export default function InvoiceReturnDialog({ open, onOpenChange, invoice, onDon
         }
       }
 
-      // Mark invoice as 'returned' if full return
-      if (isFullReturn) {
-        await invoicesApi.updateInvoiceStatus(invoice.id, 'returned', Number(invoice.paid_amount));
+      // ── Recalculate invoice items + totals ──
+      // Build the new item list after subtracting returned quantities.
+      const updatedItems = items.map((it: any, idx: number) => {
+        const s = selected[idx];
+        const removed = s?.checked ? Math.min(s.qty, Number(it.quantity)) : 0;
+        return { ...it, newQty: Number(it.quantity) - removed };
+      });
+
+      for (const it of updatedItems) {
+        if (!it.id) continue;
+        if (it.newQty <= 0) {
+          await invoicesApi.deleteInvoiceItem(it.id);
+        } else if (it.newQty !== Number(it.quantity)) {
+          await invoicesApi.updateInvoiceItem(it.id, {
+            quantity: it.newQty,
+            total: it.newQty * Number(it.unit_price),
+          });
+        }
       }
+
+      const remaining = updatedItems.filter((it: any) => it.newQty > 0);
+      const newSubtotal = remaining.reduce((s: number, it: any) => s + it.newQty * Number(it.unit_price), 0);
+      const newTvaTotal = remaining.reduce((s: number, it: any) => s + (it.newQty * Number(it.unit_price) * Number(it.tva_rate)) / 100, 0);
+      const newTotal = newSubtotal + newTvaTotal;
+
+      // Keep paid_amount but cap at the new total to keep remaining balance coherent.
+      const currentPaid = Number(invoice.paid_amount) || 0;
+      const newPaid = Math.min(currentPaid, newTotal);
+
+      let newStatus = invoice.status;
+      if (isFullReturn || remaining.length === 0) {
+        newStatus = 'returned';
+      } else if (newPaid >= newTotal && newTotal > 0) {
+        newStatus = 'paid';
+      } else if (newPaid > 0) {
+        newStatus = 'partial';
+      } else {
+        newStatus = 'unpaid';
+      }
+
+      await invoicesApi.updateInvoiceTotals(invoice.id, {
+        subtotal: newSubtotal,
+        tva_total: newTvaTotal,
+        total: newTotal,
+        status: newStatus,
+        paid_amount: newPaid,
+      });
 
       toast({
         title: 'Retour enregistré',
-        description: `Avoir ${creditNum || ''} — ${formatTND(toRefund)}${isFullReturn ? ' (facture marquée retournée)' : ''}`,
+        description: `Avoir ${creditNum || ''} — ${formatTND(toRefund)}. Facture mise à jour: ${formatTND(newTotal)}`,
       });
       onOpenChange(false);
       setSelected({});
