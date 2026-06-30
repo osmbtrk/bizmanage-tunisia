@@ -5,8 +5,8 @@ export type AppRole = 'admin' | 'employee' | 'cashier' | 'accountant';
 const rolePermissions: Record<AppRole, string[]> = {
   admin: ['*'],
   employee: ['*'],
-  cashier: ['/', '/dashboard', '/pos', '/retours'],
-  accountant: ['/', '/dashboard', '/factures', '/devis', '/paiements', '/retours', '/clients', '/depenses', '/taxes', '/declarations', '/archives', '/analytiques', '/factures-fournisseurs', '/fournisseurs'],
+  cashier: ['/', '/dashboard', '/pos', '/retours', '/caisse'],
+  accountant: ['/', '/dashboard', '/factures', '/devis', '/paiements', '/retours', '/clients', '/depenses', '/taxes', '/declarations', '/archives', '/analytiques', '/factures-fournisseurs', '/fournisseurs', '/caisse'],
 };
 
 export function useRoleAccess() {
