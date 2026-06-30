@@ -23,6 +23,7 @@ const REASONS = [
 const formatTND = (n: number) => n.toFixed(3) + ' TND';
 
 interface ItemRow {
+  id?: string;
   product_id: string | null;
   product_name: string;
   quantity: number;
