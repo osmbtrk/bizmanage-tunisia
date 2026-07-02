@@ -284,7 +284,7 @@ export default function AppLayout() {
               <DropdownSection showDivider title="Achats">
                 <>
                   {canAccess('/factures-fournisseurs') ? (
-                    <DropdownItem key="purchase-invoice" startContent={<Truck className="h-4 w-4" />} onPress={() => navigate('/factures-fournisseurs?new=1')}>
+                    <DropdownItem key="purchase-invoice" startContent={<Truck className="h-4 w-4" />} onPress={() => openCreateDialog('purchase-invoice')}>
                       Nouvelle Facture Fournisseur
                     </DropdownItem>
                   ) : null}
