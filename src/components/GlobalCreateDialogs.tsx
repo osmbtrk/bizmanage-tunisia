@@ -11,10 +11,13 @@ import {
   Checkbox,
 } from '@heroui/react';
 import { useData, type DocumentType } from '@/contexts/DataContext';
-import { Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { productsApi, stockMovementsApi } from '@/services/api';
+import { PurchaseInvoiceForm } from '@/pages/PurchaseInvoicesPage';
 
-export type GlobalDialogType = 'facture' | 'devis' | 'client' | 'product' | null;
+export type GlobalDialogType = 'facture' | 'devis' | 'client' | 'product' | 'purchase-invoice' | null;
 
 interface GlobalCreateDialogsProps {
   openDialog: GlobalDialogType;
