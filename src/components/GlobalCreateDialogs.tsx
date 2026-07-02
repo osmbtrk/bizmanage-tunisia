@@ -351,6 +351,44 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
         </div>
       )}
 
+      {shortages.length > 0 && (
+        <div className="border border-warning-300 bg-warning-50 dark:bg-warning-100/10 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-warning-700 dark:text-warning-400">
+            <AlertTriangle className="h-4 w-4" />
+            Stock insuffisant — réapprovisionnez sans quitter la facture
+          </div>
+          {shortages.map(s => (
+            <div key={s.product_id} className="flex flex-wrap items-end gap-2">
+              <div className="flex-1 min-w-[160px] text-xs">
+                <div className="font-medium truncate">{s.name}</div>
+                <div className="text-muted-foreground">Dispo: {s.stock} · Demandé: {s.requested} · Manque: <span className="text-destructive font-medium">{s.requested - s.stock}</span></div>
+              </div>
+              <Input
+                aria-label={`Ajouter au stock ${s.name}`}
+                size="sm"
+                variant="bordered"
+                type="number"
+                min={1}
+                className="w-24"
+                placeholder={String(s.requested - s.stock)}
+                value={adjustQty[s.product_id] || ''}
+                onChange={e => setAdjustQty(prev => ({ ...prev, [s.product_id]: e.target.value }))}
+              />
+              <Button
+                type="button"
+                size="sm"
+                color="primary"
+                variant="flat"
+                isLoading={adjustingId === s.product_id}
+                onPress={() => adjustStockInline(s.product_id)}
+              >
+                + Ajouter
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <Input label="Notes" value={notes} onChange={e => setNotes(e.target.value)} variant="bordered" />
 
       <Button
