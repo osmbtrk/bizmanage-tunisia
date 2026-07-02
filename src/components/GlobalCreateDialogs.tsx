@@ -107,7 +107,42 @@ export default function GlobalCreateDialogs({ openDialog, onClose }: GlobalCreat
           )}
         </ModalContent>
       </Modal>
+
+      <Modal isDismissable={false}
+        isOpen={openDialog === 'purchase-invoice'}
+        onClose={onClose}
+        size="3xl"
+        scrollBehavior="inside"
+      >
+        <ModalContent>
+          {(close) => (
+            <>
+              <ModalHeader>Nouvelle facture fournisseur</ModalHeader>
+              <ModalBody className="pb-6">
+                <PurchaseInvoiceFormWrapper onClose={close} />
+              </ModalBody>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </>
+  );
+}
+
+/* ── Purchase Invoice wrapper (reuses form from Achats page) ── */
+function PurchaseInvoiceFormWrapper({ onClose }: { onClose: () => void }) {
+  const { companyId, user } = useAuth();
+  const { suppliers, products, company, refresh } = useData();
+  return (
+    <PurchaseInvoiceForm
+      suppliers={suppliers}
+      products={products}
+      companyId={companyId}
+      company={company}
+      userId={user?.id || ''}
+      editingInvoice={null}
+      onDone={() => { refresh(); onClose(); }}
+    />
   );
 }
 
