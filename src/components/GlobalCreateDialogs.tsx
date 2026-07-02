@@ -147,8 +147,11 @@ function PurchaseInvoiceFormWrapper({ onClose }: { onClose: () => void }) {
 }
 
 /* ── Invoice / Devis Form ── */
+type Shortage = { product_id: string; name: string; stock: number; requested: number };
+
 function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClose: () => void }) {
-  const { clients, products, company, addInvoice } = useData();
+  const { clients, products, company, addInvoice, refresh } = useData();
+  const { companyId } = useAuth();
   const [clientId, setClientId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
@@ -157,6 +160,9 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
   const [paymentTerms, setPaymentTerms] = useState(company?.payment_terms || 'Paiement à 30 jours');
   const [submitting, setSubmitting] = useState(false);
   const [markAsPaid, setMarkAsPaid] = useState(false);
+  const [shortages, setShortages] = useState<Shortage[]>([]);
+  const [adjustQty, setAdjustQty] = useState<Record<string, string>>({});
+  const [adjustingId, setAdjustingId] = useState<string | null>(null);
 
   const addItem = () => {
     if (products.length === 0) return;
@@ -191,31 +197,66 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
   const selectedClient = clients.find(c => c.id === clientId);
   const formatDT = (n: number) => n.toFixed(3) + ' TND';
 
+  const computeShortages = (currentProducts: typeof products): Shortage[] =>
+    items
+      .map((item: any) => {
+        const product = currentProducts.find(p => p.id === item.product_id);
+        if (product && item.quantity > product.stock) {
+          return { product_id: product.id, name: product.name, stock: product.stock, requested: item.quantity };
+        }
+        return null;
+      })
+      .filter((v): v is Shortage => v !== null);
+
+  const adjustStockInline = async (productId: string) => {
+    const qtyStr = adjustQty[productId] || '';
+    const qty = Number(qtyStr);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      toast({ title: 'Quantité invalide', variant: 'destructive' });
+      return;
+    }
+    if (!companyId) return;
+    setAdjustingId(productId);
+    try {
+      const product = products.find(p => p.id === productId);
+      const { error } = await productsApi.adjustStock(productId, qty);
+      if (error) throw error;
+      await stockMovementsApi.insertStockMovement({
+        company_id: companyId,
+        product_id: productId,
+        product_name: product?.name || 'Produit',
+        type: 'in',
+        quantity: qty,
+        reason: 'Réapprovisionnement (création facture)',
+      });
+      toast({ title: `Stock ajusté (+${qty})` });
+      setAdjustQty(prev => ({ ...prev, [productId]: '' }));
+      await refresh();
+      // Re-check after refresh next tick — shortages will be recomputed on next submit
+      setShortages(prev => prev.filter(s => s.product_id !== productId));
+    } catch (err: any) {
+      toast({ title: 'Erreur ajustement stock', description: err?.message, variant: 'destructive' });
+    } finally {
+      setAdjustingId(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId || items.length === 0) return;
 
     if (docType === 'facture') {
-      const insufficientItems = items
-        .map((item: any) => {
-          const product = products.find(p => p.id === item.product_id);
-          if (product && item.quantity > product.stock) {
-            return { name: product.name, stock: product.stock, requested: item.quantity };
-          }
-          return null;
-        })
-        .filter(Boolean);
-
-      if (insufficientItems.length > 0) {
+      const found = computeShortages(products);
+      if (found.length > 0) {
+        setShortages(found);
         toast({
           title: 'Stock insuffisant',
-          description: insufficientItems
-            .map((i: any) => `${i.name}: ${i.stock} dispo, ${i.requested} demandé`)
-            .join(' — '),
+          description: 'Réapprovisionnez directement ci-dessous, puis relancez la création.',
           variant: 'destructive',
         });
         return;
       }
+      setShortages([]);
     }
 
     const isPaid = docType === 'facture' && markAsPaid;
