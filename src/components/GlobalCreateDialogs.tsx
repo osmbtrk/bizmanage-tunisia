@@ -11,10 +11,13 @@ import {
   Checkbox,
 } from '@heroui/react';
 import { useData, type DocumentType } from '@/contexts/DataContext';
-import { Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { productsApi, stockMovementsApi } from '@/services/api';
+import { PurchaseInvoiceForm } from '@/pages/PurchaseInvoicesPage';
 
-export type GlobalDialogType = 'facture' | 'devis' | 'client' | 'product' | null;
+export type GlobalDialogType = 'facture' | 'devis' | 'client' | 'product' | 'purchase-invoice' | null;
 
 interface GlobalCreateDialogsProps {
   openDialog: GlobalDialogType;
@@ -104,13 +107,51 @@ export default function GlobalCreateDialogs({ openDialog, onClose }: GlobalCreat
           )}
         </ModalContent>
       </Modal>
+
+      <Modal isDismissable={false}
+        isOpen={openDialog === 'purchase-invoice'}
+        onClose={onClose}
+        size="3xl"
+        scrollBehavior="inside"
+      >
+        <ModalContent>
+          {(close) => (
+            <>
+              <ModalHeader>Nouvelle facture fournisseur</ModalHeader>
+              <ModalBody className="pb-6">
+                <PurchaseInvoiceFormWrapper onClose={close} />
+              </ModalBody>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </>
   );
 }
 
+/* ── Purchase Invoice wrapper (reuses form from Achats page) ── */
+function PurchaseInvoiceFormWrapper({ onClose }: { onClose: () => void }) {
+  const { companyId, user } = useAuth();
+  const { suppliers, products, company, refresh } = useData();
+  return (
+    <PurchaseInvoiceForm
+      suppliers={suppliers}
+      products={products}
+      companyId={companyId}
+      company={company}
+      userId={user?.id || ''}
+      editingInvoice={null}
+      onDone={() => { refresh(); onClose(); }}
+    />
+  );
+}
+
 /* ── Invoice / Devis Form ── */
+type Shortage = { product_id: string; name: string; stock: number; requested: number };
+
 function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClose: () => void }) {
-  const { clients, products, company, addInvoice } = useData();
+  const { clients, products, company, addInvoice, refresh } = useData();
+  const { companyId } = useAuth();
   const [clientId, setClientId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
@@ -119,6 +160,9 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
   const [paymentTerms, setPaymentTerms] = useState(company?.payment_terms || 'Paiement à 30 jours');
   const [submitting, setSubmitting] = useState(false);
   const [markAsPaid, setMarkAsPaid] = useState(false);
+  const [shortages, setShortages] = useState<Shortage[]>([]);
+  const [adjustQty, setAdjustQty] = useState<Record<string, string>>({});
+  const [adjustingId, setAdjustingId] = useState<string | null>(null);
 
   const addItem = () => {
     if (products.length === 0) return;
@@ -153,31 +197,66 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
   const selectedClient = clients.find(c => c.id === clientId);
   const formatDT = (n: number) => n.toFixed(3) + ' TND';
 
+  const computeShortages = (currentProducts: typeof products): Shortage[] =>
+    items
+      .map((item: any) => {
+        const product = currentProducts.find(p => p.id === item.product_id);
+        if (product && item.quantity > product.stock) {
+          return { product_id: product.id, name: product.name, stock: product.stock, requested: item.quantity };
+        }
+        return null;
+      })
+      .filter((v): v is Shortage => v !== null);
+
+  const adjustStockInline = async (productId: string) => {
+    const qtyStr = adjustQty[productId] || '';
+    const qty = Number(qtyStr);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      toast({ title: 'Quantité invalide', variant: 'destructive' });
+      return;
+    }
+    if (!companyId) return;
+    setAdjustingId(productId);
+    try {
+      const product = products.find(p => p.id === productId);
+      const { error } = await productsApi.adjustStock(productId, qty);
+      if (error) throw error;
+      await stockMovementsApi.insertStockMovement({
+        company_id: companyId,
+        product_id: productId,
+        product_name: product?.name || 'Produit',
+        type: 'in',
+        quantity: qty,
+        reason: 'Réapprovisionnement (création facture)',
+      });
+      toast({ title: `Stock ajusté (+${qty})` });
+      setAdjustQty(prev => ({ ...prev, [productId]: '' }));
+      await refresh();
+      // Re-check after refresh next tick — shortages will be recomputed on next submit
+      setShortages(prev => prev.filter(s => s.product_id !== productId));
+    } catch (err: any) {
+      toast({ title: 'Erreur ajustement stock', description: err?.message, variant: 'destructive' });
+    } finally {
+      setAdjustingId(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId || items.length === 0) return;
 
     if (docType === 'facture') {
-      const insufficientItems = items
-        .map((item: any) => {
-          const product = products.find(p => p.id === item.product_id);
-          if (product && item.quantity > product.stock) {
-            return { name: product.name, stock: product.stock, requested: item.quantity };
-          }
-          return null;
-        })
-        .filter(Boolean);
-
-      if (insufficientItems.length > 0) {
+      const found = computeShortages(products);
+      if (found.length > 0) {
+        setShortages(found);
         toast({
           title: 'Stock insuffisant',
-          description: insufficientItems
-            .map((i: any) => `${i.name}: ${i.stock} dispo, ${i.requested} demandé`)
-            .join(' — '),
+          description: 'Réapprovisionnez directement ci-dessous, puis relancez la création.',
           variant: 'destructive',
         });
         return;
       }
+      setShortages([]);
     }
 
     const isPaid = docType === 'facture' && markAsPaid;
@@ -269,6 +348,44 @@ function InvoiceFormGlobal({ docType, onClose }: { docType: DocumentType; onClos
           <Checkbox isSelected={markAsPaid} onValueChange={setMarkAsPaid}>
             Marquer comme payée
           </Checkbox>
+        </div>
+      )}
+
+      {shortages.length > 0 && (
+        <div className="border border-warning-300 bg-warning-50 dark:bg-warning-100/10 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-warning-700 dark:text-warning-400">
+            <AlertTriangle className="h-4 w-4" />
+            Stock insuffisant — réapprovisionnez sans quitter la facture
+          </div>
+          {shortages.map(s => (
+            <div key={s.product_id} className="flex flex-wrap items-end gap-2">
+              <div className="flex-1 min-w-[160px] text-xs">
+                <div className="font-medium truncate">{s.name}</div>
+                <div className="text-muted-foreground">Dispo: {s.stock} · Demandé: {s.requested} · Manque: <span className="text-destructive font-medium">{s.requested - s.stock}</span></div>
+              </div>
+              <Input
+                aria-label={`Ajouter au stock ${s.name}`}
+                size="sm"
+                variant="bordered"
+                type="number"
+                min={1}
+                className="w-24"
+                placeholder={String(s.requested - s.stock)}
+                value={adjustQty[s.product_id] || ''}
+                onChange={e => setAdjustQty(prev => ({ ...prev, [s.product_id]: e.target.value }))}
+              />
+              <Button
+                type="button"
+                size="sm"
+                color="primary"
+                variant="flat"
+                isLoading={adjustingId === s.product_id}
+                onPress={() => adjustStockInline(s.product_id)}
+              >
+                + Ajouter
+              </Button>
+            </div>
+          ))}
         </div>
       )}
 
