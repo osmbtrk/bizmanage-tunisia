@@ -328,7 +328,7 @@ function PurchaseInvoiceView({ invoice }: { invoice: PurchaseInvoice }) {
 }
 
 /* ── Form Component ── */
-function PurchaseInvoiceForm({
+export function PurchaseInvoiceForm({
   suppliers,
   products,
   companyId,
