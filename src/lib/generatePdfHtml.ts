@@ -89,9 +89,9 @@ export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyDa
 <body>
   <div class="header">
     <div>
-      <div class="doc-type">${label}</div>
-      <div class="doc-number">N° ${invoice.number}</div>
-      <div class="doc-date">Date: ${new Date(invoice.date).toLocaleDateString('fr-TN')}</div>
+      <div class="doc-type">${e(label)}</div>
+      <div class="doc-number">N° ${e(invoice.number)}</div>
+      <div class="doc-date">Date: ${e(new Date(invoice.date).toLocaleDateString('fr-TN'))}</div>
     </div>
     ${sellerHtml}
   </div>
