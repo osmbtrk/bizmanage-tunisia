@@ -131,8 +131,8 @@ export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyDa
     <div class="row grand"><span>Total TTC</span><span>${formatDT(invoice.total)}</span></div>
   </div>
 
-  ${invoice.payment_terms ? `<div class="payment-terms"><strong>Conditions de paiement:</strong> ${invoice.payment_terms}</div>` : ''}
-  ${invoice.notes ? `<div class="notes"><strong>Notes:</strong> ${invoice.notes}</div>` : ''}
+  ${invoice.payment_terms ? `<div class="payment-terms"><strong>Conditions de paiement:</strong> ${e(invoice.payment_terms)}</div>` : ''}
+  ${invoice.notes ? `<div class="notes"><strong>Notes:</strong> ${e(invoice.notes)}</div>` : ''}
 
   <div class="signature">
     <div class="signature-box">Cachet et signature du vendeur</div>
