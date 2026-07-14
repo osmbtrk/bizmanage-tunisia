@@ -99,7 +99,7 @@ export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyDa
   <div class="parties">
     <div class="party">
       <div class="party-label">Client</div>
-      <div style="font-size:15px;font-weight:600;">${invoice.clientName}</div>
+      <div style="font-size:15px;font-weight:600;">${e(invoice.clientName)}</div>
     </div>
   </div>
 
