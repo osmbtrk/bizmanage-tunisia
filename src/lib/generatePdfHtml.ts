@@ -58,7 +58,7 @@ export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyDa
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>${label} ${invoice.number}</title>
+<title>${e(label)} ${e(invoice.number)}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a2332; padding: 40px; font-size: 13px; }
