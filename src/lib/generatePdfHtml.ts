@@ -28,18 +28,29 @@ export interface PdfCompanyData {
   code_tva?: string | null;
 }
 
+const escapeHtml = (val: unknown): string => {
+  if (val === null || val === undefined) return '';
+  return String(val)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
 export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyData | null): string {
   const formatDT = (n: number) => Number(n).toFixed(3) + ' TND';
   const label = DOC_LABELS[invoice.type] || 'DOCUMENT';
+  const e = escapeHtml;
 
   const sellerHtml = company ? `
     <div>
-      <div style="font-size:14px;font-weight:700;">${company.name || ''}</div>
-      ${company.matricule_fiscal ? `<div style="font-size:12px;color:#555;">MF: ${company.matricule_fiscal}</div>` : ''}
-      ${company.code_tva ? `<div style="font-size:12px;color:#555;">Code TVA: ${company.code_tva}</div>` : ''}
-      ${company.address ? `<div style="font-size:12px;color:#555;">${company.address}</div>` : ''}
-      ${company.phone ? `<div style="font-size:12px;color:#555;">Tél: ${company.phone}</div>` : ''}
-      ${company.email ? `<div style="font-size:12px;color:#555;">${company.email}</div>` : ''}
+      <div style="font-size:14px;font-weight:700;">${e(company.name || '')}</div>
+      ${company.matricule_fiscal ? `<div style="font-size:12px;color:#555;">MF: ${e(company.matricule_fiscal)}</div>` : ''}
+      ${company.code_tva ? `<div style="font-size:12px;color:#555;">Code TVA: ${e(company.code_tva)}</div>` : ''}
+      ${company.address ? `<div style="font-size:12px;color:#555;">${e(company.address)}</div>` : ''}
+      ${company.phone ? `<div style="font-size:12px;color:#555;">Tél: ${e(company.phone)}</div>` : ''}
+      ${company.email ? `<div style="font-size:12px;color:#555;">${e(company.email)}</div>` : ''}
     </div>
   ` : '';
 
