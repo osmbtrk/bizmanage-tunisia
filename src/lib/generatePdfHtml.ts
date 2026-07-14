@@ -116,10 +116,10 @@ export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyDa
     <tbody>
       ${invoice.items.map(item => `
       <tr>
-        <td>${item.product_name}</td>
-        <td>${item.quantity}</td>
+        <td>${e(item.product_name)}</td>
+        <td>${e(item.quantity)}</td>
         <td>${formatDT(item.unit_price)}</td>
-        <td>${item.tva_rate}%</td>
+        <td>${e(item.tva_rate)}%</td>
         <td>${formatDT(item.quantity * item.unit_price)}</td>
       </tr>`).join('')}
     </tbody>
