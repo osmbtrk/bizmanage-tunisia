@@ -28,18 +28,29 @@ export interface PdfCompanyData {
   code_tva?: string | null;
 }
 
+const escapeHtml = (val: unknown): string => {
+  if (val === null || val === undefined) return '';
+  return String(val)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
 export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyData | null): string {
   const formatDT = (n: number) => Number(n).toFixed(3) + ' TND';
   const label = DOC_LABELS[invoice.type] || 'DOCUMENT';
+  const e = escapeHtml;
 
   const sellerHtml = company ? `
     <div>
-      <div style="font-size:14px;font-weight:700;">${company.name || ''}</div>
-      ${company.matricule_fiscal ? `<div style="font-size:12px;color:#555;">MF: ${company.matricule_fiscal}</div>` : ''}
-      ${company.code_tva ? `<div style="font-size:12px;color:#555;">Code TVA: ${company.code_tva}</div>` : ''}
-      ${company.address ? `<div style="font-size:12px;color:#555;">${company.address}</div>` : ''}
-      ${company.phone ? `<div style="font-size:12px;color:#555;">Tél: ${company.phone}</div>` : ''}
-      ${company.email ? `<div style="font-size:12px;color:#555;">${company.email}</div>` : ''}
+      <div style="font-size:14px;font-weight:700;">${e(company.name || '')}</div>
+      ${company.matricule_fiscal ? `<div style="font-size:12px;color:#555;">MF: ${e(company.matricule_fiscal)}</div>` : ''}
+      ${company.code_tva ? `<div style="font-size:12px;color:#555;">Code TVA: ${e(company.code_tva)}</div>` : ''}
+      ${company.address ? `<div style="font-size:12px;color:#555;">${e(company.address)}</div>` : ''}
+      ${company.phone ? `<div style="font-size:12px;color:#555;">Tél: ${e(company.phone)}</div>` : ''}
+      ${company.email ? `<div style="font-size:12px;color:#555;">${e(company.email)}</div>` : ''}
     </div>
   ` : '';
 
@@ -47,7 +58,7 @@ export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyDa
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>${label} ${invoice.number}</title>
+<title>${e(label)} ${e(invoice.number)}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a2332; padding: 40px; font-size: 13px; }
@@ -78,9 +89,9 @@ export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyDa
 <body>
   <div class="header">
     <div>
-      <div class="doc-type">${label}</div>
-      <div class="doc-number">N° ${invoice.number}</div>
-      <div class="doc-date">Date: ${new Date(invoice.date).toLocaleDateString('fr-TN')}</div>
+      <div class="doc-type">${e(label)}</div>
+      <div class="doc-number">N° ${e(invoice.number)}</div>
+      <div class="doc-date">Date: ${e(new Date(invoice.date).toLocaleDateString('fr-TN'))}</div>
     </div>
     ${sellerHtml}
   </div>
@@ -88,7 +99,7 @@ export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyDa
   <div class="parties">
     <div class="party">
       <div class="party-label">Client</div>
-      <div style="font-size:15px;font-weight:600;">${invoice.clientName}</div>
+      <div style="font-size:15px;font-weight:600;">${e(invoice.clientName)}</div>
     </div>
   </div>
 
@@ -105,10 +116,10 @@ export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyDa
     <tbody>
       ${invoice.items.map(item => `
       <tr>
-        <td>${item.product_name}</td>
-        <td>${item.quantity}</td>
+        <td>${e(item.product_name)}</td>
+        <td>${e(item.quantity)}</td>
         <td>${formatDT(item.unit_price)}</td>
-        <td>${item.tva_rate}%</td>
+        <td>${e(item.tva_rate)}%</td>
         <td>${formatDT(item.quantity * item.unit_price)}</td>
       </tr>`).join('')}
     </tbody>
@@ -120,8 +131,8 @@ export function buildInvoiceHtml(invoice: PdfInvoiceData, company?: PdfCompanyDa
     <div class="row grand"><span>Total TTC</span><span>${formatDT(invoice.total)}</span></div>
   </div>
 
-  ${invoice.payment_terms ? `<div class="payment-terms"><strong>Conditions de paiement:</strong> ${invoice.payment_terms}</div>` : ''}
-  ${invoice.notes ? `<div class="notes"><strong>Notes:</strong> ${invoice.notes}</div>` : ''}
+  ${invoice.payment_terms ? `<div class="payment-terms"><strong>Conditions de paiement:</strong> ${e(invoice.payment_terms)}</div>` : ''}
+  ${invoice.notes ? `<div class="notes"><strong>Notes:</strong> ${e(invoice.notes)}</div>` : ''}
 
   <div class="signature">
     <div class="signature-box">Cachet et signature du vendeur</div>

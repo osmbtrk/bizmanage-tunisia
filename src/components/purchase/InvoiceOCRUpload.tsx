@@ -45,11 +45,18 @@ export default function InvoiceOCRUpload({ onExtracted }: InvoiceOCRUploadProps)
       const formData = new FormData();
       formData.append('file', file);
 
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        throw new Error('Vous devez être connecté pour scanner une facture.');
+      }
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-invoice`;
       const resp = await fetch(url, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${accessToken}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: formData,
       });
